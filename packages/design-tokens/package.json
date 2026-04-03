@@ -1,0 +1,9 @@
+{
+  "name": "@natural-intelligence/design-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./tokens.js",
+  "exports": {
+    ".": "./tokens.js"
+  }
+}

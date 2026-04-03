@@ -12,12 +12,14 @@
   },
   "dependencies": {
     "@natural-intelligence/db": "workspace:*",
+    "@natural-intelligence/design-tokens": "workspace:*",
     "@natural-intelligence/ui": "workspace:*",
     "@supabase/ssr": "^0.5",
     "@supabase/supabase-js": "^2",
     "next": "14.2.29",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "resend": "^3"
   },
   "devDependencies": {
     "@types/node": "^20",

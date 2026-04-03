@@ -1,53 +1,84 @@
-import { createServerSupabaseClient } from '@natural-intelligence/db'
-import { adminLogout } from '@/app/actions/auth'
 import { redirect } from 'next/navigation'
+import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import { copy } from '@/lib/copy'
 
 export default async function AdminDashboardPage() {
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) redirect('/login')
 
-  // Server-side role check — non-admins are blocked here regardless of session
-  const { data: profile } = await supabase
+  const adminClient = createAdminClient()
+  const { data: profile } = await adminClient
     .from('profiles')
-    .select('full_name, role')
+    .select('role')
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.role !== 'admin') {
+  if (profile?.role !== 'admin') {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-surface-base">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-400 mb-2">Access Denied</h1>
-          <p className="text-gray-400 text-sm">Your account does not have admin privileges.</p>
-          <form action={adminLogout} className="mt-6">
-            <button type="submit" className="text-sm text-gray-500 hover:text-gray-300">
-              Sign out
-            </button>
-          </form>
+          <h1 className="text-2xl font-semibold text-text-primary">403</h1>
+          <p className="text-text-secondary mt-2">{copy.shared.accessDenied ?? 'Access denied'}</p>
         </div>
-      </main>
+      </div>
     )
   }
 
+  const [
+    { count: pendingApplications },
+    { count: newSupportRequests },
+    { count: totalMembers },
+    { count: publishedWorkshops },
+    { count: publishedResources },
+  ] = await Promise.all([
+    adminClient
+      .from('practitioner_applications')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending'),
+    adminClient
+      .from('support_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'new'),
+    adminClient
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'member'),
+    adminClient
+      .from('events')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'published'),
+    adminClient
+      .from('resources')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'published'),
+  ])
+
+  const metrics = [
+    { label: copy.dashboard.metrics.pendingApplications, count: pendingApplications ?? 0, href: '/applications' },
+    { label: copy.dashboard.metrics.newSupportRequests,  count: newSupportRequests ?? 0,  href: '/support' },
+    { label: copy.dashboard.metrics.totalMembers,        count: totalMembers ?? 0,        href: '/members' },
+    { label: copy.dashboard.metrics.publishedWorkshops,  count: publishedWorkshops ?? 0,  href: '/workshops' },
+    { label: copy.dashboard.metrics.publishedResources,  count: publishedResources ?? 0,  href: '/resources' },
+  ]
+
   return (
-    <main className="min-h-screen bg-gray-900">
-      <nav className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
-        <span className="font-semibold text-white">NI Admin</span>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-400">{profile.full_name || user.email}</span>
-          <form action={adminLogout}>
-            <button type="submit" className="text-sm text-gray-500 hover:text-gray-300">
-              Sign out
-            </button>
-          </form>
-        </div>
-      </nav>
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        <h1 className="text-2xl font-bold text-white mb-2">Admin Dashboard</h1>
-        <p className="text-gray-400">Signed in as <span className="text-green-400">{user.email}</span></p>
+    <div>
+      <div className="px-8 py-6 border-b border-border-default bg-surface-raised">
+        <h1 className="text-2xl font-semibold text-text-primary">{copy.dashboard.heading}</h1>
       </div>
-    </main>
+
+      <div className="px-8 py-8">
+        <div className="grid grid-cols-3 gap-6">
+          {metrics.map(({ label, count, href }) => (
+            <a key={label} href={href} className="block rounded-xl border border-border-default bg-surface-raised p-6 shadow-sm hover:shadow-md transition-shadow">
+              <p className="text-sm font-medium text-text-secondary">{label}</p>
+              <p className="text-4xl font-bold text-text-primary mt-2">{count}</p>
+              <div className="mt-4 h-0.5 bg-brand-default rounded-full" />
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }

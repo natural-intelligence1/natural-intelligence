@@ -12,7 +12,7 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+    redirect(`/auth/login?error=${encodeURIComponent(error.message)}`)
   }
 
   redirect('/dashboard')
@@ -32,14 +32,14 @@ export async function signup(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/signup?error=${encodeURIComponent(error.message)}`)
+    redirect(`/auth/signup?error=${encodeURIComponent(error.message)}`)
   }
 
-  redirect('/login?message=Check+your+email+to+confirm+your+account')
+  redirect('/dashboard')
 }
 
 export async function logout() {
   const supabase = createServerSupabaseClient()
   await supabase.auth.signOut()
-  redirect('/login')
+  redirect('/auth/login')
 }
