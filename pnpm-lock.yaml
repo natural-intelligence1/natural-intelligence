@@ -23,6 +23,12 @@ importers:
       '@natural-intelligence/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@supabase/ssr':
+        specifier: ^0.5
+        version: 0.5.2(@supabase/supabase-js@2.101.1)
+      '@supabase/supabase-js':
+        specifier: ^2
+        version: 2.101.1
       next:
         specifier: 14.2.29
         version: 14.2.29(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -69,6 +75,12 @@ importers:
       '@natural-intelligence/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@supabase/ssr':
+        specifier: ^0.5
+        version: 0.5.2(@supabase/supabase-js@2.101.1)
+      '@supabase/supabase-js':
+        specifier: ^2
+        version: 2.101.1
       next:
         specifier: 14.2.29
         version: 14.2.29(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
