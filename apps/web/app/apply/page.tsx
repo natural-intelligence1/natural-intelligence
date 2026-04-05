@@ -323,7 +323,7 @@ export default function ApplyPage() {
   if (authState.status === 'loading') {
     return (
       <div className="py-24 px-4 max-w-2xl mx-auto text-center">
-        <p className="text-text-muted text-sm">{copy.shared.loading ?? 'Loading…'}</p>
+        <p className="text-text-muted text-sm">{copy.directory.loading}</p>
       </div>
     )
   }
