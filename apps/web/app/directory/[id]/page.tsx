@@ -117,7 +117,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
   const profile       = (p as any).profiles
   const name          = profile?.full_name ?? 'Practitioner'
   const location      = [p.city, p.country].filter(Boolean).join(', ')
-  const areas         = (p.area_tags?.length > 0 ? p.area_tags : []) as string[]
+  const areas         = ((p.area_tags?.length ?? 0) > 0 ? p.area_tags : []) as string[]
   const deliveryLabel = DELIVERY_MODES.find((d) => d.value === p.delivery_mode)?.label
 
   // Upcoming events hosted by this practitioner
@@ -230,7 +230,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
           )}
 
           {/* Professions */}
-          {(p.primary_professions as string[] | null)?.length > 0 && (
+          {((p.primary_professions as string[] | null)?.length ?? 0) > 0 && (
             <section>
               <SectionHeading>{copy.directory.profile.professions}</SectionHeading>
               <div className="flex flex-wrap gap-2">
@@ -250,7 +250,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
           )}
 
           {/* Client groups */}
-          {(p.client_types as string[] | null)?.length > 0 && (
+          {((p.client_types as string[] | null)?.length ?? 0) > 0 && (
             <section>
               <SectionHeading>{copy.directory.profile.clientTypes}</SectionHeading>
               <div className="flex flex-wrap gap-2">
@@ -260,7 +260,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
           )}
 
           {/* Credentials */}
-          {(p.credentials as string[] | null)?.length > 0 && (
+          {((p.credentials as string[] | null)?.length ?? 0) > 0 && (
             <section>
               <SectionHeading>{copy.practitionerProfile.sections.credentials}</SectionHeading>
               <ul className="space-y-1.5">
@@ -275,7 +275,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
           )}
 
           {/* Collaboration */}
-          {p.open_to_collaboration && (p.collaboration_types as string[] | null)?.length > 0 && (
+          {p.open_to_collaboration && ((p.collaboration_types as string[] | null)?.length ?? 0) > 0 && (
             <section>
               <SectionHeading>{copy.directory.profile.collaboration}</SectionHeading>
               <div className="flex flex-wrap gap-2">
