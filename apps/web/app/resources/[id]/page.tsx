@@ -20,7 +20,16 @@ export default async function ResourceDetailPage({ params }: ResourceDetailPageP
 
   const { data: resource } = await supabase
     .from('resources')
-    .select('*, profiles!resources_author_id_fkey(full_name)')
+    .select(`
+      id,
+      title,
+      description,
+      body,
+      resource_type,
+      topic_tags,
+      published_at,
+      profiles!resources_author_id_fkey(full_name)
+    `)
     .eq('id', params.id)
     .eq('status', 'published')
     .single()

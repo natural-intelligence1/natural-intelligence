@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 import { copy } from '@/lib/copy'
 import SupportDetailClient from './SupportDetailClient'
+import ReferralMatchPanel from './ReferralMatchPanel'
 
 const statusColors: Record<string, string> = {
   new:       'bg-status-warningBg text-status-warningText',
@@ -32,9 +33,10 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 
 interface Props {
   params: { id: string }
+  searchParams: Record<string, string | undefined>
 }
 
-export default async function SupportDetailPage({ params }: Props) {
+export default async function SupportDetailPage({ params, searchParams }: Props) {
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -51,7 +53,7 @@ export default async function SupportDetailPage({ params }: Props) {
       <div className="min-h-screen flex items-center justify-center bg-surface-base">
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-text-primary">403</h1>
-          <p className="text-text-secondary mt-2">{copy.shared.accessDenied ?? 'Access denied'}</p>
+          <p className="text-text-secondary mt-2">{copy.shared.accessDenied}</p>
         </div>
       </div>
     )
@@ -67,9 +69,13 @@ export default async function SupportDetailPage({ params }: Props) {
 
   const fields = copy.support.detail.fields
 
+  const isReferralType = req.request_type === 'referral'
+    || req.request_type === 'charity_referral'
+    || req.request_type === 'practitioner_match'
+
   return (
     <div>
-      <div className="px-8 py-6 border-b border-border-default bg-surface-raised flex items-center gap-4">
+      <div className="px-8 py-6 border-b border-border-default bg-surface-raised flex items-center gap-4 flex-wrap">
         <Link href="/support" className="text-text-secondary hover:text-text-primary text-sm">
           {copy.shared.back}
         </Link>
@@ -83,15 +89,16 @@ export default async function SupportDetailPage({ params }: Props) {
         </span>
       </div>
 
-      <div className="px-8 py-6 max-w-4xl space-y-6">
+      <div className="px-8 py-6 max-w-5xl space-y-6">
+        {/* Request details */}
         <section className="rounded-xl border border-border-default bg-surface-raised p-6 shadow-sm">
           <dl className="grid grid-cols-2 gap-4">
-            <Field label={fields.fullName} value={req.full_name} />
-            <Field label={fields.email} value={req.email} />
-            <Field label={fields.phone} value={req.phone} />
+            <Field label={fields.fullName}    value={req.full_name} />
+            <Field label={fields.email}       value={req.email} />
+            <Field label={fields.phone}       value={req.phone} />
             <Field label={fields.requestType} value={copy.support.requestTypes[req.request_type as keyof typeof copy.support.requestTypes] ?? req.request_type} />
-            <Field label={fields.urgency} value={copy.support.urgency[req.urgency as keyof typeof copy.support.urgency] ?? req.urgency} />
-            <Field label={fields.status} value={copy.support.statuses[req.status as keyof typeof copy.support.statuses] ?? req.status} />
+            <Field label={fields.urgency}     value={copy.support.urgency[req.urgency as keyof typeof copy.support.urgency] ?? req.urgency} />
+            <Field label={fields.status}      value={copy.support.statuses[req.status as keyof typeof copy.support.statuses] ?? req.status} />
             <div className="col-span-2">
               <dt className="text-xs font-medium text-text-muted uppercase tracking-wider">{fields.description}</dt>
               <dd className="mt-1 text-sm text-text-primary whitespace-pre-line">{req.description ?? '—'}</dd>
@@ -99,6 +106,7 @@ export default async function SupportDetailPage({ params }: Props) {
           </dl>
         </section>
 
+        {/* Actions */}
         <section className="rounded-xl border border-border-default bg-surface-raised p-6 shadow-sm">
           <h2 className="text-base font-semibold text-text-primary mb-4">{copy.shared.actions}</h2>
           <SupportDetailClient
@@ -107,6 +115,11 @@ export default async function SupportDetailPage({ params }: Props) {
             currentStatus={req.status}
           />
         </section>
+
+        {/* Referral matching panel — only for referral-type requests */}
+        {isReferralType && (
+          <ReferralMatchPanel searchParams={searchParams} />
+        )}
       </div>
     </div>
   )

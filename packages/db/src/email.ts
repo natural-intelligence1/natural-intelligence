@@ -109,7 +109,6 @@ export function applicationDecisionEmail(data: {
   to:       string
   fullName: string
   decision: 'approved' | 'rejected'
-  notes?:   string
 }): EmailPayload {
   if (data.decision === 'approved') {
     return {
@@ -136,10 +135,7 @@ export function applicationDecisionEmail(data: {
       '',
       'Thank you for your interest in joining Natural Intelligence.',
       '',
-      'After careful review, we are unable to approve your application at this time.',
-      ...(data.notes ? ['', `Feedback: ${data.notes}`] : []),
-      '',
-      'You are welcome to reapply in the future if your circumstances change.',
+      'After careful review, we are not able to move your application forward at this time.',
       '',
       'The Natural Intelligence team',
     ].join('\n'),

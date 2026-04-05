@@ -19,7 +19,16 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
 
   let query = supabase
     .from('resources')
-    .select('*, profiles!resources_author_id_fkey(full_name)')
+    .select(`
+      id,
+      title,
+      description,
+      body,
+      resource_type,
+      topic_tags,
+      published_at,
+      profiles!resources_author_id_fkey(full_name)
+    `)
     .eq('status', 'published')
     .order('published_at', { ascending: false })
 

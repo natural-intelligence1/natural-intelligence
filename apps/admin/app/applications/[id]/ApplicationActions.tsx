@@ -2,28 +2,30 @@
 
 import { useState } from 'react'
 import { copy } from '@/lib/copy'
-import { approveApplication, rejectApplication, markReviewing } from './actions'
+import { approveApplication, rejectApplication, markUnderReview } from './actions'
 
 interface Props {
   applicationId: string
-  initialNotes: string | null
+  initialNotes:  string | null
   currentStatus: string
 }
 
 export default function ApplicationActions({ applicationId, initialNotes, currentStatus }: Props) {
-  const [notes, setNotes] = useState(initialNotes ?? '')
+  const [notes,   setNotes]   = useState(initialNotes ?? '')
   const [loading, setLoading] = useState(false)
 
-  async function handle(action: 'approve' | 'reject' | 'reviewing') {
+  async function handle(action: 'approve' | 'reject' | 'under_review') {
     setLoading(true)
     try {
-      if (action === 'approve') await approveApplication(applicationId, notes)
-      else if (action === 'reject') await rejectApplication(applicationId, notes)
-      else await markReviewing(applicationId)
+      if (action === 'approve')      await approveApplication(applicationId, notes)
+      else if (action === 'reject')  await rejectApplication(applicationId, notes)
+      else                           await markUnderReview(applicationId)
     } finally {
       setLoading(false)
     }
   }
+
+  const isFinal = currentStatus === 'approved' || currentStatus === 'rejected'
 
   return (
     <div className="space-y-4">
@@ -39,8 +41,8 @@ export default function ApplicationActions({ applicationId, initialNotes, curren
           className="w-full px-3 py-2 rounded-lg border border-border-default bg-surface-raised text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-transparent resize-none"
         />
       </div>
-      <div className="flex gap-3 flex-wrap">
-        {currentStatus !== 'approved' && (
+      {!isFinal && (
+        <div className="flex gap-3 flex-wrap">
           <button
             disabled={loading}
             onClick={() => handle('approve')}
@@ -48,26 +50,29 @@ export default function ApplicationActions({ applicationId, initialNotes, curren
           >
             {copy.applications.detail.actions.approve}
           </button>
-        )}
-        {currentStatus !== 'reviewing' && (
-          <button
-            disabled={loading}
-            onClick={() => handle('reviewing')}
-            className="px-4 py-2 rounded-lg border border-border-default hover:bg-surface-muted text-text-primary text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {copy.applications.detail.actions.reviewing}
-          </button>
-        )}
-        {currentStatus !== 'rejected' && (
+          {currentStatus !== 'under_review' && currentStatus !== 'reviewing' && (
+            <button
+              disabled={loading}
+              onClick={() => handle('under_review')}
+              className="px-4 py-2 rounded-lg border border-border-default hover:bg-surface-muted text-text-primary text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {copy.applications.detail.actions.reviewing}
+            </button>
+          )}
           <button
             disabled={loading}
             onClick={() => handle('reject')}
-            className="px-4 py-2 rounded-lg bg-status-errorBg hover:bg-status-errorBorder text-status-errorText text-sm font-medium transition-colors disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-status-errorBg text-status-errorText border border-status-errorBorder text-sm font-medium transition-colors disabled:opacity-50"
           >
             {copy.applications.detail.actions.reject}
           </button>
-        )}
-      </div>
+        </div>
+      )}
+      {isFinal && (
+        <p className="text-sm text-text-muted">
+          This application has been {currentStatus}. No further actions are available.
+        </p>
+      )}
     </div>
   )
 }

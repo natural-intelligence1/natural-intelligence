@@ -34,9 +34,23 @@ export default async function WorkshopsPage({ searchParams }: WorkshopsPageProps
   const { data: { user } } = await supabase.auth.getUser()
 
   const now = new Date().toISOString()
+  // meeting_url is intentionally excluded — it must not reach unauthenticated users.
+  // Registered attendees receive it separately via email/dashboard (future feature).
   let query = supabase
     .from('events')
-    .select('*, profiles!events_hosted_by_fkey(full_name, id)')
+    .select(`
+      id,
+      title,
+      description,
+      event_type,
+      starts_at,
+      ends_at,
+      location,
+      is_online,
+      max_capacity,
+      status,
+      profiles!events_hosted_by_fkey(full_name)
+    `)
     .eq('status', 'published')
     .gt('starts_at', now)
     .order('starts_at', { ascending: true })

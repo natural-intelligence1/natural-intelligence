@@ -2,30 +2,86 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, createServerSupabaseClient } from '@natural-intelligence/db'
 import { sendEmail, supportRequestEmail } from '../../../../../packages/db/src/email'
 
+// ─── Validation constants ─────────────────────────────────────────────────────
+
+const VALID_REQUEST_TYPES = ['general', 'referral', 'charity_referral', 'practitioner_match', 'other'] as const
+const VALID_URGENCY       = ['low', 'normal', 'high'] as const
+
+const MAX_FULL_NAME   = 120
+const MAX_EMAIL       = 254  // RFC 5321 max
+const MAX_PHONE       = 30
+const MAX_DESCRIPTION = 3000
+const EMAIL_RE        = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// ─── Route ────────────────────────────────────────────────────────────────────
+
+// Unauthenticated support submission is an intentional product decision for Phase 1.
+// Non-members (potential clients, referral sources, general public) must be able to
+// submit without creating an account. The admin client is used server-side so that
+// no RLS policy is required for the insert; all field values are server-validated
+// below before writing to the database.
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { full_name, email, phone, request_type, description, urgency } = body
 
+    // ── Required field presence ──────────────────────────────────────────────
     if (!full_name || !email || !request_type || !description) {
       return NextResponse.json({ error: 'Required fields missing' }, { status: 400 })
     }
 
-    // Get authenticated user if any
+    // ── Type guard (all must be strings at this point) ───────────────────────
+    if (
+      typeof full_name    !== 'string' ||
+      typeof email        !== 'string' ||
+      typeof description  !== 'string' ||
+      typeof request_type !== 'string'
+    ) {
+      return NextResponse.json({ error: 'Invalid field types' }, { status: 400 })
+    }
+
+    // ── Length caps ──────────────────────────────────────────────────────────
+    if (full_name.trim().length    > MAX_FULL_NAME)   return NextResponse.json({ error: `Full name must be ${MAX_FULL_NAME} characters or fewer` },   { status: 400 })
+    if (email.trim().length        > MAX_EMAIL)        return NextResponse.json({ error: `Email address is too long` },                                  { status: 400 })
+    if (description.trim().length  > MAX_DESCRIPTION)  return NextResponse.json({ error: `Description must be ${MAX_DESCRIPTION} characters or fewer` }, { status: 400 })
+    if (phone && typeof phone === 'string' && phone.trim().length > MAX_PHONE) {
+      return NextResponse.json({ error: `Phone number must be ${MAX_PHONE} characters or fewer` }, { status: 400 })
+    }
+
+    // ── Email format ─────────────────────────────────────────────────────────
+    if (!EMAIL_RE.test(email.trim())) {
+      return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
+    }
+
+    // ── Enum whitelist ───────────────────────────────────────────────────────
+    if (!(VALID_REQUEST_TYPES as readonly string[]).includes(request_type)) {
+      return NextResponse.json({ error: 'Invalid request type' }, { status: 400 })
+    }
+
+    const resolvedUrgency = (VALID_URGENCY as readonly string[]).includes(urgency) ? urgency : 'normal'
+
+    // ── Minimum content check ────────────────────────────────────────────────
+    if (description.trim().length < 20) {
+      return NextResponse.json({ error: 'Please provide more detail in your description' }, { status: 400 })
+    }
+
+    // ── Get authenticated user if any (non-fatal — submission is open) ───────
     const supabaseUser = createServerSupabaseClient()
     const { data: { user } } = await supabaseUser.auth.getUser()
 
+    // ── Insert via admin client (service role — bypasses RLS by design) ──────
     const supabase = createAdminClient()
 
     const { error } = await supabase.from('support_requests').insert({
-      member_id: user?.id ?? null,
-      full_name,
-      email,
-      phone: phone || null,
+      member_id:    user?.id ?? null,
+      full_name:    full_name.trim(),
+      email:        email.trim().toLowerCase(),
+      phone:        phone?.trim() || null,
       request_type,
-      description,
-      urgency: urgency || 'normal',
-      status: 'new',
+      description:  description.trim(),
+      urgency:      resolvedUrgency,
+      status:       'new',
       submitted_at: new Date().toISOString(),
     })
 
@@ -33,16 +89,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Send notification email (non-fatal)
+    // ── Notification email (non-fatal) ───────────────────────────────────────
     try {
-      const emailPayload = supportRequestEmail({
-        fullName: full_name,
-        email,
+      await sendEmail(supportRequestEmail({
+        fullName:    full_name.trim(),
+        email:       email.trim().toLowerCase(),
         requestType: request_type,
-        urgency: urgency || 'normal',
+        urgency:     resolvedUrgency,
         submittedAt: new Date().toISOString(),
-      })
-      await sendEmail(emailPayload)
+      }))
     } catch (emailErr) {
       console.error('[support] Email notification failed:', emailErr)
     }
