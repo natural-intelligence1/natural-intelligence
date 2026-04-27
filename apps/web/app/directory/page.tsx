@@ -112,7 +112,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
           {sorted.map((p: any) => {
             const profile = p.profiles
             const name    = profile?.full_name ?? 'Practitioner'
-            const areas   = (p.area_tags?.length > 0 ? p.area_tags : p.specialties) ?? []
+            const areas   = (p.area_tags as string[] | null) ?? []
             const location = [p.city, p.country].filter(Boolean).join(', ')
 
             return (

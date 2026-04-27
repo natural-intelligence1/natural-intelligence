@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { copy } from '@/lib/copy'
-import { createServerSupabaseClient } from '@natural-intelligence/db'
+import { createServerSupabaseClient, sendEmail, eventRegistrationConfirmationEmail } from '@natural-intelligence/db'
 import { RegisterButton } from '@/components/register-button'
 
 function TypeBadge({ type }: { type: string }) {
@@ -22,6 +22,44 @@ async function registerForEvent(eventId: string): Promise<{ error?: string }> {
     .insert({ event_id: eventId, member_id: user.id })
 
   if (error) return { error: error.message }
+
+  // Send confirmation email — fire-and-forget (failure must not block registration)
+  try {
+    const [{ data: event }, { data: profile }] = await Promise.all([
+      supabase
+        .from('events')
+        .select('title, starts_at, is_online, meeting_url, profiles!events_hosted_by_fkey(full_name)')
+        .eq('id', eventId)
+        .single(),
+      supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single(),
+    ])
+
+    if (event && user.email) {
+      const starts = new Date(event.starts_at)
+      const practitionerName = (event as any).profiles?.full_name ?? undefined
+
+      await sendEmail(
+        eventRegistrationConfirmationEmail({
+          to:               user.email,
+          memberName:       profile?.full_name ?? 'there',
+          eventTitle:       event.title,
+          eventDate:        starts.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+          eventTime:        starts.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+          isOnline:         event.is_online ?? false,
+          meetingUrl:       event.meeting_url ?? undefined,
+          practitionerName,
+        })
+      )
+    }
+  } catch (emailErr) {
+    // Email failure must never roll back the registration
+    console.error('[registerForEvent] confirmation email failed:', emailErr)
+  }
+
   return {}
 }
 

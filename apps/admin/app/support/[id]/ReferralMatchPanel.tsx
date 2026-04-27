@@ -234,7 +234,7 @@ export default async function ReferralMatchPanel({ searchParams }: Props) {
             const profile  = p.profiles
             const name     = profile?.full_name ?? 'Practitioner'
             const location = [p.city, p.country].filter(Boolean).join(', ')
-            const areas    = (p.area_tags?.length > 0 ? p.area_tags : p.specialties) ?? []
+            const areas    = (p.area_tags as string[] | null) ?? []
 
             return (
               <div

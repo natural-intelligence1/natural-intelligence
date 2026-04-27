@@ -26,7 +26,7 @@ function VettedBadge() {
 function TypeBadge({ type }: { type: string }) {
   return (
     <span className="inline-block px-2 py-0.5 rounded-md bg-surface-muted text-text-secondary text-xs font-medium capitalize">
-      {type.replace('_', ' ')}
+      {type.replace(/_/g, ' ')}
     </span>
   )
 }
@@ -34,18 +34,40 @@ function TypeBadge({ type }: { type: string }) {
 export default async function HomePage() {
   const supabase = createServerSupabaseClient()
 
+  // Only surface practitioners who are active AND directory-ready.
+  // Uses lifecycle_status (not the legacy is_active boolean) for consistency
+  // with the directory page filter applied during the hardening pass.
   const { data: practitioners } = await supabase
     .from('practitioners')
-    .select('*, profiles(*)')
-    .eq('trust_level', 'vetted')
-    .eq('is_active', true)
+    .select(`
+      id,
+      profile_id,
+      practice_name,
+      tagline,
+      area_tags,
+      primary_professions,
+      trust_level,
+      lifecycle_status,
+      is_directory_ready,
+      display_order,
+      profiles!practitioners_profile_id_fkey(full_name, bio)
+    `)
+    .eq('lifecycle_status', 'active')
+    .eq('is_directory_ready', true)
     .order('display_order', { ascending: true })
     .limit(3)
 
   const now = new Date().toISOString()
   const { data: events } = await supabase
     .from('events')
-    .select('*, profiles!events_hosted_by_fkey(full_name)')
+    .select(`
+      id,
+      title,
+      event_type,
+      starts_at,
+      is_online,
+      profiles!events_hosted_by_fkey(full_name)
+    `)
     .eq('status', 'published')
     .gt('starts_at', now)
     .order('starts_at', { ascending: true })
@@ -119,6 +141,7 @@ export default async function HomePage() {
             {practitioners.map((p: any) => {
               const profile = p.profiles
               const name = profile?.full_name ?? 'Practitioner'
+              const tags = (p.area_tags as string[] | null) ?? []
               return (
                 <div
                   key={p.id}
@@ -128,13 +151,13 @@ export default async function HomePage() {
                     <Avatar name={name} size="lg" />
                     <div className="min-w-0">
                       <p className="text-base font-semibold text-text-primary truncate">{name}</p>
-                      <VettedBadge />
+                      {p.trust_level === 'vetted' && <VettedBadge />}
                     </div>
                   </div>
-                  {p.specialties && p.specialties.length > 0 && (
+                  {tags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-4">
-                      {p.specialties.slice(0, 3).map((s: string) => (
-                        <TypeBadge key={s} type={s} />
+                      {tags.slice(0, 3).map((tag: string) => (
+                        <TypeBadge key={tag} type={tag} />
                       ))}
                     </div>
                   )}

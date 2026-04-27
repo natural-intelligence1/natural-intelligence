@@ -59,7 +59,7 @@ export default async function ApplicationsPage() {
                 <tr className="border-b border-border-default bg-surface-muted">
                   <th className="px-4 py-3 text-left font-medium text-text-secondary">{copy.applications.columns.name}</th>
                   <th className="px-4 py-3 text-left font-medium text-text-secondary">{copy.applications.columns.email}</th>
-                  <th className="px-4 py-3 text-left font-medium text-text-secondary">{copy.applications.columns.specialties}</th>
+                  <th className="px-4 py-3 text-left font-medium text-text-secondary">Areas of Practice</th>
                   <th className="px-4 py-3 text-left font-medium text-text-secondary">{copy.applications.columns.status}</th>
                   <th className="px-4 py-3 text-left font-medium text-text-secondary">{copy.applications.columns.submitted}</th>
                 </tr>
@@ -74,7 +74,9 @@ export default async function ApplicationsPage() {
                     </td>
                     <td className="px-4 py-3 text-text-secondary">{app.email}</td>
                     <td className="px-4 py-3 text-text-secondary">
-                      {Array.isArray(app.specialties) ? app.specialties.join(', ') : app.specialties ?? '—'}
+                      {Array.isArray(app.area_tags) && app.area_tags.length > 0
+                        ? app.area_tags.slice(0, 3).join(', ')
+                        : '—'}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusColors[app.status] ?? 'bg-surface-muted text-text-secondary'}`}>

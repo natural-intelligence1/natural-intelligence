@@ -50,7 +50,9 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
               <label htmlFor="password" className="block text-sm font-medium text-text-primary">
                 {copy.auth.login.password}
               </label>
-              <span className="text-xs text-text-muted">{copy.auth.login.forgot}</span>
+              <Link href="/auth/forgot-password" className="text-xs text-text-muted hover:text-text-brand hover:underline transition-colors">
+                {copy.auth.login.forgot}
+              </Link>
             </div>
             <input
               id="password"

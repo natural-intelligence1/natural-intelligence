@@ -16,9 +16,9 @@ export async function POST(request: NextRequest) {
     switch (type) {
       case 'application':
         emailPayload = practitionerApplicationEmail({
-          fullName: body.fullName,
-          email: body.email,
-          specialties: body.specialties ?? [],
+          fullName:    body.fullName,
+          email:       body.email,
+          specialties: body.areaTags ?? body.specialties ?? [],
           submittedAt: body.submittedAt ?? new Date().toISOString(),
         })
         break

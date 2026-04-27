@@ -105,6 +105,47 @@ export function memberSignupEmail(data: {
   }
 }
 
+export function eventRegistrationConfirmationEmail(data: {
+  to:               string
+  memberName:       string
+  eventTitle:       string
+  eventDate:        string
+  eventTime:        string
+  isOnline:         boolean
+  meetingUrl?:      string
+  practitionerName?: string
+}): EmailPayload {
+  const locationLine = data.isOnline
+    ? data.meetingUrl
+      ? `Location:    Online — ${data.meetingUrl}`
+      : `Location:    Online — you'll receive a joining link before the session`
+    : `Location:    In-person — you'll receive details shortly`
+
+  const practitionerLine = data.practitionerName
+    ? [`Hosted by:   ${data.practitionerName}`, '']
+    : []
+
+  return {
+    to:      data.to,
+    subject: `You're registered — ${data.eventTitle}`,
+    text: [
+      `Dear ${data.memberName},`,
+      '',
+      `You're confirmed for ${data.eventTitle}.`,
+      '',
+      `Date:        ${data.eventDate}`,
+      `Time:        ${data.eventTime}`,
+      locationLine,
+      ...practitionerLine,
+      'If you need to cancel, please log in to your dashboard.',
+      '',
+      'We look forward to seeing you there.',
+      '',
+      'The Natural Intelligence team',
+    ].join('\n'),
+  }
+}
+
 export function applicationDecisionEmail(data: {
   to:       string
   fullName: string

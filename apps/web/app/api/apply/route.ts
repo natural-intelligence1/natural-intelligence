@@ -130,8 +130,6 @@ export async function POST(request: NextRequest) {
         collaboration_types:      Array.isArray(collaboration_types) ? collaboration_types : [],
         consent_text:             consent_text?.trim() || null,
         consent_version:          consent_version ?? '1.0',
-        // Legacy compat
-        specialties:              Array.isArray(area_tags) ? area_tags : [],
         status:                   'submitted',
         submitted_at:             new Date().toISOString(),
       })
