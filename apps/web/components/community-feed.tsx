@@ -159,7 +159,7 @@ function PostCard({
               onClick={handleLike}
               disabled={!isLoggedIn || isPending}
               className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
-                liked ? 'text-brand-text' : 'text-text-muted hover:text-text-secondary'
+                liked ? 'text-text-brand' : 'text-text-muted hover:text-text-secondary'
               } disabled:cursor-default`}
             >
               <svg className="w-4 h-4" fill={liked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

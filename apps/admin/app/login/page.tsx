@@ -6,51 +6,65 @@ interface AdminLoginPageProps {
 
 export default function AdminLoginPage({ searchParams }: AdminLoginPageProps) {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-surface-inverse px-4">
+    <main className="min-h-screen flex items-center justify-center bg-sidebar-bg px-4">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-text-inverted mb-2">Admin Portal</h1>
-        <p className="text-sm text-text-on-inverse mb-8">Natural Intelligence</p>
+        {/* Brand header */}
+        <div className="mb-8">
+          <p className="text-xs font-medium tracking-widest uppercase text-sidebar-textMuted mb-2">
+            Natural Intelligence
+          </p>
+          <h1 className="text-2xl font-semibold text-sidebar-text">Admin portal</h1>
+        </div>
 
+        {/* Error banner */}
         {searchParams.error && (
-          <div className="mb-4 rounded-lg bg-status-errorBg border border-status-errorBorder px-4 py-3 text-sm text-status-errorText">
+          <div className="mb-5 rounded-lg bg-status-errorBg border border-status-errorBorder px-4 py-3 text-sm text-status-errorText">
             {searchParams.error}
           </div>
         )}
 
-        <form action={adminLogin} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-text-on-inverse mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="w-full rounded-lg border border-border-inverse bg-surface-inverse-raised px-3 py-2 text-sm text-text-inverted placeholder:text-text-on-inverse focus:border-brand-default focus:outline-none focus:ring-2 focus:ring-brand-default transition-colors"
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-text-on-inverse mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              className="w-full rounded-lg border border-border-inverse bg-surface-inverse-raised px-3 py-2 text-sm text-text-inverted placeholder:text-text-on-inverse focus:border-brand-default focus:outline-none focus:ring-2 focus:ring-brand-default transition-colors"
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-brand-default px-4 py-2.5 text-sm font-medium text-text-inverted hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-default focus:ring-offset-2 focus:ring-offset-surface-inverse transition-colors"
-          >
-            Sign in
-          </button>
-        </form>
+        {/* Login card */}
+        <div className="bg-surface-dark border border-sidebar-border rounded-xl p-6">
+          <form action={adminLogin} className="space-y-4">
+            {/* Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-sidebar-text mb-1.5">
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="admin@natural-intelligence.uk"
+                className="w-full px-3 py-2.5 rounded-lg border border-sidebar-border bg-sidebar-bg text-sidebar-text placeholder:text-sidebar-textMuted text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-brand-default transition-colors"
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-sidebar-text mb-1.5">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                className="w-full px-3 py-2.5 rounded-lg border border-sidebar-border bg-sidebar-bg text-sidebar-text placeholder:text-sidebar-textMuted text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-brand-default transition-colors"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full px-4 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-default focus:ring-offset-2 focus:ring-offset-sidebar-bg"
+            >
+              Sign in
+            </button>
+          </form>
+        </div>
       </div>
     </main>
   )

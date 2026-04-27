@@ -1,12 +1,27 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Inter } from 'next/font/google'
+import { DM_Sans, Playfair_Display, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { copy } from '@/lib/copy'
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets:  ['latin'],
-  variable: '--font-inter',
+  variable: '--font-dm-sans',
+  weight:   ['300', '400', '500', '600'],
+  display:  'swap',
+})
+
+const playfairDisplay = Playfair_Display({
+  subsets:  ['latin'],
+  variable: '--font-display',
+  weight:   ['400', '500'],
+  display:  'swap',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets:  ['latin'],
+  variable: '--font-mono',
+  weight:   ['400', '500'],
   display:  'swap',
 })
 import { createServerSupabaseClient } from '@natural-intelligence/db'
@@ -63,15 +78,15 @@ export default async function RootLayout({
   const isLoggedIn = !!user
 
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${dmSans.variable} ${playfairDisplay.variable} ${jetbrainsMono.variable}`}>
       <body className="bg-surface-base text-text-primary min-h-screen flex flex-col">
         {/* Navigation */}
         <header className="sticky top-0 z-nav bg-surface-raised border-b border-border-default">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-14 relative">
               {/* Brand */}
-              <Link href="/" className="text-sm font-semibold text-text-primary hover:text-text-brand transition-colors flex-shrink-0">
-                {copy.brand.name}
+              <Link href="/" className="text-sm font-medium text-text-primary hover:opacity-80 transition-opacity flex-shrink-0">
+                Natural<span className="text-text-brand"> Intelligence</span>
               </Link>
 
               {/* Desktop nav links */}

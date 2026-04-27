@@ -3,15 +3,7 @@ import { notFound } from 'next/navigation'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import { DELIVERY_MODES } from '@/lib/taxonomies'
-import { Avatar, VettedBadge } from '@natural-intelligence/ui'
-
-function Pill({ label }: { label: string }) {
-  return (
-    <span className="inline-block px-2.5 py-1 rounded-md bg-surface-muted text-text-secondary text-sm font-medium">
-      {label}
-    </span>
-  )
-}
+import { Avatar, VettedBadge, Pill } from '@natural-intelligence/ui'
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
@@ -138,7 +130,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
 
             {p.trust_level === 'vetted' && (
               <div className="mb-3">
-                <VettedBadge label={copy.practitionerProfile.vettedBadge} />
+                <VettedBadge vetted={true} />
               </div>
             )}
 

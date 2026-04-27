@@ -1,37 +1,51 @@
 import React from 'react'
 
 /**
- * VettedBadge — indicates a practitioner has passed NI vetting.
+ * VettedBadge — practitioner vetting status indicator.
  *
- * The label is a required prop so this component stays decoupled from
- * any app-specific copy file. Callers pass the appropriate string from
- * their own copy system (or a hardcoded label for now).
+ * vetted=true:  sage-green success pill — "Vetted practitioner"
+ * vetted=false: muted pill — "Listed practitioner"
  *
- * Default label is 'Vetted' — matches all current call-sites.
+ * The label is derived from the vetted boolean so this component
+ * stays decoupled from app-specific copy files.
  */
 
 interface VettedBadgeProps {
-  label?: string
+  vetted:     boolean
+  size?:      'sm' | 'md'
   className?: string
 }
 
-export function VettedBadge({ label = 'Vetted', className = '' }: VettedBadgeProps) {
+export function VettedBadge({ vetted, size = 'md', className = '' }: VettedBadgeProps) {
+  const px  = size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1'
+  const dot = size === 'sm' ? 'w-1 h-1'     : 'w-1.5 h-1.5'
+  const text = size === 'sm' ? 'text-xs' : 'text-xs'
+
+  if (vetted) {
+    return (
+      <span
+        className={[
+          'inline-flex items-center gap-1.5 rounded-full font-medium',
+          'bg-status-successBg text-status-successText border border-status-successBorder',
+          px, text, className,
+        ].join(' ')}
+      >
+        <span className={[dot, 'rounded-full bg-status-successText flex-shrink-0'].join(' ')} aria-hidden="true" />
+        Vetted practitioner
+      </span>
+    )
+  }
+
   return (
     <span
       className={[
-        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full',
-        'bg-brand-light text-brand-text text-xs font-medium',
-        className,
+        'inline-flex items-center gap-1.5 rounded-full font-medium',
+        'bg-surface-muted text-text-muted border border-border-muted',
+        px, text, className,
       ].join(' ')}
     >
-      <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-        <path
-          fillRule="evenodd"
-          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-          clipRule="evenodd"
-        />
-      </svg>
-      {label}
+      <span className={[dot, 'rounded-full bg-text-muted flex-shrink-0'].join(' ')} aria-hidden="true" />
+      Listed practitioner
     </span>
   )
 }

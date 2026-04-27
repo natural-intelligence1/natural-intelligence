@@ -235,7 +235,7 @@ export default async function ReferralMatchPanel({ searchParams }: Props) {
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-semibold text-text-primary">{name}</p>
-                      {p.trust_level === 'vetted' && <VettedBadge label={copy.referralPanel.card.vettedBadge} />}
+                      {p.trust_level === 'vetted' && <VettedBadge vetted={true} size="sm" />}
                     </div>
                     {profile?.email && (
                       <p className="text-xs text-text-muted">{profile.email}</p>

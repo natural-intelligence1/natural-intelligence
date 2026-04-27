@@ -60,9 +60,13 @@ const status = {
 
 // ─── Typography ───────────────────────────────────────────────────────────────
 
+// CSS variable references are prepended in tailwind.base.js so next/font takes priority.
+// The string values here serve as fallbacks if the variable is unavailable.
+// Redirect URLs must use process.env.NEXT_PUBLIC_SITE_URL — never hardcode the production domain.
 const fontFamily = {
-  sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
-  mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+  sans:    ['DM Sans',          'system-ui', 'sans-serif'],
+  display: ['Playfair Display', 'Georgia',   'serif'],
+  mono:    ['JetBrains Mono',   'ui-monospace', 'SFMono-Regular', 'monospace'],
 }
 
 const fontSize = {
@@ -225,7 +229,9 @@ module.exports = {
       black:       warm[900],
       sage,
       warm,
-      // Semantic aliases used in components
+      // Semantic aliases used in components.
+      // Note: brand.text has been REMOVED — use text.brand (class: text-text-brand) instead.
+      // See DD-001 in DESIGN_DECISIONS.md.
       brand: {
         light:   sage[50],
         muted:   sage[100],
@@ -233,16 +239,16 @@ module.exports = {
         default: sage[500],
         hover:   sage[600],
         pressed: sage[700],
-        text:    sage[600],
       },
       surface: {
         base:             warm[25],
         raised:           warm[0],
         sunken:           warm[50],
         muted:            warm[100],
-        // Inverse surfaces — admin dark shell (architecturally intentional)
-        inverse:          warm[900],  // main dark shell background
-        'inverse-raised': warm[800],  // elevated dark: active nav, hover state
+        // Inverse surfaces — admin dark shell (architecturally intentional; see DD-002)
+        inverse:          warm[900],  // main dark shell background (= sidebar.bg)
+        dark:             warm[800],  // dark card within dark shell (= sidebar.bgHover)
+        'inverse-raised': warm[800],  // alias for dark — kept for backward compat
       },
       border: {
         default: warm[200],
@@ -256,11 +262,21 @@ module.exports = {
         muted:        warm[500],
         placeholder:  warm[400],
         inverted:     warm[0],        // white — primary text on dark surfaces
-        brand:        sage[600],
+        brand:        sage[600],      // canonical alias — use text-text-brand in components
         'on-inverse': warm[400],      // secondary/muted text on dark surfaces
       },
       overlay: {
-        scrim: 'rgba(17,17,17,0.5)',  // modal backdrop — warm-tinted, not pure black
+        scrim: 'rgba(17,17,17,0.5)',  // modal backdrop — warm-tinted, not pure black (DD-005)
+      },
+      // Sidebar tokens — semantic names for admin dark shell chrome.
+      // Values intentionally mirror surface.inverse and surface.dark — see DD-002.
+      sidebar: {
+        bg:          warm[900],   // main sidebar background
+        bgHover:     warm[800],   // active link / hover state
+        border:      warm[800],   // divider lines
+        text:        warm[100],   // primary nav text (warm near-white)
+        textMuted:   warm[400],   // secondary / inactive nav text
+        textActive:  sage[300],   // active / selected link highlight
       },
       status,
     },

@@ -1,14 +1,7 @@
 import Link from 'next/link'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
-
-function TypeBadge({ type }: { type: string }) {
-  return (
-    <span className="inline-block px-2 py-0.5 rounded-md bg-surface-muted text-text-secondary text-xs font-medium capitalize">
-      {type.replace('_', ' ')}
-    </span>
-  )
-}
+import { Pill } from '@natural-intelligence/ui'
 
 interface ResourcesPageProps {
   searchParams: { type?: string }
@@ -88,10 +81,10 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
                 className="rounded-xl border border-border-default bg-surface-raised p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col"
               >
                 <div className="flex flex-wrap gap-2 mb-3">
-                  <TypeBadge type={resource.resource_type} />
+                  <Pill label={resource.resource_type.replace('_', ' ')} />
                   {resource.topic_tags && resource.topic_tags.length > 0 &&
                     resource.topic_tags.slice(0, 2).map((tag: string) => (
-                      <TypeBadge key={tag} type={tag} />
+                      <Pill key={tag} label={tag} />
                     ))
                   }
                 </div>

@@ -1,48 +1,58 @@
 import React from 'react'
 
 /**
- * Avatar — initials-based user avatar.
+ * Avatar — initials-based user avatar with optional image.
  *
  * Sizes:
- *   sm  — w-8  h-8  (32px)  — compact lists, comment threads
- *   md  — w-10 h-10 (40px)  — default, cards, nav
- *   lg  — w-16 h-16 (64px)  — practitioner cards, featured sections
- *   xl  — w-20 h-20 (80px)  — profile headers, detail pages
+ *   sm  — w-7  h-7  (28px)  — compact lists, comment threads
+ *   md  — w-9  h-9  (36px)  — default, cards, nav
+ *   lg  — w-11 h-11 (44px)  — practitioner cards, featured sections
+ *   xl  — w-14 h-14 (56px)  — profile headers, detail pages
  */
 
 type AvatarSize = 'sm' | 'md' | 'lg' | 'xl'
 
 interface AvatarProps {
-  name:      string
-  size?:     AvatarSize
+  name:       string
+  imageUrl?:  string
+  size?:      AvatarSize
   className?: string
 }
 
 const sizeClasses: Record<AvatarSize, string> = {
-  sm: 'w-8  h-8  text-xs',
-  md: 'w-10 h-10 text-sm',
-  lg: 'w-16 h-16 text-xl',
-  xl: 'w-20 h-20 text-2xl',
+  sm: 'w-7  h-7  text-xs',
+  md: 'w-9  h-9  text-sm',
+  lg: 'w-11 h-11 text-base',
+  xl: 'w-14 h-14 text-lg',
 }
 
-export function Avatar({ name, size = 'md', className = '' }: AvatarProps) {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '?'
+  return ((parts[0][0] ?? '') + (parts[parts.length - 1][0] ?? '')).toUpperCase()
+}
+
+export function Avatar({ name, imageUrl, size = 'md', className = '' }: AvatarProps) {
+  const baseClasses = [
+    sizeClasses[size],
+    'rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden',
+    className,
+  ].join(' ')
+
+  if (imageUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imageUrl}
+        alt={name}
+        className={[baseClasses, 'object-cover'].join(' ')}
+      />
+    )
+  }
 
   return (
-    <div
-      className={[
-        sizeClasses[size],
-        'rounded-full bg-brand-light text-brand-text font-semibold',
-        'flex items-center justify-center flex-shrink-0',
-        className,
-      ].join(' ')}
-    >
-      {initials}
+    <div className={[baseClasses, 'bg-brand-subtle text-text-brand font-medium'].join(' ')}>
+      {getInitials(name)}
     </div>
   )
 }

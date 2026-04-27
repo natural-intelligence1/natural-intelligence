@@ -2,16 +2,8 @@ import Link from 'next/link'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import { DirectorySearch } from '@/components/directory-search'
-import { Avatar, VettedBadge } from '@natural-intelligence/ui'
+import { Avatar, VettedBadge, Pill } from '@natural-intelligence/ui'
 import { Suspense } from 'react'
-
-function Pill({ label }: { label: string }) {
-  return (
-    <span className="inline-block px-2 py-0.5 rounded-md bg-surface-muted text-text-secondary text-xs font-medium">
-      {label}
-    </span>
-  )
-}
 
 interface DirectoryPageProps {
   searchParams: {
@@ -104,7 +96,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
                   <Avatar name={name} size="lg" />
                   <div className="min-w-0 flex-1">
                     <p className="text-base font-semibold text-text-primary truncate mb-1">{name}</p>
-                    {p.trust_level === 'vetted' && <VettedBadge label={copy.directory.card.vettedBadge} />}
+                    {p.trust_level === 'vetted' && <VettedBadge vetted={true} size="sm" />}
                   </div>
                 </div>
 

@@ -15,7 +15,6 @@ const navLinks = [
   { href: '/members',       label: copy.nav.members },
 ]
 
-// process.env.NODE_ENV is replaced at build time by Next.js — safe in client components
 const isDev = process.env.NODE_ENV !== 'production'
 
 export default function SidebarNav() {
@@ -26,13 +25,12 @@ export default function SidebarNav() {
     return (
       <Link
         href={href}
-        className={`
-          flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors
-          ${isActive
-            ? 'bg-surface-inverse-raised text-text-inverted'
-            : 'text-text-on-inverse hover:text-text-inverted hover:bg-surface-inverse-raised'
-          }
-        `}
+        className={[
+          'flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors',
+          isActive
+            ? 'bg-sidebar-bgHover text-sidebar-textActive'
+            : 'text-sidebar-textMuted hover:text-sidebar-text hover:bg-sidebar-bgHover',
+        ].join(' ')}
       >
         {label}
       </Link>
@@ -40,33 +38,33 @@ export default function SidebarNav() {
   }
 
   return (
-    <aside className="w-64 flex-shrink-0 min-h-screen bg-surface-inverse flex flex-col">
-      <div className="px-6 py-5 border-b border-border-inverse">
-        <span className="text-base font-semibold text-text-inverted">
+    <aside className="w-64 flex-shrink-0 min-h-screen bg-sidebar-bg flex flex-col">
+      <div className="px-6 py-5 border-b border-sidebar-border">
+        <span className="text-base font-semibold text-sidebar-text">
           {copy.brand.name}
         </span>
-        <span className="ml-2 text-xs font-medium text-text-on-inverse uppercase tracking-wider">
+        <span className="ml-2 text-xs font-medium text-sidebar-textMuted uppercase tracking-wider">
           {copy.brand.suffix}
         </span>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-0.5">
         {navLinks.map(({ href, label }) => (
           <NavLink key={href} href={href} label={label} />
         ))}
 
         {isDev && (
-          <div className="pt-4 mt-4 border-t border-border-inverse">
+          <div className="pt-4 mt-4 border-t border-sidebar-border">
             <NavLink href="/dev/seed" label={copy.nav.dev} />
           </div>
         )}
       </nav>
 
-      <div className="px-3 py-4 border-t border-border-inverse">
+      <div className="px-3 py-4 border-t border-sidebar-border">
         <form action={adminLogout}>
           <button
             type="submit"
-            className="w-full flex items-center px-3 py-2 rounded-md text-sm font-medium text-text-on-inverse hover:text-text-inverted hover:bg-surface-inverse-raised transition-colors"
+            className="w-full flex items-center px-3 py-2 rounded-md text-sm font-medium text-sidebar-textMuted hover:text-sidebar-text hover:bg-sidebar-bgHover transition-colors"
           >
             {copy.nav.logout}
           </button>

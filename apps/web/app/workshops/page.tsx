@@ -2,14 +2,7 @@ import Link from 'next/link'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient, sendEmail, eventRegistrationConfirmationEmail } from '@natural-intelligence/db'
 import { RegisterButton } from '@/components/register-button'
-
-function TypeBadge({ type }: { type: string }) {
-  return (
-    <span className="inline-block px-2 py-0.5 rounded-md bg-surface-muted text-text-secondary text-xs font-medium capitalize">
-      {type.replace('_', ' ')}
-    </span>
-  )
-}
+import { Pill } from '@natural-intelligence/ui'
 
 async function registerForEvent(eventId: string): Promise<{ error?: string }> {
   'use server'
@@ -179,11 +172,9 @@ export default async function WorkshopsPage({ searchParams }: WorkshopsPageProps
                 className="rounded-xl border border-border-default bg-surface-raised p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col"
               >
                 <div className="flex flex-wrap items-center gap-2 mb-3">
-                  <TypeBadge type={event.event_type} />
+                  <Pill label={event.event_type.replace('_', ' ')} />
                   {event.is_online && (
-                    <span className="inline-block px-2 py-0.5 rounded-md bg-surface-muted text-text-secondary text-xs font-medium">
-                      {copy.workshops.card.online}
-                    </span>
+                    <Pill label={copy.workshops.card.online} />
                   )}
                 </div>
 

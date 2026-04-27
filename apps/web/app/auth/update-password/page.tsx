@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@natural-intelligence/db'
+import { createClient } from '@natural-intelligence/db/client'
 
 export default function UpdatePasswordPage() {
   const router = useRouter()
@@ -51,45 +51,47 @@ export default function UpdatePasswordPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-text-primary mb-1.5">
-              New password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              className="w-full px-3 py-2.5 rounded-lg border border-border-default bg-surface-raised text-text-primary placeholder:text-text-placeholder text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-transparent transition-colors"
-            />
-          </div>
+        <div className="bg-surface-raised border border-border-default rounded-xl p-6 shadow-sm">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-text-primary mb-1.5">
+                New password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                className="w-full px-3 py-2.5 rounded-lg border border-border-default bg-surface-base text-text-primary placeholder:text-text-placeholder text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-transparent transition-colors"
+              />
+            </div>
 
-          <div>
-            <label htmlFor="confirm" className="block text-sm font-medium text-text-primary mb-1.5">
-              Confirm new password
-            </label>
-            <input
-              id="confirm"
-              name="confirm"
-              type="password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-              className="w-full px-3 py-2.5 rounded-lg border border-border-default bg-surface-raised text-text-primary placeholder:text-text-placeholder text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-transparent transition-colors"
-            />
-          </div>
+            <div>
+              <label htmlFor="confirm" className="block text-sm font-medium text-text-primary mb-1.5">
+                Confirm new password
+              </label>
+              <input
+                id="confirm"
+                name="confirm"
+                type="password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                className="w-full px-3 py-2.5 rounded-lg border border-border-default bg-surface-base text-text-primary placeholder:text-text-placeholder text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-transparent transition-colors"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={isPending}
-            className="w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {isPending ? 'Updating…' : 'Update password'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {isPending ? 'Updating…' : 'Update password'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )

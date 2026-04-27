@@ -26,51 +26,53 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           </div>
         )}
 
-        <form action={login} className="space-y-4">
-          {searchParams.redirectTo && (
-            <input type="hidden" name="redirectTo" value={searchParams.redirectTo} />
-          )}
+        <div className="bg-surface-raised border border-border-default rounded-xl p-6 shadow-sm">
+          <form action={login} className="space-y-4">
+            {searchParams.redirectTo && (
+              <input type="hidden" name="redirectTo" value={searchParams.redirectTo} />
+            )}
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-text-primary mb-1.5">
-              {copy.auth.login.email}
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="w-full px-3 py-2.5 rounded-lg border border-border-default bg-surface-raised text-text-primary placeholder:text-text-placeholder text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-transparent transition-colors"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="password" className="block text-sm font-medium text-text-primary">
-                {copy.auth.login.password}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-text-primary mb-1.5">
+                {copy.auth.login.email}
               </label>
-              <Link href="/auth/forgot-password" className="text-xs text-text-muted hover:text-text-brand hover:underline transition-colors">
-                {copy.auth.login.forgot}
-              </Link>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                className="w-full px-3 py-2.5 rounded-lg border border-border-default bg-surface-base text-text-primary placeholder:text-text-placeholder text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-transparent transition-colors"
+              />
             </div>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              className="w-full px-3 py-2.5 rounded-lg border border-border-default bg-surface-raised text-text-primary placeholder:text-text-placeholder text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-transparent transition-colors"
-            />
-          </div>
 
-          <button
-            type="submit"
-            className="w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors"
-          >
-            {copy.auth.login.submit}
-          </button>
-        </form>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="password" className="block text-sm font-medium text-text-primary">
+                  {copy.auth.login.password}
+                </label>
+                <Link href="/auth/forgot-password" className="text-xs text-text-muted hover:text-text-brand hover:underline transition-colors">
+                  {copy.auth.login.forgot}
+                </Link>
+              </div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                className="w-full px-3 py-2.5 rounded-lg border border-border-default bg-surface-base text-text-primary placeholder:text-text-placeholder text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-transparent transition-colors"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors"
+            >
+              {copy.auth.login.submit}
+            </button>
+          </form>
+        </div>
 
         <p className="mt-6 text-center text-sm text-text-secondary">
           {copy.auth.login.noAccount}{' '}
