@@ -7,6 +7,10 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Required by @supabase/supabase-js@2.101.1 for correct ClientOptions generic inference
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
       audit_logs: {
