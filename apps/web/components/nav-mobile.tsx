@@ -42,8 +42,8 @@ export function NavMobile({ isLoggedIn }: NavMobileProps) {
             <Link href="/resources" onClick={() => setOpen(false)} className="px-3 py-2.5 rounded-lg text-sm font-medium text-text-primary hover:bg-surface-muted transition-colors">
               {copy.nav.resources}
             </Link>
-            <Link href="/community" onClick={() => setOpen(false)} className="px-3 py-2.5 rounded-lg text-sm font-medium text-text-primary hover:bg-surface-muted transition-colors">
-              {copy.nav.community}
+            <Link href="/apply" onClick={() => setOpen(false)} className="px-3 py-2.5 rounded-lg text-sm font-medium text-text-primary hover:bg-surface-muted transition-colors">
+              {copy.nav.apply}
             </Link>
             <div className="border-t border-border-muted my-2" />
             {isLoggedIn ? (
@@ -62,7 +62,7 @@ export function NavMobile({ isLoggedIn }: NavMobileProps) {
                 <Link href="/auth/login" onClick={() => setOpen(false)} className="px-3 py-2.5 rounded-lg text-sm font-medium text-text-primary hover:bg-surface-muted transition-colors">
                   {copy.nav.login}
                 </Link>
-                <Link href="/auth/signup" onClick={() => setOpen(false)} className="px-3 py-2.5 rounded-lg text-sm font-medium text-white bg-brand-default hover:bg-brand-hover transition-colors">
+                <Link href="/auth/signup" onClick={() => setOpen(false)} className="px-3 py-2.5 rounded-lg text-sm font-medium text-text-inverted bg-brand-default hover:bg-brand-hover transition-colors">
                   {copy.nav.signup}
                 </Link>
               </>

@@ -145,7 +145,7 @@ export default async function WorkshopsPage({ searchParams }: WorkshopsPageProps
             href={f.value ? `/workshops?type=${f.value}` : '/workshops'}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               (searchParams.type ?? '') === f.value
-                ? 'bg-brand-default text-white'
+                ? 'bg-brand-default text-text-inverted'
                 : 'border border-border-default text-text-secondary hover:bg-surface-muted'
             }`}
           >

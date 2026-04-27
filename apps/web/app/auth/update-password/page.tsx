@@ -36,9 +36,12 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-16">
+    <div className="min-h-screen flex items-center justify-center px-4 py-16 bg-surface-base">
       <div className="w-full max-w-sm">
-        <div className="mb-8">
+        <div className="text-center mb-8">
+          <p className="text-sm font-semibold text-text-primary mb-1">
+            Natural<span className="text-text-brand"> Intelligence</span>
+          </p>
           <h1 className="text-2xl font-bold text-text-primary mb-1">Set a new password</h1>
           <p className="text-sm text-text-secondary">
             Choose a strong password for your account.
@@ -51,7 +54,7 @@ export default function UpdatePasswordPage() {
           </div>
         )}
 
-        <div className="bg-surface-raised border border-border-default rounded-xl p-6 shadow-sm">
+        <div className="bg-surface-raised border border-border-default rounded-2xl p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-text-primary mb-1.5">
@@ -86,7 +89,7 @@ export default function UpdatePasswordPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50"
+              className="w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50"
             >
               {isPending ? 'Updating…' : 'Update password'}
             </button>

@@ -187,7 +187,7 @@ export default function SupportPage() {
         <button
           type="submit"
           disabled={isPending}
-          className="w-full px-5 py-3 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50"
+          className="w-full px-5 py-3 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50"
         >
           {isPending ? '…' : copy.support.submit}
         </button>

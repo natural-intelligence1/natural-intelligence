@@ -321,7 +321,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
           {/* CTA */}
           <Link
             href="/support"
-            className="block w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors text-center"
+            className="block w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors text-center"
           >
             {copy.practitionerProfile.cta.supportRequest}
           </Link>

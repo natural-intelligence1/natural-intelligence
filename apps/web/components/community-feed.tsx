@@ -108,7 +108,7 @@ function CommentThread({
           <button
             onClick={handleSubmit}
             disabled={!body.trim() || isPending}
-            className="px-3 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50"
+            className="px-3 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50"
           >
             {copy.community.compose.post}
           </button>
@@ -240,7 +240,7 @@ export function CommunityFeed({ posts, isLoggedIn, currentUserName }: CommunityF
                 <button
                   onClick={handlePost}
                   disabled={!newPostBody.trim() || isPending}
-                  className="px-5 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50"
+                  className="px-5 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {copy.community.compose.post}
                 </button>
@@ -253,7 +253,7 @@ export function CommunityFeed({ posts, isLoggedIn, currentUserName }: CommunityF
           <p className="text-sm text-text-secondary mb-3">{copy.community.loginPrompt}</p>
           <a
             href="/auth/login"
-            className="inline-block px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors"
+            className="inline-block px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
           >
             {copy.nav.login}
           </a>

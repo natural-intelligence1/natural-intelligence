@@ -37,7 +37,7 @@ const navLinks = [
   { label: copy.nav.directory, href: '/directory' },
   { label: copy.nav.workshops, href: '/workshops' },
   { label: copy.nav.resources, href: '/resources' },
-  { label: copy.nav.community, href: '/community' },
+  { label: copy.nav.apply,     href: '/apply' },
 ]
 
 const footerSections = [
@@ -81,9 +81,9 @@ export default async function RootLayout({
     <html lang="en" className={`${dmSans.variable} ${playfairDisplay.variable} ${jetbrainsMono.variable}`}>
       <body className="bg-surface-base text-text-primary min-h-screen flex flex-col">
         {/* Navigation */}
-        <header className="sticky top-0 z-nav bg-surface-raised border-b border-border-default">
+        <header className="sticky top-0 z-nav bg-surface-base/95 backdrop-blur-sm border-b border-border-default">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-14 relative">
+            <div className="flex items-center justify-between h-16 relative">
               {/* Brand */}
               <Link href="/" className="text-sm font-medium text-text-primary hover:opacity-80 transition-opacity flex-shrink-0">
                 Natural<span className="text-text-brand"> Intelligence</span>
@@ -124,7 +124,7 @@ export default async function RootLayout({
                     </Link>
                     <Link
                       href="/auth/signup"
-                      className="px-5 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors"
+                      className="px-5 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
                     >
                       {copy.nav.signup}
                     </Link>

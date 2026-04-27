@@ -29,9 +29,12 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-16">
+      <div className="min-h-screen flex items-center justify-center px-4 py-16 bg-surface-base">
         <div className="w-full max-w-sm text-center">
-          <div className="rounded-xl border border-border-default bg-surface-raised p-8 shadow-sm">
+          <p className="text-sm font-semibold text-text-primary mb-8">
+            Natural<span className="text-text-brand"> Intelligence</span>
+          </p>
+          <div className="rounded-2xl border border-border-default bg-surface-raised p-8 shadow-sm">
             <div className="w-12 h-12 rounded-full bg-brand-light flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -53,9 +56,12 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-16">
+    <div className="min-h-screen flex items-center justify-center px-4 py-16 bg-surface-base">
       <div className="w-full max-w-sm">
-        <div className="mb-8">
+        <div className="text-center mb-8">
+          <p className="text-sm font-semibold text-text-primary mb-1">
+            Natural<span className="text-text-brand"> Intelligence</span>
+          </p>
           <h1 className="text-2xl font-bold text-text-primary mb-1">Reset your password</h1>
           <p className="text-sm text-text-secondary">
             Enter your email address and we&apos;ll send you a reset link.
@@ -86,7 +92,7 @@ export default function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={isPending}
-            className="w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50"
+            className="w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50"
           >
             {isPending ? 'Sending…' : 'Send reset link'}
           </button>

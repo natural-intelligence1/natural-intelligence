@@ -58,7 +58,7 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
             href={f.value ? `/resources?type=${f.value}` : '/resources'}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               (searchParams.type ?? '') === f.value
-                ? 'bg-brand-default text-white'
+                ? 'bg-brand-default text-text-inverted'
                 : 'border border-border-default text-text-secondary hover:bg-surface-muted'
             }`}
           >

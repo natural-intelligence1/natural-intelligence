@@ -185,7 +185,7 @@ export default async function HomePage() {
             {pillars.map((pillar) => (
               <div
                 key={pillar.title}
-                className="bg-surface-raised border border-border-default rounded-2xl p-7 flex flex-col"
+                className="bg-surface-raised border border-border-default rounded-xl p-7 flex flex-col"
               >
                 <div className="w-9 h-9 bg-brand-subtle rounded-lg flex items-center justify-center mb-4 flex-shrink-0">
                   {pillar.icon}
@@ -404,7 +404,7 @@ export default async function HomePage() {
         <div className="max-w-6xl mx-auto">
           <div className="bg-text-primary rounded-2xl p-10 md:p-14 text-center">
 
-            <p className="text-xs uppercase tracking-widest text-text-brand font-medium mb-4">
+            <p className="text-xs uppercase tracking-widest text-brand-muted font-medium mb-4">
               Coming to members
             </p>
 
@@ -422,10 +422,10 @@ export default async function HomePage() {
               {intelligenceModules.map((mod) => (
                 <div
                   key={mod.name}
-                  className="bg-surface-inverse-raised/50 border border-sidebar-border rounded-lg px-4 py-2.5 text-left"
+                  className="bg-surface-dark border border-border-inverse rounded-lg px-4 py-2.5 text-left"
                 >
-                  <p className="text-sm font-medium text-sidebar-text">{mod.name}</p>
-                  <p className="text-xs text-sidebar-textMuted mt-0.5">{mod.desc}</p>
+                  <p className="text-sm font-medium text-text-inverted">{mod.name}</p>
+                  <p className="text-xs text-text-on-inverse mt-0.5">{mod.desc}</p>
                 </div>
               ))}
             </div>

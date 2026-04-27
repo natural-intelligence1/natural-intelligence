@@ -15,6 +15,14 @@ function CompletenessBar({ pct }: { pct: number }) {
   )
 }
 
+const sidebarLinks = [
+  { label: 'Overview',     href: '/dashboard',          active: true  },
+  { label: 'My workshops', href: '/dashboard/workshops', active: false },
+  { label: 'My requests',  href: '/dashboard/requests',  active: false },
+  { label: 'Intelligence', href: '/dashboard/intelligence', active: false, comingSoon: true },
+  { label: 'Settings',     href: '/dashboard/settings',  active: false, comingSoon: true },
+]
+
 export default async function DashboardPage() {
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -67,20 +75,72 @@ export default async function DashboardPage() {
   const firstName = profile?.full_name?.split(' ')[0] ?? null
 
   return (
-    <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold text-text-primary mb-1">
-          {copy.dashboard.heading}{firstName ? `, ${firstName}` : ''}
-        </h1>
-        <p className="text-sm text-text-muted">{user.email}</p>
-      </div>
+    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+      <div className="md:grid md:grid-cols-[220px_1fr] gap-8">
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
+        {/* ── Sidebar nav ──────────────────────────────────────────────────── */}
+        <aside className="hidden md:block">
+          <div className="sticky top-24">
+            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3 px-3">
+              Dashboard
+            </p>
+            <nav className="space-y-0.5">
+              {sidebarLinks.map((link) => (
+                link.comingSoon ? (
+                  <span
+                    key={link.href}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-text-muted opacity-40 cursor-not-allowed"
+                  >
+                    {link.label}
+                    <span className="text-2xs font-medium tracking-wide uppercase text-text-muted">Soon</span>
+                  </span>
+                ) : (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      link.active
+                        ? 'bg-brand-subtle text-text-brand'
+                        : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                )
+              ))}
+            </nav>
+          </div>
+        </aside>
 
-          {/* ── Practitioner profile banner ─────────────────────────────── */}
+        {/* ── Main content ─────────────────────────────────────────────────── */}
+        <div>
+          {/* Greeting */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-text-primary mb-0.5">
+              {copy.dashboard.heading}{firstName ? `, ${firstName}` : ''}
+            </h1>
+            <p className="text-sm text-text-muted">{user.email}</p>
+          </div>
+
+          {/* Metric cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+            <div className="rounded-xl border border-border-default bg-surface-raised p-5 shadow-sm">
+              <p className="text-xs text-text-muted mb-1">Workshops</p>
+              <p className="text-2xl font-semibold text-text-primary">{registrations?.length ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-border-default bg-surface-raised p-5 shadow-sm">
+              <p className="text-xs text-text-muted mb-1">Requests</p>
+              <p className="text-2xl font-semibold text-text-primary">{supportRequests?.length ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-border-default bg-surface-raised p-5 shadow-sm col-span-2 sm:col-span-1">
+              <p className="text-xs text-text-muted mb-1">Role</p>
+              <p className="text-sm font-semibold text-text-primary capitalize">{profile?.role ?? 'Member'}</p>
+            </div>
+          </div>
+
+          {/* ── Practitioner profile banner ─────────────────────────────────── */}
           {profile?.role === 'practitioner' && practitionerRow && (
-            <section className="rounded-xl border border-brand-default bg-brand-light p-5">
+            <section className="rounded-xl border border-brand-default bg-brand-light p-5 mb-8">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-brand-text mb-1">
@@ -94,7 +154,7 @@ export default async function DashboardPage() {
                   <CompletenessBar pct={practitionerRow.profile_completeness_pct} />
                 </div>
                 <Link href="/dashboard/profile"
-                  className="flex-shrink-0 px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-xs font-medium transition-colors">
+                  className="flex-shrink-0 px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-xs font-medium transition-colors">
                   {practitionerRow.tagline
                     ? copy.dashboard.practitioner.editProfile
                     : copy.dashboard.practitioner.completeProfileCta}
@@ -105,7 +165,7 @@ export default async function DashboardPage() {
 
           {/* ── Application status banner (non-practitioners who applied) ── */}
           {!practitionerRow && application && (
-            <section className="rounded-xl border border-border-default bg-surface-raised p-5">
+            <section className="rounded-xl border border-border-default bg-surface-raised p-5 mb-8">
               <p className="text-sm font-semibold text-text-primary mb-1">
                 {copy.dashboard.sections.application}
               </p>
@@ -116,16 +176,16 @@ export default async function DashboardPage() {
             </section>
           )}
 
-          {/* ── Registered workshops ──────────────────────────────────────── */}
-          <section>
-            <h2 className="text-lg font-semibold text-text-primary mb-5 pb-3 border-b border-border-default">
+          {/* ── Registered workshops ──────────────────────────────────────────── */}
+          <section className="mb-8">
+            <h2 className="text-base font-semibold text-text-primary mb-4 pb-3 border-b border-border-default">
               {copy.dashboard.sections.workshops}
             </h2>
             {!registrations || registrations.length === 0 ? (
               <div className="rounded-xl border border-border-default bg-surface-raised p-6 text-center">
                 <p className="text-sm text-text-muted mb-4">{copy.dashboard.empty.workshops}</p>
                 <Link href="/workshops"
-                  className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors">
+                  className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors">
                   {copy.dashboard.quickLinks[1].label}
                 </Link>
               </div>
@@ -156,16 +216,16 @@ export default async function DashboardPage() {
             )}
           </section>
 
-          {/* ── Support requests ──────────────────────────────────────────── */}
-          <section>
-            <h2 className="text-lg font-semibold text-text-primary mb-5 pb-3 border-b border-border-default">
+          {/* ── Support requests ──────────────────────────────────────────────── */}
+          <section className="mb-8">
+            <h2 className="text-base font-semibold text-text-primary mb-4 pb-3 border-b border-border-default">
               {copy.dashboard.sections.requests}
             </h2>
             {!supportRequests || supportRequests.length === 0 ? (
               <div className="rounded-xl border border-border-default bg-surface-raised p-6 text-center">
                 <p className="text-sm text-text-muted mb-4">{copy.dashboard.empty.requests}</p>
                 <Link href="/support"
-                  className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors">
+                  className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors">
                   {copy.dashboard.quickLinks[2].label}
                 </Link>
               </div>
@@ -195,24 +255,15 @@ export default async function DashboardPage() {
               </div>
             )}
           </section>
-        </div>
 
-        {/* ── Quick links sidebar ───────────────────────────────────────── */}
-        <div>
-          <h2 className="text-lg font-semibold text-text-primary mb-5 pb-3 border-b border-border-default">
-            {copy.dashboard.sections.quickLinks}
-          </h2>
-          <div className="space-y-2">
-            {copy.dashboard.quickLinks.map((link) => (
-              <Link key={link.href} href={link.href}
-                className="flex items-center justify-between px-4 py-3 rounded-lg border border-border-default bg-surface-raised hover:bg-surface-muted transition-colors">
-                <span className="text-sm font-medium text-text-primary">{link.label}</span>
-                <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            ))}
-          </div>
+          {/* ── Intelligence teaser ───────────────────────────────────────────── */}
+          <section className="rounded-xl border border-border-default bg-surface-raised p-6">
+            <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-2">Coming soon</p>
+            <h3 className="text-sm font-semibold text-text-primary mb-1">Care intelligence</h3>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              Personalised daily protocols, lab result interpretation, and AI-assisted pattern recognition — built around you, guided by your practitioner.
+            </p>
+          </section>
         </div>
       </div>
     </div>

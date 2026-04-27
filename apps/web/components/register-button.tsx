@@ -62,7 +62,7 @@ export function RegisterButton({ eventId, isLoggedIn, isFull, isRegistered, regi
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors"
+        className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
       >
         {copy.workshops.card.register}
       </button>
@@ -102,7 +102,7 @@ export function RegisterButton({ eventId, isLoggedIn, isFull, isRegistered, regi
               <button
                 onClick={handleConfirm}
                 disabled={!consented || isPending}
-                className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isPending ? '…' : copy.workshops.modal.confirm}
               </button>

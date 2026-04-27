@@ -100,7 +100,7 @@ function CheckGrid({ options, selected, onChange, cols = 3 }: {
               checked ? 'bg-brand-default border-brand-default' : 'border-border-default'
             }`}>
               {checked && (
-                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-2.5 h-2.5 text-text-inverted" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               )}
@@ -185,12 +185,12 @@ function StepNav({ onBack, onNext, isPending, isLast, isFirst, canProceed }: {
       )}
       {!isLast ? (
         <button type="button" onClick={onNext} disabled={canProceed === false}
-          className="px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50">
+          className="px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50">
           {copy.apply.next}
         </button>
       ) : (
         <button type="submit" disabled={isPending || canProceed === false}
-          className="px-6 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50">
+          className="px-6 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50">
           {isPending ? '…' : copy.apply.submit}
         </button>
       )}
@@ -338,7 +338,7 @@ export default function ApplyPage() {
           <p className="text-text-secondary leading-relaxed mb-8">{c.body}</p>
           <div className="flex flex-col gap-3">
             <Link href="/auth/signup?redirectTo=/apply"
-              className="w-full px-5 py-3 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors text-center">
+              className="w-full px-5 py-3 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors text-center">
               {c.signupCta}
             </Link>
             <Link href="/auth/login?redirectTo=/apply"
@@ -363,7 +363,7 @@ export default function ApplyPage() {
           <p className="text-text-secondary leading-relaxed mb-3">{statusMsg}</p>
           <p className="text-text-muted text-sm mb-8">{c.body}</p>
           <Link href="/dashboard"
-            className="inline-block px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors">
+            className="inline-block px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors">
             Back to dashboard
           </Link>
         </div>

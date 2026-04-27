@@ -8,9 +8,12 @@ interface LoginPageProps {
 
 export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-16">
+    <div className="min-h-screen flex items-center justify-center px-4 py-16 bg-surface-base">
       <div className="w-full max-w-sm">
-        <div className="mb-8">
+        <div className="text-center mb-8">
+          <p className="text-sm font-semibold text-text-primary mb-1">
+            Natural<span className="text-text-brand"> Intelligence</span>
+          </p>
           <h1 className="text-2xl font-bold text-text-primary mb-1">{copy.auth.login.heading}</h1>
           <p className="text-sm text-text-secondary">{copy.auth.login.subheading}</p>
         </div>
@@ -26,7 +29,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           </div>
         )}
 
-        <div className="bg-surface-raised border border-border-default rounded-xl p-6 shadow-sm">
+        <div className="bg-surface-raised border border-border-default rounded-2xl p-8 shadow-sm">
           <form action={login} className="space-y-4">
             {searchParams.redirectTo && (
               <input type="hidden" name="redirectTo" value={searchParams.redirectTo} />
@@ -67,7 +70,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
             <button
               type="submit"
-              className="w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors"
+              className="w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
             >
               {copy.auth.login.submit}
             </button>
