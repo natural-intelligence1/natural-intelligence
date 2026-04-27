@@ -68,7 +68,7 @@ export function RegisterButton({ eventId, isLoggedIn, isFull, isRegistered, regi
       </button>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-modal p-4">
+        <div className="fixed inset-0 bg-overlay-scrim flex items-center justify-center z-modal p-4">
           <div className="bg-surface-raised rounded-xl border border-border-default shadow-lg p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold text-text-primary mb-4">
               {copy.workshops.modal.heading}

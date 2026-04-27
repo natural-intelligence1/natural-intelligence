@@ -29,8 +29,8 @@ export default function SidebarNav() {
         className={`
           flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors
           ${isActive
-            ? 'bg-warm-800 text-text-inverted'
-            : 'text-warm-400 hover:text-text-inverted hover:bg-warm-800'
+            ? 'bg-surface-inverse-raised text-text-inverted'
+            : 'text-text-on-inverse hover:text-text-inverted hover:bg-surface-inverse-raised'
           }
         `}
       >
@@ -40,12 +40,12 @@ export default function SidebarNav() {
   }
 
   return (
-    <aside className="w-64 flex-shrink-0 min-h-screen bg-warm-900 flex flex-col">
-      <div className="px-6 py-5 border-b border-warm-800">
+    <aside className="w-64 flex-shrink-0 min-h-screen bg-surface-inverse flex flex-col">
+      <div className="px-6 py-5 border-b border-border-inverse">
         <span className="text-base font-semibold text-text-inverted">
           {copy.brand.name}
         </span>
-        <span className="ml-2 text-xs font-medium text-warm-400 uppercase tracking-wider">
+        <span className="ml-2 text-xs font-medium text-text-on-inverse uppercase tracking-wider">
           {copy.brand.suffix}
         </span>
       </div>
@@ -56,17 +56,17 @@ export default function SidebarNav() {
         ))}
 
         {isDev && (
-          <div className="pt-4 mt-4 border-t border-warm-800">
+          <div className="pt-4 mt-4 border-t border-border-inverse">
             <NavLink href="/dev/seed" label={copy.nav.dev} />
           </div>
         )}
       </nav>
 
-      <div className="px-3 py-4 border-t border-warm-800">
+      <div className="px-3 py-4 border-t border-border-inverse">
         <form action={adminLogout}>
           <button
             type="submit"
-            className="w-full flex items-center px-3 py-2 rounded-md text-sm font-medium text-warm-400 hover:text-text-inverted hover:bg-warm-800 transition-colors"
+            className="w-full flex items-center px-3 py-2 rounded-md text-sm font-medium text-text-on-inverse hover:text-text-inverted hover:bg-surface-inverse-raised transition-colors"
           >
             {copy.nav.logout}
           </button>

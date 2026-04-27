@@ -1,7 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Inter } from 'next/font/google'
 import './globals.css'
 import { copy } from '@/lib/copy'
+
+const inter = Inter({
+  subsets:  ['latin'],
+  variable: '--font-inter',
+  display:  'swap',
+})
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import { NavMobile } from '@/components/nav-mobile'
 import { LogoutButton } from '@/components/logout-button'
@@ -56,7 +63,7 @@ export default async function RootLayout({
   const isLoggedIn = !!user
 
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body className="bg-surface-base text-text-primary min-h-screen flex flex-col">
         {/* Navigation */}
         <header className="sticky top-0 z-nav bg-surface-raised border-b border-border-default">

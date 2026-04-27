@@ -38,18 +38,24 @@ const warm = {
 }
 
 const status = {
-  successBg:   '#f0faf2',
-  successText: '#1d5e2a',
+  successBg:    '#f0faf2',
+  successText:  '#1d5e2a',
   successBorder:'#a5d1ac',
-  warningBg:   '#fefaf0',
-  warningText: '#854d0e',
+  warningBg:    '#fefaf0',
+  warningText:  '#854d0e',
   warningBorder:'#fde68a',
-  errorBg:     '#fff5f5',
-  errorText:   '#9b1c1c',
-  errorBorder: '#fca5a5',
-  infoBg:      '#f0f7ff',
-  infoText:    '#1e4070',
-  infoBorder:  '#bfdbfe',
+  errorBg:      '#fff5f5',
+  errorText:    '#9b1c1c',
+  errorBorder:  '#fca5a5',
+  infoBg:       '#f0f7ff',
+  infoText:     '#1e4070',
+  infoBorder:   '#bfdbfe',
+  // Danger = error aliases — for destructive action UI (delete / remove).
+  // System error states use error*; destructive button/badge states use danger*.
+  // The values are identical; the names carry different semantic intent.
+  dangerBg:     '#fff5f5',
+  dangerText:   '#9b1c1c',
+  dangerBorder: '#fca5a5',
 }
 
 // ─── Typography ───────────────────────────────────────────────────────────────
@@ -230,23 +236,31 @@ module.exports = {
         text:    sage[600],
       },
       surface: {
-        base:    warm[25],
-        raised:  warm[0],
-        sunken:  warm[50],
-        muted:   warm[100],
+        base:             warm[25],
+        raised:           warm[0],
+        sunken:           warm[50],
+        muted:            warm[100],
+        // Inverse surfaces — admin dark shell (architecturally intentional)
+        inverse:          warm[900],  // main dark shell background
+        'inverse-raised': warm[800],  // elevated dark: active nav, hover state
       },
       border: {
         default: warm[200],
         muted:   warm[100],
         strong:  warm[300],
+        inverse: warm[700],           // border on dark inverse surfaces
       },
       text: {
-        primary:   warm[800],
-        secondary: warm[600],
-        muted:     warm[500],
-        placeholder: warm[400],
-        inverted:  warm[0],
-        brand:     sage[600],
+        primary:      warm[800],
+        secondary:    warm[600],
+        muted:        warm[500],
+        placeholder:  warm[400],
+        inverted:     warm[0],        // white — primary text on dark surfaces
+        brand:        sage[600],
+        'on-inverse': warm[400],      // secondary/muted text on dark surfaces
+      },
+      overlay: {
+        scrim: 'rgba(17,17,17,0.5)',  // modal backdrop — warm-tinted, not pure black
       },
       status,
     },

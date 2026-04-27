@@ -1,18 +1,10 @@
 import type { Config } from 'tailwindcss'
-const tokens = require('@natural-intelligence/design-tokens')
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const base = require('@natural-intelligence/design-tokens/tailwind.base')
 
 const config: Config = {
   content: ['./app/**/*.{js,ts,jsx,tsx,mdx}'],
-  theme: {
-    colors:       tokens.tailwind.colors,
-    fontFamily:   tokens.tailwind.fontFamily,
-    fontSize:     tokens.tailwind.fontSize,
-    fontWeight:   tokens.tailwind.fontWeight,
-    spacing:      tokens.tailwind.spacing,
-    borderRadius: tokens.tailwind.borderRadius,
-    boxShadow:    tokens.tailwind.boxShadow,
-    extend: {},
-  },
-  plugins: [],
+  ...base,
 }
+
 export default config

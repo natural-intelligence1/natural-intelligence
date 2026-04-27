@@ -4,6 +4,7 @@
   "private": true,
   "main": "./tokens.js",
   "exports": {
-    ".": "./tokens.js"
+    ".":               "./tokens.js",
+    "./tailwind.base": "./tailwind.base.js"
   }
 }

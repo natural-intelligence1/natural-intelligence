@@ -3,12 +3,19 @@
 @tailwind utilities;
 
 @layer base {
-  html {
-    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    -webkit-font-smoothing: antialiased;
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
   }
+
+  html {
+    @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
-    background-color: #fafaf8;
-    color: #28261f;
+    @apply bg-surface-base text-text-primary;
   }
 }

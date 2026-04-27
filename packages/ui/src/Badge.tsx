@@ -1,19 +1,33 @@
 import React from 'react'
 
-type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info'
+/**
+ * Variant naming:
+ *   default  — neutral (surface-muted bg, text-secondary)
+ *   success  — positive state
+ *   warning  — caution state
+ *   error    — system error / validation failure
+ *   info     — informational
+ *
+ * Note: the former "danger" variant is renamed "error" here.
+ * "Danger" is reserved for destructive Button actions; "error" describes
+ * system states, validation failures, and alert badges.
+ * See packages/design-tokens/DESIGN_DECISIONS.md DD-004.
+ */
+
+type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info'
 
 interface BadgeProps {
-  variant?: BadgeVariant
-  children: React.ReactNode
+  variant?:  BadgeVariant
+  children:  React.ReactNode
   className?: string
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: 'bg-gray-100 text-gray-800',
-  success: 'bg-green-100 text-green-800',
-  warning: 'bg-yellow-100 text-yellow-800',
-  danger: 'bg-red-100 text-red-800',
-  info: 'bg-blue-100 text-blue-800',
+  default: 'bg-surface-muted text-text-secondary',
+  success: 'bg-status-successBg text-status-successText',
+  warning: 'bg-status-warningBg text-status-warningText',
+  error:   'bg-status-errorBg text-status-errorText',
+  info:    'bg-status-infoBg text-status-infoText',
 }
 
 export function Badge({ variant = 'default', children, className = '' }: BadgeProps) {

@@ -1,20 +1,10 @@
 import Link from 'next/link'
 import { createAdminClient } from '@natural-intelligence/db'
 import { copy } from '@/lib/copy'
+import { VettedBadge } from '@natural-intelligence/ui'
 
 interface Props {
   searchParams: Record<string, string | undefined>
-}
-
-function VettedBadge() {
-  return (
-    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-brand-light text-brand-text text-xs font-medium">
-      <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-      </svg>
-      {copy.referralPanel.card.vettedBadge}
-    </span>
-  )
 }
 
 function FilterLink({
@@ -245,7 +235,7 @@ export default async function ReferralMatchPanel({ searchParams }: Props) {
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-sm font-semibold text-text-primary">{name}</p>
-                      {p.trust_level === 'vetted' && <VettedBadge />}
+                      {p.trust_level === 'vetted' && <VettedBadge label={copy.referralPanel.card.vettedBadge} />}
                     </div>
                     {profile?.email && (
                       <p className="text-xs text-text-muted">{profile.email}</p>

@@ -17,7 +17,7 @@ export default function ForgotPasswordPage() {
     startTransition(async () => {
       const supabase = createClient()
       const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://natural-intelligence.uk/auth/update-password',
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://natural-intelligence.uk'}/auth/update-password`,
       })
       if (err) {
         setError(err.message)

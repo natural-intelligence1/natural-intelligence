@@ -3,28 +3,7 @@ import { notFound } from 'next/navigation'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import { DELIVERY_MODES } from '@/lib/taxonomies'
-
-// ─── Shared UI primitives ─────────────────────────────────────────────────────
-
-function Avatar({ name }: { name: string }) {
-  const initials = name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
-  return (
-    <div className="w-20 h-20 rounded-full bg-brand-light text-brand-text text-2xl font-semibold flex items-center justify-center flex-shrink-0">
-      {initials}
-    </div>
-  )
-}
-
-function VettedBadge() {
-  return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-light text-brand-text text-xs font-medium">
-      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-      </svg>
-      {copy.practitionerProfile.vettedBadge}
-    </span>
-  )
-}
+import { Avatar, VettedBadge } from '@natural-intelligence/ui'
 
 function Pill({ label }: { label: string }) {
   return (
@@ -148,7 +127,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
       {/* Header card */}
       <div className="rounded-xl border border-border-default bg-surface-raised p-8 shadow-sm mb-8">
         <div className="flex flex-col sm:flex-row gap-6 items-start">
-          <Avatar name={name} />
+          <Avatar name={name} size="xl" />
 
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-text-primary mb-0.5">{name}</h1>
@@ -159,7 +138,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
 
             {p.trust_level === 'vetted' && (
               <div className="mb-3">
-                <VettedBadge />
+                <VettedBadge label={copy.practitionerProfile.vettedBadge} />
               </div>
             )}
 

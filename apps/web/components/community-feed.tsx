@@ -3,16 +3,7 @@
 import { useState, useTransition } from 'react'
 import { copy } from '@/lib/copy'
 import { createPost, toggleLike, addComment } from '@/app/community/actions'
-
-function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
-  const initials = name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
-  const sizes = { sm: 'w-8 h-8 text-xs', md: 'w-10 h-10 text-sm', lg: 'w-12 h-12 text-base' }
-  return (
-    <div className={`${sizes[size]} rounded-full bg-brand-light text-brand-text font-semibold flex items-center justify-center flex-shrink-0`}>
-      {initials}
-    </div>
-  )
-}
+import { Avatar } from '@natural-intelligence/ui'
 
 function timeAgo(dateStr: string): string {
   const now = Date.now()
