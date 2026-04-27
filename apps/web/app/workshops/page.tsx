@@ -172,9 +172,9 @@ export default async function WorkshopsPage({ searchParams }: WorkshopsPageProps
                 className="rounded-xl border border-border-default bg-surface-raised p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col"
               >
                 <div className="flex flex-wrap items-center gap-2 mb-3">
-                  <Pill label={event.event_type.replace('_', ' ')} />
+                  <Pill>{event.event_type.replace('_', ' ')}</Pill>
                   {event.is_online && (
-                    <Pill label={copy.workshops.card.online} />
+                    <Pill>{copy.workshops.card.online}</Pill>
                   )}
                 </div>
 

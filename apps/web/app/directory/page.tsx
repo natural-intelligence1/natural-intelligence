@@ -138,10 +138,10 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
                 {areas.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-4">
                     {areas.slice(0, 3).map((s: string) => (
-                      <Pill key={s} label={s} />
+                      <Pill key={s}>{s}</Pill>
                     ))}
                     {areas.length > 3 && (
-                      <Pill label={`+${areas.length - 3}`} />
+                      <Pill>{`+${areas.length - 3}`}</Pill>
                     )}
                   </div>
                 )}

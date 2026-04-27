@@ -205,7 +205,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
             <section>
               <SectionHeading>{copy.directory.profile.professions}</SectionHeading>
               <div className="flex flex-wrap gap-2">
-                {(p.primary_professions as string[]).map((v) => <Pill key={v} label={v} />)}
+                {(p.primary_professions as string[]).map((v) => <Pill key={v}>{v}</Pill>)}
               </div>
             </section>
           )}
@@ -215,7 +215,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
             <section>
               <SectionHeading>{copy.directory.profile.areas}</SectionHeading>
               <div className="flex flex-wrap gap-2">
-                {areas.map((v) => <Pill key={v} label={v} />)}
+                {areas.map((v) => <Pill key={v}>{v}</Pill>)}
               </div>
             </section>
           )}
@@ -225,7 +225,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
             <section>
               <SectionHeading>{copy.directory.profile.clientTypes}</SectionHeading>
               <div className="flex flex-wrap gap-2">
-                {(p.client_types as string[]).map((v) => <Pill key={v} label={v} />)}
+                {(p.client_types as string[]).map((v) => <Pill key={v}>{v}</Pill>)}
               </div>
             </section>
           )}
@@ -250,7 +250,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
             <section>
               <SectionHeading>{copy.directory.profile.collaboration}</SectionHeading>
               <div className="flex flex-wrap gap-2">
-                {(p.collaboration_types as string[]).map((v) => <Pill key={v} label={v} />)}
+                {(p.collaboration_types as string[]).map((v) => <Pill key={v}>{v}</Pill>)}
               </div>
             </section>
           )}
