@@ -150,6 +150,211 @@ export async function seedTestSupportRequest(): Promise<{ id: string }> {
   return { id: req.id }
 }
 
+// ─── Seed showcase data (5 practitioners + 3 events + 3 resources) ───────────
+export async function seedShowcaseData(): Promise<{ practitioners: number; events: number; resources: number }> {
+  const { adminClient } = await requireAdmin()
+
+  // ── Practitioners ────────────────────────────────────────────────────────────
+  const practitioners = [
+    {
+      email:    `dr-sarah-chen-${Date.now()}@showcase.internal`,
+      name:     'Dr Sarah Chen',
+      bio:      'Dr Sarah Chen integrates Traditional Chinese Medicine with modern functional diagnostics to support chronic pain, fatigue, and fertility. She trained at the Beijing University of Chinese Medicine and has practised in London for over twelve years.',
+      tagline:  'Traditional Chinese Medicine and acupuncture for chronic pain, fatigue, and fertility.',
+      city:     'London',
+      professions: ['Acupuncturist', 'Traditional Chinese Medicine Practitioner'],
+      areas:    ['Chronic pain', 'Fatigue', 'Fertility', 'Hormonal balance'],
+      clients:  ['Adults', 'Women'],
+      experience: '10+ years',
+      tier:     'premium',
+      trust:    'vetted' as const,
+    },
+    {
+      email:    `marcus-obi-${Date.now()}@showcase.internal`,
+      name:     'Marcus Obi',
+      bio:      'Marcus Obi is a functional medicine practitioner specialising in gut health, hormonal imbalance, and autoimmune conditions. He takes a root-cause approach combining advanced lab testing with evidence-based nutritional and lifestyle protocols.',
+      tagline:  'Functional medicine for gut health, hormones, and autoimmune conditions.',
+      city:     'Birmingham',
+      professions: ['Functional Medicine Practitioner'],
+      areas:    ['Gut health', 'Hormones', 'Autoimmune conditions', 'Inflammation'],
+      clients:  ['Adults'],
+      experience: '5-10 years',
+      tier:     'standard',
+      trust:    'vetted' as const,
+    },
+    {
+      email:    `lena-parrish-${Date.now()}@showcase.internal`,
+      name:     'Lena Parrish',
+      bio:      'Lena Parrish is a registered nutritional therapist working with adults and young people on sustainable energy, healthy weight management, and nutritional foundations. Her approach is practical, non-restrictive, and grounded in biochemistry.',
+      tagline:  'Nutritional therapy for lasting energy, weight balance, and everyday wellbeing.',
+      city:     'Edinburgh',
+      professions: ['Nutritional Therapist'],
+      areas:    ['Nutrition', 'Weight management', 'Energy', 'Digestive health'],
+      clients:  ['Adults', 'Young people'],
+      experience: '3-5 years',
+      tier:     'standard',
+      trust:    'unvetted' as const,
+    },
+    {
+      email:    `james-thornton-${Date.now()}@showcase.internal`,
+      name:     'James Thornton',
+      bio:      'James Thornton has practised naturopathic medicine for over a decade, helping patients address digestive disorders, chronic stress, and poor sleep through a combination of botanical medicine, hydrotherapy, and lifestyle modification.',
+      tagline:  'Naturopathic medicine for digestive health, stress resilience, and restorative sleep.',
+      city:     'Manchester',
+      professions: ['Naturopath'],
+      areas:    ['Digestive health', 'Stress', 'Sleep', 'Nervous system'],
+      clients:  ['Adults', 'Older adults'],
+      experience: '10+ years',
+      tier:     'premium',
+      trust:    'vetted' as const,
+    },
+    {
+      email:    `dr-priya-nair-${Date.now()}@showcase.internal`,
+      name:     'Dr Priya Nair',
+      bio:      'Dr Priya Nair is an integrative GP and functional medicine physician with a specialism in women\'s hormonal health, thyroid conditions, and perimenopause. She brings the rigour of conventional medicine and the depth of functional investigation to every consultation.',
+      tagline:  'Integrative medicine for women\'s health, thyroid conditions, and hormonal transitions.',
+      city:     'London',
+      professions: ['Integrative GP', 'Functional Medicine Practitioner'],
+      areas:    ['Women\'s health', 'Thyroid', 'Perimenopause', 'Hormones'],
+      clients:  ['Adults', 'Women'],
+      experience: '10+ years',
+      tier:     'premium',
+      trust:    'vetted' as const,
+    },
+  ]
+
+  let practitionerCount = 0
+
+  for (const p of practitioners) {
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+      email:          p.email,
+      password:       'ShowcasePass123!',
+      email_confirm:  true,
+    })
+    if (authError || !authData.user) continue
+
+    const profileId = authData.user.id
+
+    await adminClient.from('profiles').update({
+      full_name:    p.name,
+      role:         'practitioner',
+      bio:          p.bio,
+      is_test_data: true,
+    }).eq('id', profileId)
+
+    const { error: pracError } = await adminClient.from('practitioners').insert({
+      profile_id:              profileId,
+      tagline:                 p.tagline,
+      city:                    p.city,
+      country:                 'UK',
+      delivery_mode:           'both',
+      primary_professions:     p.professions,
+      area_tags:               p.areas,
+      client_types:            p.clients,
+      credentials:             [`Registered with relevant professional body. ${p.experience} experience.`],
+      experience_range:        p.experience,
+      accepts_referrals:       true,
+      open_to_collaboration:   true,
+      practitioner_tier:       p.tier,
+      trust_level:             p.trust,
+      lifecycle_status:        'active',
+      is_active:               true,
+      is_directory_ready:      true,
+      profile_completeness_pct: 100,
+      activated_at:            new Date().toISOString(),
+      is_test_data:            true,
+    })
+
+    if (!pracError) practitionerCount++
+  }
+
+  // ── Events ───────────────────────────────────────────────────────────────────
+  // Dates: 2, 3, and 4 weeks from seeding (approx. 2026-05-12, -19, -26)
+  const now = new Date()
+  const weeks = (n: number) => new Date(now.getTime() + n * 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  const events = [
+    {
+      title:        'Understanding Your Gut Microbiome',
+      description:  'A guided workshop exploring how the gut microbiome influences immunity, mood, and metabolic health — and what you can do to support it. Includes a live Q&A with a functional medicine practitioner.',
+      event_type:   'workshop',
+      starts_at:    weeks(2),
+      ends_at:      new Date(new Date(weeks(2)).getTime() + 60 * 60 * 1000).toISOString(),
+      is_online:    true,
+      max_capacity: 20,
+      status:       'published',
+    },
+    {
+      title:        'Functional Lab Testing: What Your GP Misses',
+      description:  'Learn which advanced tests reveal the root causes behind fatigue, brain fog, hormonal imbalance, and digestive symptoms — and how to interpret results alongside a practitioner.',
+      event_type:   'workshop',
+      starts_at:    weeks(3),
+      ends_at:      new Date(new Date(weeks(3)).getTime() + 90 * 60 * 1000).toISOString(),
+      is_online:    true,
+      max_capacity: 15,
+      status:       'published',
+    },
+    {
+      title:        'The Foundations of Functional Medicine',
+      description:  'An introductory webinar covering the core principles of functional and naturopathic medicine — how it differs from conventional care, what to expect from your first consultation, and how to get started.',
+      event_type:   'webinar',
+      starts_at:    weeks(4),
+      ends_at:      new Date(new Date(weeks(4)).getTime() + 45 * 60 * 1000).toISOString(),
+      is_online:    true,
+      max_capacity: 50,
+      status:       'published',
+    },
+  ]
+
+  const { data: insertedEvents } = await adminClient
+    .from('events')
+    .insert(events)
+    .select('id')
+
+  const eventCount = insertedEvents?.length ?? 0
+
+  // ── Resources ────────────────────────────────────────────────────────────────
+  const resources = [
+    {
+      title:         'A Practitioner\'s Guide to the Elimination Diet',
+      description:   'A structured, step-by-step protocol for identifying food sensitivities and inflammatory triggers through a clinically supervised elimination and reintroduction approach.',
+      resource_type: 'guide',
+      topic_tags:    ['Nutrition', 'Gut health', 'Inflammation', 'Food sensitivity'],
+      status:        'published' as const,
+      published_at:  new Date().toISOString(),
+    },
+    {
+      title:         'Reading Your Blood Work — What the Ranges Don\'t Tell You',
+      description:   'Standard laboratory reference ranges are designed for sick populations, not optimal health. This article explains how functional practitioners interpret common blood markers differently and what narrower optimal ranges reveal.',
+      resource_type: 'article',
+      topic_tags:    ['Lab testing', 'Blood work', 'Functional medicine', 'Thyroid'],
+      status:        'published' as const,
+      published_at:  new Date().toISOString(),
+    },
+    {
+      title:         'Supplement Quality: What to Look For',
+      description:   'Not all supplements are created equal. This guide covers the key markers of quality — third-party testing, bioavailable forms, excipient standards — and how to evaluate products before recommending them to patients.',
+      resource_type: 'guide',
+      topic_tags:    ['Supplements', 'Quality', 'Nutrition', 'Clinical guidance'],
+      status:        'published' as const,
+      published_at:  new Date().toISOString(),
+    },
+  ]
+
+  const { data: insertedResources } = await adminClient
+    .from('resources')
+    .insert(resources)
+    .select('id')
+
+  const resourceCount = insertedResources?.length ?? 0
+
+  revalidatePath('/practitioners')
+  revalidatePath('/workshops')
+  revalidatePath('/resources')
+
+  return { practitioners: practitionerCount, events: eventCount, resources: resourceCount }
+}
+
 // ─── Reset all test data ──────────────────────────────────────────────────────
 export async function resetTestData(): Promise<{ deleted: Record<string, number> }> {
   const { adminClient } = await requireAdmin()

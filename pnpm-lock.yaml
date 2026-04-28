@@ -72,6 +72,9 @@ importers:
 
   apps/care:
     dependencies:
+      '@natural-intelligence/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@natural-intelligence/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens

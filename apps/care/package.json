@@ -11,6 +11,7 @@
     "clean": "rm -rf .next"
   },
   "dependencies": {
+    "@natural-intelligence/db": "workspace:*",
     "@natural-intelligence/design-tokens": "workspace:*",
     "next": "14.2.29",
     "react": "^18",
