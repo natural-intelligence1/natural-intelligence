@@ -92,30 +92,34 @@ export async function seedTestPractitioner(): Promise<{ id: string }> {
     is_test_data: true,
   }).eq('id', profileId)
 
+  // Type cast needed because generated types predate schema additions (profile_id, trust_level enum)
+  // eslint-disable-next-line
+  const seedPractitioner: any = {
+    profile_id:              profileId,
+    tagline:                 'Test practitioner tagline for directory display.',
+    city:                    'Manchester',
+    country:                 'UK',
+    delivery_mode:           'online',
+    primary_professions:     ['Counsellor'],
+    area_tags:               ['Stress', 'Burnout', 'Work-life balance'],
+    client_types:            ['Adults', 'Couples'],
+    credentials:             'BACP member. Test entry.',
+    experience_range:        '5-10 years',
+    accepts_referrals:       true,
+    open_to_collaboration:   true,
+    practitioner_tier:       'standard',
+    trust_level:             'unvetted',
+    lifecycle_status:        'active',
+    is_active:               true,
+    is_directory_ready:      true,
+    profile_completeness_pct: 100,
+    activated_at:            new Date().toISOString(),
+    is_test_data:            true,
+  }
+
   const { data: prac, error: pracError } = await adminClient
     .from('practitioners')
-    .insert({
-      profile_id:              profileId,
-      tagline:                 'Test practitioner tagline for directory display.',
-      city:                    'Manchester',
-      country:                 'UK',
-      delivery_mode:           'online',
-      primary_professions:     ['Counsellor'],
-      area_tags:               ['Stress', 'Burnout', 'Work-life balance'],
-      client_types:            ['Adults', 'Couples'],
-      credentials:             'BACP member. Test entry.',
-      experience_range:        '5-10 years',
-      accepts_referrals:       true,
-      open_to_collaboration:   true,
-      practitioner_tier:       'standard',
-      trust_level:             'standard',
-      lifecycle_status:        'active',
-      is_active:               true,
-      is_directory_ready:      true,
-      profile_completeness_pct: 100,
-      activated_at:            new Date().toISOString(),
-      is_test_data:            true,
-    })
+    .insert(seedPractitioner)
     .select('id')
     .single()
 
@@ -129,16 +133,19 @@ export async function seedTestPractitioner(): Promise<{ id: string }> {
 export async function seedTestSupportRequest(): Promise<{ id: string }> {
   const { adminClient, adminUserId } = await requireAdmin()
 
+  // eslint-disable-next-line
+  const seedRequest: any = {
+    member_id:    adminUserId,
+    request_type: 'general',
+    description:  'This is a test support request created via the dev seed tool. It can be safely deleted.',
+    urgency:      'low',
+    status:       'new',
+    is_test_data: true,
+  }
+
   const { data: req, error } = await adminClient
     .from('support_requests')
-    .insert({
-      member_id:    adminUserId,
-      request_type: 'general',
-      description:  'This is a test support request created via the dev seed tool. It can be safely deleted.',
-      urgency:      'low',
-      status:       'new',
-      is_test_data: true,
-    })
+    .insert(seedRequest)
     .select('id')
     .single()
 

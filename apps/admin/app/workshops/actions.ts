@@ -10,21 +10,23 @@ export async function createEvent(formData: FormData) {
   if (!user) throw new Error('Unauthenticated')
 
   const adminClient = createAdminClient()
+  // eslint-disable-next-line
+  const eventPayload: any = {
+    title:        formData.get('title') as string,
+    description:  formData.get('description') as string || null,
+    event_type:   formData.get('event_type') as string,
+    starts_at:    formData.get('starts_at') as string || null,
+    ends_at:      formData.get('ends_at') as string || null,
+    location:     formData.get('location') as string || null,
+    is_online:    formData.get('is_online') === 'on',
+    meeting_url:  formData.get('meeting_url') as string || null,
+    max_capacity: formData.get('max_capacity') ? Number(formData.get('max_capacity')) : null,
+    status:       formData.get('status') as string,
+    hosted_by:    user.id,
+  }
   const { data, error } = await adminClient
     .from('events')
-    .insert({
-      title:        formData.get('title') as string,
-      description:  formData.get('description') as string || null,
-      event_type:   formData.get('event_type') as string,
-      starts_at:    formData.get('starts_at') as string || null,
-      ends_at:      formData.get('ends_at') as string || null,
-      location:     formData.get('location') as string || null,
-      is_online:    formData.get('is_online') === 'on',
-      meeting_url:  formData.get('meeting_url') as string || null,
-      max_capacity: formData.get('max_capacity') ? Number(formData.get('max_capacity')) : null,
-      status:       formData.get('status') as string,
-      hosted_by:    user.id,
-    })
+    .insert(eventPayload)
     .select('id')
     .single()
 
@@ -40,20 +42,22 @@ export async function updateEvent(eventId: string, formData: FormData) {
   if (!user) throw new Error('Unauthenticated')
 
   const adminClient = createAdminClient()
+  // eslint-disable-next-line
+  const updatePayload: any = {
+    title:        formData.get('title') as string,
+    description:  formData.get('description') as string || null,
+    event_type:   formData.get('event_type') as string,
+    starts_at:    formData.get('starts_at') as string || null,
+    ends_at:      formData.get('ends_at') as string || null,
+    location:     formData.get('location') as string || null,
+    is_online:    formData.get('is_online') === 'on',
+    meeting_url:  formData.get('meeting_url') as string || null,
+    max_capacity: formData.get('max_capacity') ? Number(formData.get('max_capacity')) : null,
+    status:       formData.get('status') as string,
+  }
   const { error } = await adminClient
     .from('events')
-    .update({
-      title:        formData.get('title') as string,
-      description:  formData.get('description') as string || null,
-      event_type:   formData.get('event_type') as string,
-      starts_at:    formData.get('starts_at') as string || null,
-      ends_at:      formData.get('ends_at') as string || null,
-      location:     formData.get('location') as string || null,
-      is_online:    formData.get('is_online') === 'on',
-      meeting_url:  formData.get('meeting_url') as string || null,
-      max_capacity: formData.get('max_capacity') ? Number(formData.get('max_capacity')) : null,
-      status:       formData.get('status') as string,
-    })
+    .update(updatePayload)
     .eq('id', eventId)
 
   if (error) throw new Error(error.message)

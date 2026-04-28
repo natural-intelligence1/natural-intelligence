@@ -1,14 +1,16 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import { Badge } from '@natural-intelligence/ui'
 import { copy } from '@/lib/copy'
 import ApplicationActions from './ApplicationActions'
 
-const statusColors: Record<string, string> = {
-  pending:   'bg-surface-muted text-text-secondary',
-  reviewing: 'bg-status-infoBg text-status-infoText',
-  approved:  'bg-brand-light text-brand-text',
-  rejected:  'bg-status-errorBg text-status-errorText',
+type BadgeVariant = 'default' | 'info' | 'success' | 'danger' | 'warning'
+const statusBadge: Record<string, BadgeVariant> = {
+  pending:   'default',
+  reviewing: 'info',
+  approved:  'success',
+  rejected:  'danger',
 }
 
 function fmt(d: string) {
@@ -97,9 +99,9 @@ export default async function ApplicationDetailPage({ params }: Props) {
         </Link>
         <span className="text-text-muted">/</span>
         <h1 className="text-2xl font-semibold text-text-primary">{app.full_name}</h1>
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusColors[app.status] ?? 'bg-surface-muted text-text-secondary'}`}>
+        <Badge variant={statusBadge[app.status] ?? 'default'}>
           {copy.applications.statuses[app.status as keyof typeof copy.applications.statuses] ?? app.status}
-        </span>
+        </Badge>
       </div>
 
       <div className="px-8 py-6 max-w-4xl space-y-8">

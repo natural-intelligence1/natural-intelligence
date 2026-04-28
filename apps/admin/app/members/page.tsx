@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import { Avatar } from '@natural-intelligence/ui'
 import { copy } from '@/lib/copy'
 
 function fmt(d: string) {
@@ -58,7 +59,12 @@ export default async function MembersPage() {
               <tbody className="divide-y divide-border-muted">
                 {members.map((m) => (
                   <tr key={m.id} className="hover:bg-surface-muted transition-colors">
-                    <td className="px-4 py-3 text-text-primary font-medium">{m.full_name ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <Avatar name={m.full_name ?? '?'} size="sm" />
+                        <span className="text-text-primary font-medium">{m.full_name ?? '—'}</span>
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-surface-muted text-text-secondary capitalize">
                         {m.role}

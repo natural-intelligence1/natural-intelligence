@@ -46,7 +46,7 @@ export default function ApplicationActions({ applicationId, initialNotes, curren
           <button
             disabled={loading}
             onClick={() => handle('approve')}
-            className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50"
           >
             {copy.applications.detail.actions.approve}
           </button>

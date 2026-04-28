@@ -62,7 +62,7 @@ export default function SupportDetailClient({ requestId, initialNotes, currentSt
         <button
           disabled={saving}
           onClick={handleSaveNotes}
-          className="mt-2 px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50"
+          className="mt-2 px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50"
         >
           {copy.support.detail.saveNotes}
         </button>

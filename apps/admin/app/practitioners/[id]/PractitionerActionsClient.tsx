@@ -49,7 +49,7 @@ export default function PractitionerActionsClient({ practitionerId, lifecycleSta
           <button
             disabled={loading}
             onClick={() => handle(() => activatePractitioner(practitionerId))}
-            className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50"
           >
             {c.actions.activate}
           </button>

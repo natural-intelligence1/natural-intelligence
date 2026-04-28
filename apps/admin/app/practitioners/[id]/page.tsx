@@ -1,14 +1,16 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import { Avatar, Badge, VettedBadge } from '@natural-intelligence/ui'
 import { copy } from '@/lib/copy'
 import PractitionerActionsClient from './PractitionerActionsClient'
 
-const lifecycleColors: Record<string, string> = {
-  approved_pending_profile: 'bg-status-warningBg text-status-warningText',
-  active:                   'bg-brand-light text-brand-text',
-  paused:                   'bg-surface-muted text-text-muted',
-  rejected:                 'bg-status-errorBg text-status-errorText',
+type BadgeVariant = 'default' | 'info' | 'success' | 'danger' | 'warning'
+const lifecycleBadge: Record<string, BadgeVariant> = {
+  approved_pending_profile: 'warning',
+  active:                   'success',
+  paused:                   'default',
+  rejected:                 'danger',
 }
 
 function Field({ label, value }: { label: string; value?: string | number | boolean | null }) {
@@ -95,14 +97,14 @@ export default async function PractitionerDetailPage({ params }: Props) {
           {copy.shared.back}
         </Link>
         <span className="text-text-muted">/</span>
+        <Avatar name={name} size="sm" />
         <h1 className="text-2xl font-semibold text-text-primary">{name}</h1>
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${lifecycleColors[lifecycle] ?? 'bg-surface-muted text-text-secondary'}`}>
+        {(p as any).trust_level === 'vetted' && <VettedBadge vetted={true} size="sm" />}
+        <Badge variant={lifecycleBadge[lifecycle] ?? 'default'}>
           {c.lifecycle[lifecycle as keyof typeof c.lifecycle] ?? lifecycle}
-        </span>
+        </Badge>
         {(p as any).is_directory_ready && (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-status-successBg text-status-successText">
-            {c.directoryReady}
-          </span>
+          <Badge variant="success">{c.directoryReady}</Badge>
         )}
       </div>
 

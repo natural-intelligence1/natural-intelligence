@@ -1,13 +1,15 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import { Badge } from '@natural-intelligence/ui'
 import { copy } from '@/lib/copy'
 
-const lifecycleColors: Record<string, string> = {
-  approved_pending_profile: 'bg-status-warningBg text-status-warningText',
-  active:                   'bg-brand-light text-brand-text',
-  paused:                   'bg-surface-muted text-text-muted',
-  rejected:                 'bg-status-errorBg text-status-errorText',
+type BadgeVariant = 'default' | 'info' | 'success' | 'danger' | 'warning'
+const lifecycleBadge: Record<string, BadgeVariant> = {
+  approved_pending_profile: 'warning',
+  active:                   'success',
+  paused:                   'default',
+  rejected:                 'danger',
 }
 
 function CompletenessBar({ pct, isReady }: { pct: number; isReady: boolean }) {
@@ -66,9 +68,9 @@ export default async function PractitionersPage() {
         {(['active', 'approved_pending_profile', 'paused'] as const).map((status) => {
           const count = (practitioners ?? []).filter((p: any) => p.lifecycle_status === status).length
           return (
-            <span key={status} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${lifecycleColors[status]}`}>
+            <Badge key={status} variant={lifecycleBadge[status] ?? 'default'}>
               {c.lifecycle[status]} — {count}
-            </span>
+            </Badge>
           )
         })}
       </div>
@@ -107,9 +109,9 @@ export default async function PractitionersPage() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${lifecycleColors[lifecycle] ?? 'bg-surface-muted text-text-secondary'}`}>
+                        <Badge variant={lifecycleBadge[lifecycle] ?? 'default'}>
                           {c.lifecycle[lifecycle as keyof typeof c.lifecycle] ?? lifecycle}
-                        </span>
+                        </Badge>
                       </td>
                       <td className="px-4 py-3">
                         <CompletenessBar pct={pct} isReady={isReady} />

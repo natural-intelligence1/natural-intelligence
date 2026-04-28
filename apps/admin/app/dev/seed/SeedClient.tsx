@@ -29,7 +29,7 @@ function SeedButton({
       className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
         variant === 'danger'
           ? 'bg-status-errorBg text-status-errorText border border-status-errorBorder hover:bg-status-errorBorder'
-          : 'bg-brand-default hover:bg-brand-hover text-white'
+          : 'bg-brand-default hover:bg-brand-hover text-text-inverted'
       }`}
     >
       {label}

@@ -21,7 +21,7 @@ function FilterLink({
       href={href}
       className={`inline-block px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
         active
-          ? 'bg-brand-default text-white'
+          ? 'bg-brand-default text-text-inverted'
           : 'border border-border-default text-text-secondary hover:bg-surface-muted'
       }`}
     >

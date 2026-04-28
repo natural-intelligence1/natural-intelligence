@@ -1,13 +1,15 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import { Badge } from '@natural-intelligence/ui'
 import { copy } from '@/lib/copy'
 
-const statusColors: Record<string, string> = {
-  draft:     'bg-surface-muted text-text-secondary',
-  published: 'bg-brand-light text-brand-text',
-  cancelled: 'bg-status-errorBg text-status-errorText',
-  completed: 'bg-status-successBg text-status-successText',
+type BadgeVariant = 'default' | 'info' | 'success' | 'danger' | 'warning'
+const statusBadge: Record<string, BadgeVariant> = {
+  draft:     'default',
+  published: 'success',
+  cancelled: 'danger',
+  completed: 'info',
 }
 
 function fmt(d: string) {
@@ -51,7 +53,7 @@ export default async function WorkshopsPage() {
         </div>
         <Link
           href="/workshops/new"
-          className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors"
+          className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
         >
           {copy.workshops.createNew}
         </Link>
@@ -87,9 +89,9 @@ export default async function WorkshopsPage() {
                     </td>
                     <td className="px-4 py-3 text-text-secondary">{event.starts_at ? fmt(event.starts_at) : '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusColors[event.status] ?? 'bg-surface-muted text-text-secondary'}`}>
+                      <Badge variant={statusBadge[event.status] ?? 'default'}>
                         {copy.workshops.statuses[event.status as keyof typeof copy.workshops.statuses] ?? event.status}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 text-text-secondary">{event.max_capacity ?? '—'}</td>
                   </tr>

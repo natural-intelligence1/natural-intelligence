@@ -1,19 +1,25 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import { Badge } from '@natural-intelligence/ui'
 import { copy } from '@/lib/copy'
 
-const statusColors: Record<string, string> = {
-  new:       'bg-status-warningBg text-status-warningText',
-  in_review: 'bg-status-infoBg text-status-infoText',
-  actioned:  'bg-brand-light text-brand-text',
-  closed:    'bg-surface-muted text-text-muted',
+type BadgeVariant = 'default' | 'info' | 'success' | 'danger' | 'warning'
+const statusBadge: Record<string, BadgeVariant> = {
+  new:       'warning',
+  in_review: 'info',
+  actioned:  'success',
+  closed:    'default',
 }
-
-const urgencyColors: Record<string, string> = {
-  high:   'bg-status-errorBg text-status-errorText',
-  normal: 'bg-status-warningBg text-status-warningText',
-  low:    'bg-surface-muted text-text-muted',
+const urgencyBadge: Record<string, BadgeVariant> = {
+  high:   'danger',
+  normal: 'warning',
+  low:    'default',
+}
+const urgencyRowBorder: Record<string, string> = {
+  high:   'border-l-4 border-l-status-errorText',
+  normal: 'border-l-4 border-l-border-default',
+  low:    'border-l-4 border-l-transparent',
 }
 
 function fmt(d: string) {
@@ -72,7 +78,7 @@ export default async function SupportPage({ searchParams }: Props) {
         <div className="flex gap-2 mb-6">
           <Link
             href="/support"
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${!searchParams.status ? 'bg-brand-default text-white' : 'border border-border-default text-text-secondary hover:bg-surface-muted'}`}
+            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${!searchParams.status ? 'bg-brand-default text-text-inverted' : 'border border-border-default text-text-secondary hover:bg-surface-muted'}`}
           >
             All
           </Link>
@@ -80,7 +86,7 @@ export default async function SupportPage({ searchParams }: Props) {
             <Link
               key={s}
               href={`/support?status=${s}`}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${searchParams.status === s ? 'bg-brand-default text-white' : 'border border-border-default text-text-secondary hover:bg-surface-muted'}`}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${searchParams.status === s ? 'bg-brand-default text-text-inverted' : 'border border-border-default text-text-secondary hover:bg-surface-muted'}`}
             >
               {copy.support.statuses[s as keyof typeof copy.support.statuses]}
             </Link>
@@ -104,7 +110,7 @@ export default async function SupportPage({ searchParams }: Props) {
               </thead>
               <tbody className="divide-y divide-border-muted">
                 {requests.map((req) => (
-                  <tr key={req.id} className="hover:bg-surface-muted transition-colors cursor-pointer">
+                  <tr key={req.id} className={`hover:bg-surface-muted transition-colors cursor-pointer ${urgencyRowBorder[req.urgency ?? ''] ?? ''}`}>
                     <td className="px-4 py-3">
                       <Link href={`/support/${req.id}`} className="text-text-primary font-medium hover:underline">
                         {req.full_name}
@@ -112,17 +118,17 @@ export default async function SupportPage({ searchParams }: Props) {
                     </td>
                     <td className="px-4 py-3 text-text-secondary">{req.email}</td>
                     <td className="px-4 py-3 text-text-secondary">
-                      {copy.support.requestTypes[req.request_type as keyof typeof copy.support.requestTypes] ?? req.request_type}
+                      {copy.support.requestTypes[(req.request_type ?? '') as keyof typeof copy.support.requestTypes] ?? req.request_type}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${urgencyColors[req.urgency] ?? 'bg-surface-muted text-text-secondary'}`}>
-                        {copy.support.urgency[req.urgency as keyof typeof copy.support.urgency] ?? req.urgency}
-                      </span>
+                      <Badge variant={urgencyBadge[req.urgency ?? ''] ?? 'default'}>
+                        {copy.support.urgency[(req.urgency ?? '') as keyof typeof copy.support.urgency] ?? req.urgency}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusColors[req.status] ?? 'bg-surface-muted text-text-secondary'}`}>
+                      <Badge variant={statusBadge[req.status] ?? 'default'}>
                         {copy.support.statuses[req.status as keyof typeof copy.support.statuses] ?? req.status}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 text-text-secondary">{req.submitted_at ? fmt(req.submitted_at) : '—'}</td>
                   </tr>

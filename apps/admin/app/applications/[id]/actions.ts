@@ -106,7 +106,7 @@ export async function approveApplication(applicationId: string, notes: string) {
       credentials:              app.credentials ? [app.credentials] : [],
       website_url:              app.website_url  ?? null,
       linkedin_url:             app.linkedin_url ?? null,
-      trust_level:              'vetted',
+      trust_level:              'vetted' as const,
       is_active:                true,
       lifecycle_status:         isReady ? 'active' : 'approved_pending_profile',
       profile_completeness_pct: pct,

@@ -81,10 +81,10 @@ export default async function SupportDetailPage({ params, searchParams }: Props)
         </Link>
         <span className="text-text-muted">/</span>
         <h1 className="text-2xl font-semibold text-text-primary">{req.full_name}</h1>
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${urgencyColors[req.urgency] ?? 'bg-surface-muted text-text-secondary'}`}>
-          {copy.support.urgency[req.urgency as keyof typeof copy.support.urgency] ?? req.urgency}
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${urgencyColors[req.urgency ?? ''] ?? 'bg-surface-muted text-text-secondary'}`}>
+          {copy.support.urgency[(req.urgency ?? '') as keyof typeof copy.support.urgency] ?? req.urgency}
         </span>
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusColors[req.status] ?? 'bg-surface-muted text-text-secondary'}`}>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusColors[req.status ?? ''] ?? 'bg-surface-muted text-text-secondary'}`}>
           {copy.support.statuses[req.status as keyof typeof copy.support.statuses] ?? req.status}
         </span>
       </div>

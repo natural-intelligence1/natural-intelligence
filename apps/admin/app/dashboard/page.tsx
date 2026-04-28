@@ -69,12 +69,11 @@ export default async function AdminDashboardPage() {
       </div>
 
       <div className="px-8 py-8">
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {metrics.map(({ label, count, href }) => (
-            <a key={label} href={href} className="block rounded-xl border border-border-default bg-surface-raised p-6 shadow-sm hover:shadow-md transition-shadow">
-              <p className="text-sm font-medium text-text-secondary">{label}</p>
-              <p className="text-4xl font-bold text-text-primary mt-2">{count}</p>
-              <div className="mt-4 h-0.5 bg-brand-default rounded-full" />
+            <a key={label} href={href} className="block rounded-xl border border-border-default bg-surface-raised p-5 shadow-sm hover:shadow-md transition-shadow">
+              <p className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">{label}</p>
+              <p className="text-2xl font-light text-text-primary">{count}</p>
             </a>
           ))}
         </div>

@@ -1,12 +1,14 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import { Badge } from '@natural-intelligence/ui'
 import { copy } from '@/lib/copy'
 
-const statusColors: Record<string, string> = {
-  draft:     'bg-surface-muted text-text-secondary',
-  published: 'bg-brand-light text-brand-text',
-  archived:  'bg-surface-muted text-text-muted',
+type BadgeVariant = 'default' | 'info' | 'success' | 'danger' | 'warning'
+const statusBadge: Record<string, BadgeVariant> = {
+  draft:     'default',
+  published: 'success',
+  archived:  'default',
 }
 
 export default async function ResourcesPage() {
@@ -46,7 +48,7 @@ export default async function ResourcesPage() {
         </div>
         <Link
           href="/resources/new"
-          className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-white text-sm font-medium transition-colors"
+          className="px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
         >
           {copy.resources.createNew}
         </Link>
@@ -80,9 +82,9 @@ export default async function ResourcesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${statusColors[res.status] ?? 'bg-surface-muted text-text-secondary'}`}>
+                      <Badge variant={statusBadge[res.status] ?? 'default'}>
                         {copy.resources.statuses[res.status as keyof typeof copy.resources.statuses] ?? res.status}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 text-text-secondary">
                       {(res.author as { full_name?: string } | null)?.full_name ?? '—'}
