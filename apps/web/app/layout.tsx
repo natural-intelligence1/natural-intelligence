@@ -30,8 +30,36 @@ import { NavMobile } from '@/components/nav-mobile'
 import { LogoutButton } from '@/components/logout-button'
 
 export const metadata: Metadata = {
-  title: copy.brand.name,
-  description: copy.brand.tagline,
+  title: {
+    default:  'Natural Intelligence',
+    template: '%s — Natural Intelligence',
+  },
+  description:
+    'Find trusted naturopathic and functional medicine practitioners, ' +
+    'join expert-led workshops, and access evidence-based health resources.',
+  metadataBase: new URL('https://natural-intelligence.uk'),
+  openGraph: {
+    type:        'website',
+    siteName:    'Natural Intelligence',
+    title:       'Natural Intelligence — intelligent natural healthcare',
+    description:
+      'Find trusted naturopathic and functional medicine practitioners, ' +
+      'join expert-led workshops, and access evidence-based health resources.',
+    url: 'https://natural-intelligence.uk',
+    // og:image is automatically generated from /app/opengraph-image.tsx
+  },
+  twitter: {
+    card:        'summary_large_image',
+    title:       'Natural Intelligence — intelligent natural healthcare',
+    description:
+      'Find trusted naturopathic and functional medicine practitioners, ' +
+      'join expert-led workshops, and access evidence-based health resources.',
+    // twitter:image is automatically generated from /app/twitter-image.tsx
+  },
+  robots: {
+    index:  true,
+    follow: true,
+  },
 }
 
 const navLinks = [
