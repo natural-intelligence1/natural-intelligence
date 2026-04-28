@@ -1,5 +1,5 @@
 /**
- * Natural Intelligence — Design Token System
+ * Natural Intelligence — Design Token System  (v5)
  *
  * Cardinal Rule: every value used in the UI traces back to this file.
  * No raw hex, no raw px, no inline font strings anywhere in components.
@@ -9,38 +9,49 @@
 // ─── Primitive palette ────────────────────────────────────────────────────────
 
 const sage = {
-  25:  '#f6faf7',
-  50:  '#ecf5ee',
-  100: '#d1e8d5',
-  200: '#a5d1ac',
-  300: '#6db47a',
-  400: '#469754',
-  500: '#347d41',   // primary action
-  600: '#286433',
-  700: '#1e4d27',
-  800: '#14361b',
-  900: '#0a1f0f',
+  25:  '#EAF2EC',
+  50:  '#E8F2EB',   // sage bg
+  100: '#C5DECA',
+  200: '#9DC6A5',
+  300: '#6B9878',   // sage mid — hover states
+  400: '#5A8A66',
+  500: '#4E7A5C',   // sage default — success / vetted
+  600: '#3D6349',
+  700: '#2C4B37',
+  800: '#1C3324',
+  900: '#0E1F14',
 }
 
 const warm = {
-  0:   '#ffffff',
-  25:  '#fafaf8',   // page background
-  50:  '#f4f3ef',   // surface
-  100: '#eceae5',   // muted surface
-  200: '#dedad3',   // border default
-  300: '#c8c4bb',   // border strong
-  400: '#a09b91',   // text placeholder
-  500: '#7a7570',   // text muted
-  600: '#5c5852',   // text secondary
-  700: '#3f3c37',   // text primary-light
-  800: '#28261f',   // text primary
-  900: '#131109',   // text inverted-bg
+  0:   '#FDFCFA',   // rare inner card (near-white — not pure white)
+  25:  '#F8F6F2',   // page background — warm parchment
+  50:  '#F2EFE9',   // card background — cream
+  100: '#EAE6DE',   // muted surface
+  200: '#DDD9D1',   // border default
+  300: '#C4BFB6',   // border strong / hover borders
+  400: '#A09B91',   // text placeholder
+  500: '#8A8880',   // text muted
+  600: '#4A4945',   // text secondary — prose
+  700: '#2A2825',   // dark border (inverse surfaces)
+  800: '#1A1917',   // dark card (inverse raised surfaces / sidebar hover)
+  900: '#0E0D0B',   // obsidian — dark shell bg and primary ink
+}
+
+// ─── Gold ─────────────────────────────────────────────────────────────────────
+// Brand accent. Use sparingly — one element per section maximum.
+
+const gold = {
+  ultra:   '#F8F1E4',   // eyebrow pill backgrounds — very pale tint
+  light:   '#EDD8B4',   // soft gold backgrounds
+  mid:     '#D4B07A',   // medium gold
+  default: '#B8935A',   // primary gold accent
+  dark:    '#C8A45C',   // gold dark — used in intelligence layer
 }
 
 const status = {
-  successBg:    '#f0faf2',
-  successText:  '#1d5e2a',
-  successBorder:'#a5d1ac',
+  successBg:    '#E8F2EB',
+  successText:  '#2C4B37',
+  successBorder:'#9DC6A5',
   warningBg:    '#fefaf0',
   warningText:  '#854d0e',
   warningBorder:'#fde68a',
@@ -62,11 +73,10 @@ const status = {
 
 // CSS variable references are prepended in tailwind.base.js so next/font takes priority.
 // The string values here serve as fallbacks if the variable is unavailable.
-// Redirect URLs must use process.env.NEXT_PUBLIC_SITE_URL — never hardcode the production domain.
 const fontFamily = {
-  sans:    ['DM Sans',          'system-ui', 'sans-serif'],
-  display: ['Playfair Display', 'Georgia',   'serif'],
-  mono:    ['JetBrains Mono',   'ui-monospace', 'SFMono-Regular', 'monospace'],
+  sans:    ['DM Sans',              'system-ui', 'sans-serif'],
+  display: ['Cormorant Garamond',   'Georgia',   'serif'],      // v5: editorial serif
+  mono:    ['JetBrains Mono',       'ui-monospace', 'SFMono-Regular', 'monospace'],
 }
 
 const fontSize = {
@@ -135,26 +145,29 @@ const spacing = {
 const borderRadius = {
   none: '0',
   xs:   '0.1875rem',
-  sm:   '0.375rem',
-  md:   '0.5rem',
-  lg:   '0.75rem',
-  xl:   '1rem',
+  sm:   '0.375rem',    // tags & pills — 6px
+  md:   '0.5rem',      // buttons & inputs — 8px
+  lg:   '0.75rem',     // standard cards — 12px
+  xl:   '1rem',        // featured cards — 16px
   '2xl':'1.5rem',
   '3xl':'2rem',
-  full: '9999px',
+  full: '9999px',      // avatars & full pills
 }
 
-// ─── Shadows ──────────────────────────────────────────────────────────────────
+// ─── Shadows — warm-tinted (v5: rgba(14,13,11,...)) ──────────────────────────
 
 const boxShadow = {
   none: 'none',
-  xs:   '0 1px 2px 0 rgba(19, 17, 9, 0.05)',
-  sm:   '0 1px 3px 0 rgba(19, 17, 9, 0.08), 0 1px 2px -1px rgba(19, 17, 9, 0.06)',
-  md:   '0 4px 6px -1px rgba(19, 17, 9, 0.08), 0 2px 4px -2px rgba(19, 17, 9, 0.06)',
-  lg:   '0 10px 15px -3px rgba(19, 17, 9, 0.08), 0 4px 6px -4px rgba(19, 17, 9, 0.05)',
-  xl:   '0 20px 25px -5px rgba(19, 17, 9, 0.08), 0 8px 10px -6px rgba(19, 17, 9, 0.05)',
-  '2xl':'0 25px 50px -12px rgba(19, 17, 9, 0.18)',
-  inner:'inset 0 2px 4px 0 rgba(19, 17, 9, 0.06)',
+  xs:   '0 1px 2px 0 rgba(14, 13, 11, 0.05)',
+  sm:   '0 1px 3px 0 rgba(14, 13, 11, 0.07), 0 1px 2px -1px rgba(14, 13, 11, 0.05)',
+  md:   '0 4px 6px -1px rgba(14, 13, 11, 0.08), 0 2px 4px -2px rgba(14, 13, 11, 0.06)',
+  lg:   '0 10px 15px -3px rgba(14, 13, 11, 0.08), 0 4px 6px -4px rgba(14, 13, 11, 0.05)',
+  xl:   '0 20px 25px -5px rgba(14, 13, 11, 0.08), 0 8px 10px -6px rgba(14, 13, 11, 0.05)',
+  '2xl':'0 25px 50px -12px rgba(14, 13, 11, 0.18)',
+  inner:'inset 0 2px 4px 0 rgba(14, 13, 11, 0.06)',
+  // Semantic aliases — use these in components
+  card:     '0 1px 4px rgba(14, 13, 11, 0.07), 0 1px 2px rgba(14, 13, 11, 0.05)',
+  elevated: '0 8px 32px rgba(14, 13, 11, 0.12), 0 2px 8px rgba(14, 13, 11, 0.07)',
 }
 
 // ─── Transitions ──────────────────────────────────────────────────────────────
@@ -208,6 +221,7 @@ const opacity = {
 module.exports = {
   sage,
   warm,
+  gold,
   status,
   fontFamily,
   fontSize,
@@ -229,54 +243,55 @@ module.exports = {
       black:       warm[900],
       sage,
       warm,
+      gold,
       // Semantic aliases used in components.
       // Note: brand.text has been REMOVED — use text.brand (class: text-text-brand) instead.
       // See DD-001 in DESIGN_DECISIONS.md.
       brand: {
-        light:   sage[50],
-        muted:   sage[100],
-        subtle:  sage[200],
-        default: sage[500],
-        hover:   sage[600],
-        pressed: sage[700],
+        ultra:   gold.ultra,     // eyebrow pill bg tint
+        light:   gold.ultra,     // backward compat alias
+        muted:   gold.light,
+        subtle:  gold.mid,
+        default: gold.default,   // primary gold accent (v5: #B8935A)
+        hover:   gold.dark,
+        pressed: '#9E7A42',
       },
       surface: {
-        base:             warm[25],
-        raised:           warm[0],
-        sunken:           warm[50],
+        base:             warm[25],   // #F8F6F2
+        raised:           warm[50],   // #F2EFE9  (cards)
+        sunken:           warm[100],  // #EAE6DE
         muted:            warm[100],
-        // Inverse surfaces — admin dark shell (architecturally intentional; see DD-002)
-        inverse:          warm[900],  // main dark shell background (= sidebar.bg)
-        dark:             warm[800],  // dark card within dark shell (= sidebar.bgHover)
-        'inverse-raised': warm[800],  // alias for dark — kept for backward compat
+        // Inverse surfaces — dark shell
+        inverse:          warm[900],  // #0E0D0B  obsidian shell bg (sidebar.bg)
+        dark:             warm[800],  // #1A1917  dark card (sidebar.bgHover)
+        'inverse-raised': warm[800],  // alias — kept for backward compat
       },
       border: {
-        default: warm[200],
+        default: warm[200],   // #DDD9D1
         muted:   warm[100],
-        strong:  warm[300],
-        inverse: warm[700],           // border on dark inverse surfaces
+        strong:  warm[300],   // #C4BFB6
+        inverse: warm[700],   // #2A2825  border on dark surfaces
       },
       text: {
-        primary:      warm[800],
-        secondary:    warm[600],
-        muted:        warm[500],
-        placeholder:  warm[400],
-        inverted:     warm[0],        // white — primary text on dark surfaces
-        brand:        sage[600],      // canonical alias — use text-text-brand in components
-        'on-inverse': warm[400],      // secondary/muted text on dark surfaces
+        primary:      warm[900],      // #0E0D0B  — obsidian ink (v5)
+        secondary:    warm[600],      // #4A4945  — prose
+        muted:        warm[500],      // #8A8880
+        placeholder:  warm[400],      // #A09B91
+        inverted:     warm[0],        // #FDFCFA  — text on dark surfaces
+        brand:        gold.default,   // #B8935A  — gold accent text (v5)
+        'on-inverse': warm[500],      // #8A8880  — muted text on dark surfaces
       },
       overlay: {
-        scrim: 'rgba(17,17,17,0.5)',  // modal backdrop — warm-tinted, not pure black (DD-005)
+        scrim: 'rgba(14,13,11,0.5)',  // modal backdrop — warm obsidian tint (v5)
       },
       // Sidebar tokens — semantic names for admin dark shell chrome.
-      // Values intentionally mirror surface.inverse and surface.dark — see DD-002.
       sidebar: {
-        bg:          warm[900],   // main sidebar background
-        bgHover:     warm[800],   // active link / hover state
-        border:      warm[800],   // divider lines
-        text:        warm[100],   // primary nav text (warm near-white)
-        textMuted:   warm[400],   // secondary / inactive nav text
-        textActive:  sage[300],   // active / selected link highlight
+        bg:          warm[900],   // #0E0D0B  main sidebar background
+        bgHover:     warm[800],   // #1A1917  active link / hover state
+        border:      warm[800],   // #1A1917  divider lines
+        text:        warm[100],   // #EAE6DE  primary nav text
+        textMuted:   warm[400],   // #A09B91  secondary / inactive nav text
+        textActive:  sage[300],   // #6B9878  active / selected link highlight
       },
       status,
     },

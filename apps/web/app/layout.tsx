@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { DM_Sans, Playfair_Display, JetBrains_Mono } from 'next/font/google'
+import { DM_Sans, Cormorant_Garamond, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { copy } from '@/lib/copy'
 
@@ -11,10 +11,11 @@ const dmSans = DM_Sans({
   display:  'swap',
 })
 
-const playfairDisplay = Playfair_Display({
+const cormorantGaramond = Cormorant_Garamond({
   subsets:  ['latin'],
   variable: '--font-display',
-  weight:   ['400', '500'],
+  weight:   ['300', '400', '500', '600'],
+  style:    ['normal', 'italic'],
   display:  'swap',
 })
 
@@ -78,7 +79,7 @@ export default async function RootLayout({
   const isLoggedIn = !!user
 
   return (
-    <html lang="en" className={`${dmSans.variable} ${playfairDisplay.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${dmSans.variable} ${cormorantGaramond.variable} ${jetbrainsMono.variable}`}>
       <body className="bg-surface-base text-text-primary min-h-screen flex flex-col">
         {/* Navigation */}
         <header className="sticky top-0 z-nav bg-surface-base/95 backdrop-blur-sm border-b border-border-default">

@@ -1,0 +1,239 @@
+/* ──────────────────────────────────────────────────────────────────────
+   Natural Intelligence — Design Tokens  (v5)
+   Import this file in any HTML prototype page.
+   No raw hex, no raw px in components — use these variables.
+   ────────────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ── Surfaces ─────────────────────────────────────────────────────── */
+
+  --ni-bg:           #F8F6F2;   /* page background — warm parchment */
+  --ni-card:         #F2EFE9;   /* card background — cream */
+  --ni-card-raised:  #FDFCFA;   /* RARE: only used inside cards as inner card */
+  --ni-border:       #DDD9D1;   /* default border */
+  --ni-border-strong:#C4BFB6;   /* hover border, strong dividers */
+
+  /* ── Text ────────────────────────────────────────────────────────── */
+  --ni-text:              #0E0D0B;   /* primary — obsidian ink */
+  --ni-text-secondary:    #4A4945;   /* prose */
+  --ni-text-muted:        #8A8880;   /* metadata */
+  --ni-text-on-dark:      #F8F6F2;   /* primary text on dark surfaces */
+  --ni-text-on-dark-muted:#8A8880;   /* muted text on dark surfaces */
+
+  /* ── Gold accent (use sparingly — one per section) ───────────────── */
+  --ni-gold:         #B8935A;   /* primary brand accent (v5) */
+  --ni-gold-mid:     #D4B07A;
+  --ni-gold-light:   #EDD8B4;
+  --ni-gold-ultra:   #F8F1E4;   /* eyebrow pill backgrounds — very pale */
+  --ni-gold-dark:    #C8A45C;   /* intelligence layer gold */
+
+  /* ── Sage — positive / success / vetted ─────────────────────────── */
+  --ni-sage:         #4E7A5C;
+  --ni-sage-mid:     #6B9878;   /* hover states */
+  --ni-sage-bg:      #E8F2EB;
+
+  /* ── Amber — caution (NEVER red) ────────────────────────────────── */
+  --ni-amber:        #B87840;
+  --ni-amber-bg:     #FDF3EA;
+
+  /* ── Slate — info ────────────────────────────────────────────────── */
+  --ni-slate:        #7A9DBF;
+  --ni-slate-bg:     #EDF3F9;
+
+  /* ── Dark shell — intelligence banner only ───────────────────────── */
+  --ni-dark:         #0E0D0B;   /* obsidian */
+  --ni-dark-card:    #1A1917;
+  --ni-dark-border:  #2A2825;
+
+  /* ── Overlay scrim — warm obsidian tint ─────────────────────────── */
+  --ni-scrim:        rgba(14, 13, 11, 0.5);
+
+  /* ── Typography ─────────────────────────────────────────────────── */
+
+  --ni-font-sans:    'DM Sans', system-ui, sans-serif;
+  --ni-font-display: 'Cormorant Garamond', Georgia, serif;   /* v5: replaces Playfair Display */
+  --ni-font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --ni-fs-display:   clamp(40px, 6vw, 62px);
+  --ni-fs-h2:        32px;
+  --ni-fs-h3:        22px;
+  --ni-fs-h4:        18px;
+  --ni-fs-body-lg:   15px;
+  --ni-fs-body:      14px;
+  --ni-fs-body-sm:   13px;
+  --ni-fs-caption:   12px;
+  --ni-fs-eyebrow:   11px;
+
+  /* ── Spacing — base 4px ──────────────────────────────────────────── */
+  --ni-space-1: 4px;
+  --ni-space-2: 8px;
+  --ni-space-3: 12px;
+  --ni-space-4: 16px;
+  --ni-space-5: 20px;
+  --ni-space-6: 24px;
+  --ni-space-8: 32px;
+  --ni-space-10:40px;
+  --ni-space-14:56px;
+  --ni-space-20:80px;
+
+  /* ── Radius ──────────────────────────────────────────────────────── */
+  --ni-r-pill:    6px;
+  --ni-r-control: 8px;
+  --ni-r-card:    12px;
+  --ni-r-feature: 16px;
+  --ni-r-full:    9999px;
+
+  /* ── Shadow — warm obsidian tint (v5) ───────────────────────────── */
+  --ni-shadow-card:     0 1px 4px rgba(14,13,11,0.07), 0 1px 2px rgba(14,13,11,0.05);
+  --ni-shadow-elevated: 0 8px 32px rgba(14,13,11,0.12), 0 2px 8px rgba(14,13,11,0.07);
+
+  /* ── Motion ──────────────────────────────────────────────────────── */
+  --ni-ease:       cubic-bezier(0, 0, 0.2, 1);
+  --ni-dur-fast:   150ms;
+  --ni-dur-base:   200ms;
+}
+
+/* ── Semantic element styles ─────────────────────────────────────────── */
+
+html, body { background: var(--ni-bg); color: var(--ni-text); }
+
+body {
+  font-family: var(--ni-font-sans);
+  font-size: var(--ni-fs-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.ni-display-1 {
+  font-family: var(--ni-font-display);
+  font-size: var(--ni-fs-display);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+}
+.ni-display-1.weight-light  { font-weight: 300; }
+.ni-display-1.weight-medium { font-weight: 500; }
+.ni-display-1 em            { font-style: italic; color: var(--ni-gold); }
+
+.ni-h2 { font-family: var(--ni-font-sans); font-size: var(--ni-fs-h2); font-weight: 500; line-height: 1.2; letter-spacing: -0.01em; }
+.ni-h3 { font-family: var(--ni-font-sans); font-size: var(--ni-fs-h3); font-weight: 500; line-height: 1.3; }
+.ni-h4 { font-family: var(--ni-font-sans); font-size: var(--ni-fs-h4); font-weight: 500; line-height: 1.4; }
+.ni-body-lg { font-size: var(--ni-fs-body-lg); line-height: 1.7; color: var(--ni-text-secondary); }
+.ni-body    { font-size: var(--ni-fs-body); line-height: 1.6; color: var(--ni-text); }
+.ni-body-sm { font-size: var(--ni-fs-body-sm); line-height: 1.55; color: var(--ni-text-secondary); }
+.ni-caption { font-size: var(--ni-fs-caption); line-height: 1.5; color: var(--ni-text-muted); }
+.ni-eyebrow {
+  font-size: var(--ni-fs-eyebrow);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ni-gold);
+}
+.ni-mono { font-family: var(--ni-font-mono); font-feature-settings: 'tnum' 1; }
+
+/* ── Components — minimal primitives ─────────────────────────────────── */
+
+.ni-card {
+  background: var(--ni-card);
+  border: 1px solid var(--ni-border);
+  border-radius: var(--ni-r-card);
+  box-shadow: var(--ni-shadow-card);
+  padding: var(--ni-space-6);
+}
+.ni-card-feature { border-radius: var(--ni-r-feature); box-shadow: var(--ni-shadow-elevated); }
+
+.ni-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--ni-font-sans); font-weight: 500;
+  border-radius: var(--ni-r-control); border: 1px solid transparent;
+  padding: 8px 16px; font-size: var(--ni-fs-body);
+  transition: background var(--ni-dur-base) var(--ni-ease),
+              opacity   var(--ni-dur-base) var(--ni-ease),
+              box-shadow var(--ni-dur-base) var(--ni-ease),
+              border-color var(--ni-dur-base) var(--ni-ease);
+  cursor: pointer; text-decoration: none;
+}
+.ni-btn-sm { padding: 6px 12px; font-size: var(--ni-fs-body-sm); }
+.ni-btn-lg { padding: 10px 20px; font-size: var(--ni-fs-body-lg); }
+
+.ni-btn-primary    { background: var(--ni-text); color: var(--ni-text-on-dark); }
+.ni-btn-primary:hover { background: #2a2928; }
+.ni-btn-secondary  { background: var(--ni-card); color: var(--ni-text); border-color: var(--ni-border); }
+.ni-btn-secondary:hover { border-color: var(--ni-border-strong); }
+.ni-btn-ghost      { background: transparent; color: var(--ni-text-secondary); }
+.ni-btn-ghost:hover { color: var(--ni-text); background: var(--ni-card); }
+.ni-btn-gold       { background: var(--ni-gold); color: var(--ni-text); }
+.ni-btn-gold:hover { opacity: 0.9; }
+
+.ni-input {
+  width: 100%;
+  background: var(--ni-bg);
+  border: 1px solid var(--ni-border);
+  border-radius: var(--ni-r-control);
+  padding: 10px 12px;
+  font-family: var(--ni-font-sans);
+  font-size: var(--ni-fs-body);
+  color: var(--ni-text);
+  transition: border-color var(--ni-dur-base) var(--ni-ease),
+              box-shadow   var(--ni-dur-base) var(--ni-ease);
+}
+.ni-input::placeholder { color: var(--ni-text-muted); }
+.ni-input:focus {
+  outline: none;
+  border-color: var(--ni-gold);
+  box-shadow: 0 0 0 3px var(--ni-gold-ultra);
+}
+
+.ni-pill {
+  display: inline-flex; align-items: center;
+  font-size: var(--ni-fs-caption); font-weight: 500;
+  padding: 4px 8px; border-radius: var(--ni-r-pill);
+  background: var(--ni-card); color: var(--ni-text-secondary);
+  border: 1px solid var(--ni-border);
+}
+.ni-pill-gold { background: var(--ni-gold-ultra); color: #7A5E2E; border-color: var(--ni-gold-light); }
+
+.ni-eyebrow-label {
+  display: inline-block;
+  font-size: var(--ni-fs-eyebrow); font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ni-gold);
+}
+
+/* Eyebrow pill — gold ultra bg with pulse dot */
+.ni-eyebrow-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--ni-gold-ultra);
+  border: 1px solid var(--ni-gold-light);
+  border-radius: var(--ni-r-full);
+  padding: 5px 14px 5px 9px;
+}
+.ni-eyebrow-pill-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ni-gold);
+}
+
+.ni-status-pill {
+  display: inline-flex; align-items: center;
+  font-size: var(--ni-fs-eyebrow); font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 4px 10px; border-radius: var(--ni-r-full);
+}
+.ni-status-new      { background: #EDF3F9; color: #4A6B85; }
+.ni-status-review   { background: var(--ni-gold-ultra); color: #7A5E2E; }
+.ni-status-resolved { background: var(--ni-sage-bg); color: #2C4B37; }
+.ni-status-closed   { background: var(--ni-card); color: var(--ni-text-muted); }
+
+.ni-vetted-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--ni-fs-caption); font-weight: 500;
+  padding: 4px 10px; border-radius: var(--ni-r-full);
+  background: var(--ni-sage-bg); color: #2C4B37;
+  border: 1px solid rgba(78, 122, 92, 0.25);
+}
+.ni-vetted-badge::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ni-sage);
+}

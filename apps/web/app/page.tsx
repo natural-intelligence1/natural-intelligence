@@ -127,10 +127,10 @@ export default async function HomePage() {
 
           <h1 className="font-display mb-6">
             <span className="block text-5xl md:text-6xl font-light text-text-primary leading-tight">
-              Your health,
+              The space between
             </span>
             <span className="block text-5xl md:text-6xl font-medium text-text-primary leading-tight">
-              finally coordinated.
+              normal and thriving.
             </span>
           </h1>
 
