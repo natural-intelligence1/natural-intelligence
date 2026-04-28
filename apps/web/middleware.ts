@@ -1,7 +1,17 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
 
-const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/auth/login', '/auth/signup', '/directory', '/workshops', '/resources', '/community', '/apply', '/support']
+const PUBLIC_ROUTES = [
+  '/',
+  '/login', '/signup',
+  '/auth/callback', '/auth/login', '/auth/signup',
+  '/auth/forgot-password', '/auth/update-password',
+  '/directory', '/workshops', '/resources', '/community',
+  '/apply', '/support',
+  '/legal/terms', '/legal/privacy', '/legal/cookies',
+  // OG image routes — must be publicly accessible for social crawlers
+  '/opengraph-image', '/twitter-image',
+]
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
