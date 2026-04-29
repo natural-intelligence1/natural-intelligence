@@ -130,25 +130,25 @@ export default async function HomePage() {
             <div className="flex flex-col justify-center max-w-lg lg:max-w-none">
 
               {/* Hero brand lockup — vertical signature: symbol above, wordmark below */}
-              <div className="mb-8">
+              <div className="mb-10">
 
                 {/* Symbol */}
                 <div className="mb-3">
                   <Image
                     src="/images/NI_logo_thumb_transparent.png"
                     alt="Natural Intelligence"
-                    width={96}
-                    height={96}
+                    width={176}
+                    height={176}
                     priority
                     className="object-contain"
-                    style={{ height: 'clamp(76px, 7.5vw, 96px)', width: 'auto' }}
+                    style={{ height: 'clamp(140px, 13vw, 176px)', width: 'auto' }}
                   />
                 </div>
 
                 {/* Wordmark — single line, left-aligned */}
                 <p
                   className="font-sans font-normal text-text-primary uppercase"
-                  style={{ fontSize: 'clamp(11px, 1.1vw, 14px)', letterSpacing: '0.18em' }}
+                  style={{ fontSize: 'clamp(15px, 1.6vw, 20px)', letterSpacing: '0.2em' }}
                 >
                   Natural Intelligence
                 </p>
