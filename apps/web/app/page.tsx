@@ -129,7 +129,7 @@ export default async function HomePage() {
             {/* ── LEFT — text content ──────────────────────────────────── */}
             <div className="flex flex-col justify-center max-w-lg lg:max-w-none">
 
-              {/* Hero brand lockup — vertical signature: symbol above, wordmark below */}
+              {/* Hero brand lockup — vertical signature: symbol 88px, wordmark 13px */}
               <div className="mb-8">
 
                 {/* Symbol */}
