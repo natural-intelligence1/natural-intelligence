@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import { Avatar, VettedBadge, Pill } from '@natural-intelligence/ui'
+import HeroDashboard from '@/components/hero-dashboard'
 
 // ─── Icon primitives ──────────────────────────────────────────────────────────
 
@@ -121,66 +122,84 @@ export default async function HomePage() {
     <div>
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section className="py-20 md:py-28 text-center bg-surface-base">
-        <div className="max-w-2xl mx-auto px-4">
+      <section className="relative overflow-hidden bg-surface-base pt-16 pb-0 md:pt-20 lg:pb-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center pb-16 lg:pb-0 min-h-[600px]">
 
-          <div className="flex justify-center mb-6">
-            <Image
-              src="/images/NI_logo_thumb_transparent.png"
-              alt="Natural Intelligence"
-              width={72}
-              height={72}
-              priority
-              className="h-[72px] w-auto"
-            />
+            {/* ── LEFT — text content ──────────────────────────────────── */}
+            <div className="flex flex-col justify-center max-w-lg lg:max-w-none">
+
+              {/* Logo mark */}
+              <div className="mb-6">
+                <Image
+                  src="/images/NI_logo_thumb_transparent.png"
+                  alt="Natural Intelligence"
+                  width={40}
+                  height={40}
+                  priority
+                  className="h-10 w-auto object-contain opacity-80"
+                />
+              </div>
+
+              {/* Eyebrow */}
+              <p className="text-xs font-semibold tracking-[0.16em] uppercase text-text-brand mb-5">
+                Naturopathic &amp; functional medicine
+              </p>
+
+              {/* H1 — Cormorant Garamond, italic light + semibold */}
+              <h1 className="font-display mb-6 leading-[1.08] tracking-[-0.02em]">
+                <span className="block text-[44px] md:text-[52px] lg:text-[62px] font-light text-text-primary italic">
+                  The space between
+                </span>
+                <span className="block text-[44px] md:text-[52px] lg:text-[62px] font-semibold text-text-primary">
+                  normal and thriving.
+                </span>
+              </h1>
+
+              {/* Subheadline */}
+              <p className="text-base md:text-lg text-text-secondary leading-relaxed mb-8 max-w-md">
+                Find trusted practitioners, join expert-led workshops,
+                and access evidence-based resources — built for natural health.
+              </p>
+
+              {/* CTAs */}
+              <div className="flex flex-wrap gap-3 mb-10">
+                <Link
+                  href="/directory"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-brand-default text-text-inverted text-sm font-medium hover:bg-brand-hover transition-colors"
+                >
+                  Find a practitioner
+                </Link>
+                <Link
+                  href="/workshops"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-border-default bg-surface-raised text-text-primary text-sm font-medium hover:bg-surface-muted transition-colors"
+                >
+                  Explore workshops
+                </Link>
+              </div>
+
+              {/* Intelligence teaser card */}
+              <div className="bg-surface-raised border border-border-default rounded-xl p-5 max-w-sm">
+                <p className="text-[10px] font-semibold tracking-[0.14em] uppercase text-text-brand mb-2">
+                  Coming to members
+                </p>
+                <p className="text-sm text-text-secondary leading-relaxed">
+                  Personalised care intelligence — an adaptive daily
+                  protocol, lab interpretation, and pattern recognition.
+                </p>
+              </div>
+
+            </div>
+
+            {/* ── RIGHT — dashboard scene (client component, lg+ only) ── */}
+            <HeroDashboard />
+
           </div>
-
-          <Eyebrow>Naturopathic &amp; functional medicine</Eyebrow>
-
-          <h1 className="font-display mb-6">
-            <span className="block text-5xl md:text-6xl font-light text-text-primary leading-tight">
-              The space between
-            </span>
-            <span className="block text-5xl md:text-6xl font-medium text-text-primary leading-tight">
-              normal and thriving.
-            </span>
-          </h1>
-
-          <p className="text-base text-text-secondary leading-relaxed max-w-lg mx-auto mb-9">
-            Find trusted practitioners, join expert-led workshops, and access
-            evidence-based resources — all in one place built for natural health.
-          </p>
-
-          <div className="flex gap-3 justify-center flex-wrap">
-            <Link
-              href="/directory"
-              className="inline-flex items-center justify-center px-5 py-2.5 text-base rounded-md bg-brand-default text-text-inverted hover:bg-brand-hover transition-colors font-medium"
-            >
-              Find a practitioner
-            </Link>
-            <Link
-              href="/workshops"
-              className="inline-flex items-center justify-center px-5 py-2.5 text-base rounded-md bg-surface-raised text-text-primary border border-border-default hover:bg-surface-muted transition-colors font-medium"
-            >
-              Explore workshops
-            </Link>
-          </div>
-
-          {/* Intelligence teaser */}
-          <div className="mt-12 bg-surface-raised border border-border-default rounded-2xl p-6 text-left max-w-lg mx-auto">
-            <Eyebrow>Coming to members</Eyebrow>
-            <p className="text-sm text-text-secondary leading-relaxed">
-              We&apos;re building personalised care intelligence — an adaptive daily
-              protocol, lab interpretation, and AI-assisted pattern recognition.
-              Built around you, guided by your practitioner.
-            </p>
-          </div>
-
         </div>
       </section>
 
       {/* ── THREE PILLARS ─────────────────────────────────────────────────── */}
-      <section className="bg-surface-base border-t border-border-default py-16">
+      <section className="bg-surface-base border-t border-border-default pt-12 md:pt-20 pb-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-xl">
             <Eyebrow>What we offer</Eyebrow>

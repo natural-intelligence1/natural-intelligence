@@ -20,3 +20,19 @@
     @apply bg-surface-base text-text-primary;
   }
 }
+
+/* ── Hero dashboard animations ───────────────────────────────────────────────
+   The VitalityRings SVG uses a breathing scale (1.0 → 1.02 → 1.0) over 8 s.
+   Rotation (-90deg) is baked into the keyframes to avoid transform conflicts
+   with Tailwind's rotate utility.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1) rotate(-90deg);
+  }
+  40% {
+    transform: scale(1.02) rotate(-90deg);
+  }
+}
