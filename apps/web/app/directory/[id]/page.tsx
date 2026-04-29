@@ -129,8 +129,16 @@ export default async function PractitionerProfilePage({ params }: Props) {
             )}
 
             {p.trust_level === 'vetted' && (
-              <div className="mb-3">
-                <VettedBadge vetted={true} />
+              <div className="bg-status-successBg border border-green-200 rounded-xl p-4 mt-1 mb-3 flex items-start gap-3">
+                <svg className="w-4 h-4 text-status-successText flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <p className="text-sm font-semibold text-status-successText">Vetted practitioner</p>
+                  <p className="text-xs text-status-successText opacity-80 mt-0.5 leading-relaxed">
+                    Reviewed and approved by the Natural Intelligence clinical team.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -318,13 +326,18 @@ export default async function PractitionerProfilePage({ params }: Props) {
             </section>
           )}
 
-          {/* CTA */}
-          <Link
-            href="/support"
-            className="block w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors text-center"
-          >
-            {copy.practitionerProfile.cta.supportRequest}
-          </Link>
+          {/* Contact card */}
+          <section className="rounded-xl border border-border-default bg-surface-raised p-5">
+            <Link
+              href={`/support?practitioner=${p.id}`}
+              className="block w-full px-5 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors text-center mb-3"
+            >
+              {copy.practitionerProfile.cta.supportRequest}
+            </Link>
+            <p className="text-xs text-text-muted leading-relaxed text-center">
+              We&apos;ll connect you with this practitioner if they&apos;re the right fit for your needs.
+            </p>
+          </section>
         </div>
       </div>
     </div>

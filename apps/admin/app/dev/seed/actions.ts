@@ -355,6 +355,199 @@ export async function seedShowcaseData(): Promise<{ practitioners: number; event
   return { practitioners: practitionerCount, events: eventCount, resources: resourceCount }
 }
 
+// ─── Seed showcase practitioners (spec-exact data) ───────────────────────────
+export async function seedShowcasePractitioners(): Promise<{ practitioners: number; events: number; resources: number }> {
+  const { adminClient } = await requireAdmin()
+
+  const ts = Date.now()
+
+  const practitionerSpecs = [
+    {
+      email:        `dr-sarah-chen-${ts}@showcase.internal`,
+      full_name:    'Dr Sarah Chen',
+      bio:          'I work at the intersection of conventional medicine and naturopathic practice, helping patients with complex hormonal and metabolic presentations. My approach combines functional lab analysis with evidence-based natural interventions.',
+      tagline:      'Bridging conventional and naturopathic medicine',
+      primary_professions: ['Integrative Medicine Doctor'],
+      area_tags:    ['HPA axis', 'hormones', 'fatigue', 'thyroid'],
+      credentials:  ['MBBS', 'BANT member', 'Functional Medicine certified'],
+      delivery_mode: 'online' as const,
+      trust_level:   'vetted' as const,
+      accepts_referrals: true,
+    },
+    {
+      email:        `marcus-obi-${ts}@showcase.internal`,
+      full_name:    'Marcus Obi',
+      bio:          'Specialising in the gut-immune axis and metabolic dysfunction, I use advanced functional testing to uncover root causes that standard approaches miss.',
+      tagline:      'Root cause nutrition for complex health needs',
+      primary_professions: ['Functional Nutritionist'],
+      area_tags:    ['gut health', 'inflammation', 'metabolic health', 'IBS'],
+      credentials:  ['mBANT', 'CNHC registered', 'IFM trained'],
+      delivery_mode: 'online' as const,
+      trust_level:   'vetted' as const,
+      accepts_referrals: true,
+    },
+    {
+      email:        `dr-lena-parrish-${ts}@showcase.internal`,
+      full_name:    'Dr Lena Parrish',
+      bio:          'With a focus on autoimmune conditions and hormonal health, I combine naturopathic principles with current functional medicine research to create truly personalised care plans.',
+      tagline:      'Personalised naturopathic care for chronic conditions',
+      primary_professions: ['Naturopathic Doctor'],
+      area_tags:    ['autoimmune', 'detoxification', 'hormones', 'fertility'],
+      credentials:  ['ND', 'FNLP', 'BANT member'],
+      delivery_mode: 'both' as const,
+      trust_level:   'vetted' as const,
+      accepts_referrals: false,
+    },
+    {
+      email:        `james-thornton-${ts}@showcase.internal`,
+      full_name:    'James Thornton',
+      bio:          'I help high-performing individuals address the lifestyle foundations of health — sleep, stress, movement, and nutrition — using a functional lens and evidence-based coaching.',
+      tagline:      'Sustainable lifestyle change through functional health',
+      primary_professions: ['Health Coach'],
+      area_tags:    ['stress', 'sleep', 'lifestyle medicine', 'resilience'],
+      credentials:  ['NBC-HWC', 'Precision Nutrition L2'],
+      delivery_mode: 'online' as const,
+      trust_level:   'unvetted' as const,
+      accepts_referrals: true,
+    },
+    {
+      email:        `dr-priya-nair-${ts}@showcase.internal`,
+      full_name:    'Dr Priya Nair',
+      bio:          'I specialise in complex chronic conditions where conventional approaches have reached their limits. My practice combines advanced diagnostics with personalised therapeutic protocols.',
+      tagline:      'Evidence-based functional medicine for complex cases',
+      primary_professions: ['Functional Medicine Practitioner'],
+      area_tags:    ['mitochondrial health', 'cognitive function', 'energy', 'complex chronic illness'],
+      credentials:  ['MBBS', 'IFMCP', 'Bredesen ReCODE trained'],
+      delivery_mode: 'both' as const,
+      trust_level:   'unvetted' as const,
+      accepts_referrals: true,
+    },
+  ]
+
+  let practitionerCount = 0
+
+  for (const spec of practitionerSpecs) {
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+      email:         spec.email,
+      password:      'ShowcasePass123!',
+      email_confirm: true,
+    })
+    if (authError || !authData.user) continue
+
+    const profileId = authData.user.id
+
+    await adminClient.from('profiles').update({
+      full_name:    spec.full_name,
+      role:         'practitioner',
+      bio:          spec.bio,
+      is_test_data: true,
+    }).eq('id', profileId)
+
+    const { error: pracError } = await adminClient.from('practitioners').insert({
+      profile_id:              profileId,
+      tagline:                 spec.tagline,
+      country:                 'UK',
+      delivery_mode:           spec.delivery_mode,
+      primary_professions:     spec.primary_professions,
+      area_tags:               spec.area_tags,
+      credentials:             spec.credentials,
+      trust_level:             spec.trust_level,
+      accepts_referrals:       spec.accepts_referrals,
+      lifecycle_status:        'active',
+      is_active:               true,
+      is_directory_ready:      true,
+      profile_completeness_pct: 100,
+      activated_at:            new Date().toISOString(),
+      is_test_data:            true,
+    })
+
+    if (!pracError) practitionerCount++
+  }
+
+  // ── Events (2, 3, 4 weeks from now) ─────────────────────────────────────────
+  const now = new Date()
+  const weeksAhead = (n: number) =>
+    new Date(now.getTime() + n * 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  const addHours = (iso: string, h: number) =>
+    new Date(new Date(iso).getTime() + h * 60 * 60 * 1000).toISOString()
+
+  const e1Start = weeksAhead(2)
+  const e2Start = weeksAhead(3)
+  const e3Start = weeksAhead(4)
+
+  const { data: insertedEvents } = await adminClient.from('events').insert([
+    {
+      title:        'Understanding your cortisol cycle',
+      event_type:   'workshop',
+      is_online:    true,
+      status:       'published',
+      max_capacity: 20,
+      starts_at:    e1Start,
+      ends_at:      addHours(e1Start, 1),
+      description:  'An in-depth look at how cortisol patterns affect energy, sleep, mood, and weight — and what you can do about it.',
+    },
+    {
+      title:        'Reading your lab results like a practitioner',
+      event_type:   'webinar',
+      is_online:    true,
+      status:       'published',
+      max_capacity: 100,
+      starts_at:    e2Start,
+      ends_at:      addHours(e2Start, 1),
+      description:  null,
+    },
+    {
+      title:        'Gut health fundamentals — live Q&A',
+      event_type:   'group_session',
+      is_online:    true,
+      status:       'published',
+      max_capacity: 15,
+      starts_at:    e3Start,
+      ends_at:      addHours(e3Start, 1),
+      description:  null,
+    },
+  ]).select('id')
+
+  // ── Resources ────────────────────────────────────────────────────────────────
+  const { data: insertedResources } = await adminClient.from('resources').insert([
+    {
+      title:         'The functional medicine approach to fatigue',
+      resource_type: 'article',
+      status:        'published',
+      topic_tags:    ['fatigue', 'functional medicine', 'adrenal'],
+      description:   'Why conventional medicine often misses the root causes of persistent fatigue — and how functional medicine investigates differently.',
+      published_at:  new Date().toISOString(),
+    },
+    {
+      title:         'Understanding your thyroid: beyond TSH',
+      resource_type: 'guide',
+      status:        'published',
+      topic_tags:    ['thyroid', 'hormones', 'lab literacy'],
+      description:   'A plain-language guide to thyroid function testing, reference ranges, and what optimal really means.',
+      published_at:  new Date().toISOString(),
+    },
+    {
+      title:         'The gut-brain axis: what your digestion tells you about your mental health',
+      resource_type: 'article',
+      status:        'published',
+      topic_tags:    ['gut health', 'mental health', 'microbiome'],
+      description:   'The emerging science connecting gut health to mood, cognition, and mental wellbeing.',
+      published_at:  new Date().toISOString(),
+    },
+  ]).select('id')
+
+  revalidatePath('/practitioners')
+  revalidatePath('/workshops')
+  revalidatePath('/resources')
+
+  return {
+    practitioners: practitionerCount,
+    events:        insertedEvents?.length ?? 0,
+    resources:     insertedResources?.length ?? 0,
+  }
+}
+
 // ─── Reset all test data ──────────────────────────────────────────────────────
 export async function resetTestData(): Promise<{ deleted: Record<string, number> }> {
   const { adminClient } = await requireAdmin()

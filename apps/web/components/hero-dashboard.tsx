@@ -56,6 +56,38 @@ function VitalityRings() {
           </span>
         </div>
       </div>
+
+      {/* Ring legend */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-4 px-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+               style={{ backgroundColor: '#4E7A5C' }} />
+          <span className="text-[9px] text-text-muted font-mono uppercase tracking-wide">
+            Physical
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+               style={{ backgroundColor: '#7A9DBF' }} />
+          <span className="text-[9px] text-text-muted font-mono uppercase tracking-wide">
+            Cognitive
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+               style={{ backgroundColor: '#B87840' }} />
+          <span className="text-[9px] text-text-muted font-mono uppercase tracking-wide">
+            Emotional
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+               style={{ backgroundColor: '#B8935A' }} />
+          <span className="text-[9px] text-text-muted font-mono uppercase tracking-wide">
+            Hormonal
+          </span>
+        </div>
+      </div>
     </div>
   )
 }

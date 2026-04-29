@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import { DirectorySearch } from '@/components/directory-search'
-import { Avatar, VettedBadge, Pill } from '@natural-intelligence/ui'
+import { Avatar, Pill } from '@natural-intelligence/ui'
 import { Suspense } from 'react'
 
 interface DirectoryPageProps {
@@ -26,14 +26,26 @@ function FilterButton({
   return (
     <Link
       href={href}
-      className={`block w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+      className={[
+        'block w-full text-left px-3 py-2 text-sm font-medium transition-colors',
         active
-          ? 'bg-brand-subtle text-text-brand'
-          : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary'
-      }`}
+          ? 'bg-brand-subtle text-text-brand border-l-2 border-brand-default'
+          : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted',
+      ].join(' ')}
     >
       {children}
     </Link>
+  )
+}
+
+function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-6">
+      <p className="text-[10px] font-semibold text-text-muted uppercase tracking-[0.12em] mb-2 px-3">
+        {label}
+      </p>
+      {children}
+    </div>
   )
 }
 
@@ -50,6 +62,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
       country,
       delivery_mode,
       area_tags,
+      primary_professions,
       trust_level,
       practitioner_tier,
       accepts_referrals,
@@ -67,6 +80,8 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
     query = query.or('delivery_mode.eq.online,delivery_mode.eq.both')
   } else if (delivery === 'in_person') {
     query = query.or('delivery_mode.eq.in_person,delivery_mode.eq.both')
+  } else if (delivery === 'both') {
+    query = query.eq('delivery_mode', 'both')
   }
 
   if (referrals === 'yes') {
@@ -88,18 +103,6 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
     return (tierOrder[a.practitioner_tier] ?? 3) - (tierOrder[b.practitioner_tier] ?? 3)
   })
 
-  // Build filter URLs (preserve other params)
-  const baseParams = new URLSearchParams()
-  if (q) baseParams.set('q', q)
-
-  const trustUrl = (val: string) => {
-    const p = new URLSearchParams(baseParams)
-    if (val) p.set('trust', val)
-    if (delivery) p.set('delivery', delivery)
-    if (referrals) p.set('referrals', referrals)
-    return val ? `/directory?${p}` : `/directory?${new URLSearchParams({ ...(q ? { q } : {}), ...(delivery ? { delivery } : {}), ...(referrals ? { referrals } : {}) })}`
-  }
-
   const deliveryUrl = (val: string) => {
     const p = new URLSearchParams()
     if (q) p.set('q', q)
@@ -118,120 +121,120 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
     return `/directory?${p}`
   }
 
+  const trustUrl = (val: string) => {
+    const p = new URLSearchParams()
+    if (q) p.set('q', q)
+    if (val) p.set('trust', val)
+    if (delivery) p.set('delivery', delivery)
+    if (referrals) p.set('referrals', referrals)
+    return `/directory?${p}`
+  }
+
   return (
     <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold text-text-primary mb-2">{copy.directory.heading}</h1>
+
+      {/* Page heading */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-text-primary mb-2">{copy.directory.heading}</h1>
         <p className="text-text-secondary">{copy.directory.subheading}</p>
+      </div>
+
+      {/* Full-width search bar above the grid */}
+      <div className="mb-8">
+        <Suspense>
+          <DirectorySearch />
+        </Suspense>
       </div>
 
       <div className="md:grid md:grid-cols-[240px_1fr] gap-8">
 
-        {/* ── Sidebar filters ──────────────────────────────────────────────── */}
-        <aside>
-          {/* Search */}
-          <div className="mb-6">
-            <Suspense>
-              <DirectorySearch />
-            </Suspense>
-          </div>
+        {/* ── Sidebar filters ─────────────────────────────────────────────── */}
+        <aside className="mb-8 md:mb-0">
 
-          {/* Trust filter */}
-          <div className="mb-6">
-            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2 px-3">
-              Trust level
-            </p>
-            <FilterButton href="/directory" active={!trust}>
+          <FilterGroup label="Trust level">
+            <FilterButton href={trustUrl('')} active={!trust}>
               All practitioners
             </FilterButton>
-            <FilterButton href={`/directory?trust=vetted${delivery ? `&delivery=${delivery}` : ''}${referrals ? `&referrals=${referrals}` : ''}${q ? `&q=${q}` : ''}`} active={trust === 'vetted'}>
+            <FilterButton href={trustUrl('vetted')} active={trust === 'vetted'}>
               Vetted only
             </FilterButton>
-          </div>
+          </FilterGroup>
 
-          {/* Delivery filter */}
-          <div className="mb-6">
-            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2 px-3">
-              Delivery
-            </p>
+          <FilterGroup label="Delivery mode">
             <FilterButton href={deliveryUrl('')} active={!delivery}>
-              Any
+              All
             </FilterButton>
             <FilterButton href={deliveryUrl('online')} active={delivery === 'online'}>
               Online
             </FilterButton>
             <FilterButton href={deliveryUrl('in_person')} active={delivery === 'in_person'}>
-              In person
+              In-person
             </FilterButton>
-          </div>
+            <FilterButton href={deliveryUrl('both')} active={delivery === 'both'}>
+              Both
+            </FilterButton>
+          </FilterGroup>
 
-          {/* Referrals filter */}
-          <div className="mb-6">
-            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2 px-3">
-              Referrals
-            </p>
+          <FilterGroup label="Accepts referrals">
             <FilterButton href={referralsUrl('')} active={!referrals}>
-              Any
+              All
             </FilterButton>
             <FilterButton href={referralsUrl('yes')} active={referrals === 'yes'}>
               Accepting referrals
             </FilterButton>
-          </div>
+          </FilterGroup>
+
         </aside>
 
-        {/* ── Results grid ─────────────────────────────────────────────────── */}
+        {/* ── Results grid ──────────────────────────────────────────────────── */}
         <div>
           {sorted.length === 0 ? (
-            <p className="text-text-muted text-sm py-12 text-center">{copy.directory.empty}</p>
+            <div className="text-center py-16">
+              <p className="text-text-primary font-medium mb-2">
+                No practitioners match your filters.
+              </p>
+              <p className="text-text-secondary text-sm mb-6">
+                Try broadening your search or clearing a filter.
+              </p>
+              <Link
+                href="/directory"
+                className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg border border-border-default bg-surface-raised text-text-primary text-sm font-medium hover:bg-surface-muted transition-colors"
+              >
+                Clear all filters
+              </Link>
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
               {sorted.map((p: any) => {
-                const profile  = p.profiles
+                const profile  = (p as any).profiles
                 const name     = profile?.full_name ?? 'Practitioner'
+                const role     = ((p.primary_professions as string[] | null)?.[0]) ?? null
                 const areas    = (p.area_tags as string[] | null) ?? []
-                const location = [p.city, p.country].filter(Boolean).join(', ')
 
                 return (
                   <div
                     key={p.id}
-                    className="rounded-xl border border-border-default bg-surface-raised p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col"
+                    className="rounded-xl border border-border-default bg-surface-raised p-5 flex flex-col transition-all duration-200 hover:shadow-[0_4px_12px_rgba(14,13,11,0.08)] hover:border-border-strong"
                   >
+                    {/* Top row — avatar + name + vetted badge */}
                     <div className="flex items-start gap-3 mb-3">
                       <Avatar name={name} size="lg" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-base font-semibold text-text-primary truncate mb-1">{name}</p>
-                        {p.trust_level === 'vetted' && <VettedBadge vetted={true} size="sm" />}
+                        <p className="text-base font-semibold text-text-primary truncate leading-tight mb-0.5">
+                          {name}
+                        </p>
+                        {role && (
+                          <p className="text-sm text-text-secondary truncate mb-1">{role}</p>
+                        )}
+                        {p.trust_level === 'vetted' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-status-successBg text-status-successText">
+                            ✓ Vetted
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Location + delivery */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {location && (
-                        <span className="inline-flex items-center gap-1 text-xs text-text-muted">
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          {location}
-                        </span>
-                      )}
-                      {p.delivery_mode === 'online' && (
-                        <span className="text-xs text-text-muted">{copy.directory.card.online}</span>
-                      )}
-                      {p.delivery_mode === 'both' && (
-                        <span className="text-xs text-text-muted">{copy.directory.card.online} &amp; {copy.directory.card.inPerson}</span>
-                      )}
-                      {p.delivery_mode === 'in_person' && (
-                        <span className="text-xs text-text-muted">{copy.directory.card.inPerson}</span>
-                      )}
-                      {p.accepts_referrals && (
-                        <span className="inline-flex items-center gap-1 text-xs text-status-successText bg-status-successBg px-1.5 py-0.5 rounded">
-                          {copy.directory.card.acceptsReferrals}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Tagline or bio excerpt */}
+                    {/* Tagline */}
                     {(p.tagline || profile?.bio) && (
                       <p className="text-sm text-text-secondary leading-relaxed line-clamp-2 mb-3 flex-1">
                         {p.tagline ?? profile?.bio}
@@ -240,21 +243,29 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
 
                     {/* Area tags */}
                     {areas.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-4">
+                      <div className="flex flex-wrap gap-1 mb-3">
                         {areas.slice(0, 3).map((s: string) => (
-                          <Pill key={s}>{s}</Pill>
+                          <span
+                            key={s}
+                            className="text-[10px] px-2 py-0.5 rounded-full bg-surface-muted text-text-muted"
+                          >
+                            {s}
+                          </span>
                         ))}
                         {areas.length > 3 && (
-                          <Pill>{`+${areas.length - 3}`}</Pill>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-muted text-text-muted">
+                            +{areas.length - 3} more
+                          </span>
                         )}
                       </div>
                     )}
 
+                    {/* CTA */}
                     <Link
                       href={`/directory/${p.id}`}
-                      className="mt-auto text-sm font-medium text-text-inverted bg-brand-default hover:bg-brand-hover px-4 py-2 rounded-lg text-center transition-colors"
+                      className="mt-auto text-sm font-medium text-text-brand hover:underline"
                     >
-                      {copy.directory.card.viewProfile}
+                      View profile →
                     </Link>
                   </div>
                 )

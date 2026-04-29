@@ -7,6 +7,7 @@ import {
   seedTestPractitioner,
   seedTestSupportRequest,
   seedShowcaseData,
+  seedShowcasePractitioners,
   resetTestData,
 } from './actions'
 
@@ -116,21 +117,35 @@ export default function SeedClient() {
       <section className="rounded-xl border border-border-default bg-surface-raised p-6 shadow-sm">
         <h2 className="text-base font-semibold text-text-primary mb-1">Showcase data</h2>
         <p className="text-sm text-text-muted mb-4">
-          Seeds 5 realistic practitioners, 3 upcoming events, and 3 published resources.
-          All practitioner records are marked <code className="bg-surface-muted px-1 rounded text-xs">is_test_data=true</code> and will be removed by the reset below.
+          Seeds realistic practitioners, upcoming events, and published resources.
+          All records are marked <code className="bg-surface-muted px-1 rounded text-xs">is_test_data=true</code> and will be removed by the reset below.
         </p>
-        <SeedButton
-          label="Seed showcase data"
-          disabled={loading}
-          onClick={() =>
-            run(
-              () => seedShowcaseData(),
-              (v) =>
-                `${c.success} Seeded — ${v.practitioners} practitioners, ` +
-                `${v.events} events, ${v.resources} resources.`,
-            )
-          }
-        />
+        <div className="flex flex-wrap gap-3">
+          <SeedButton
+            label="Seed showcase data (original)"
+            disabled={loading}
+            onClick={() =>
+              run(
+                () => seedShowcaseData(),
+                (v) =>
+                  `${c.success} Seeded — ${v.practitioners} practitioners, ` +
+                  `${v.events} events, ${v.resources} resources.`,
+              )
+            }
+          />
+          <SeedButton
+            label="Seed showcase practitioners"
+            disabled={loading}
+            onClick={() =>
+              run(
+                () => seedShowcasePractitioners(),
+                (v) =>
+                  `${c.success} Seeded — ${v.practitioners} practitioners, ` +
+                  `${v.events} events, ${v.resources} resources.`,
+              )
+            }
+          />
+        </div>
       </section>
 
       {/* Reset */}
