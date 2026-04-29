@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@natural-intelligence/db/client'
 
 export default function ForgotPasswordPage() {
@@ -31,9 +32,15 @@ export default function ForgotPasswordPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-16 bg-surface-base">
         <div className="w-full max-w-sm text-center">
-          <p className="text-sm font-semibold text-text-primary mb-8">
-            Natural<span className="text-text-brand"> Intelligence</span>
-          </p>
+          <div className="flex justify-center mb-8">
+            <Image
+              src="/images/NI_logo_thumb_transparent.png"
+              alt="Natural Intelligence"
+              width={48}
+              height={48}
+              className="h-12 w-auto"
+            />
+          </div>
           <div className="rounded-2xl border border-border-default bg-surface-raised p-8 shadow-sm">
             <div className="w-12 h-12 rounded-full bg-brand-light flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -59,9 +66,15 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center px-4 py-16 bg-surface-base">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <p className="text-sm font-semibold text-text-primary mb-1">
-            Natural<span className="text-text-brand"> Intelligence</span>
-          </p>
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/images/NI_logo_thumb_transparent.png"
+              alt="Natural Intelligence"
+              width={48}
+              height={48}
+              className="h-12 w-auto"
+            />
+          </div>
           <h1 className="text-2xl font-bold text-text-primary mb-1">Reset your password</h1>
           <p className="text-sm text-text-secondary">
             Enter your email address and we&apos;ll send you a reset link.

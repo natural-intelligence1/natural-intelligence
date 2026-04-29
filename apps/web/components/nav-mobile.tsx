@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { copy } from '@/lib/copy'
 import { logout } from '@/app/actions/auth'
 
@@ -32,7 +33,16 @@ export function NavMobile({ isLoggedIn }: NavMobileProps) {
 
       {open && (
         <div className="absolute top-full left-0 right-0 bg-surface-raised border-b border-border-default shadow-md z-nav">
-          <nav className="flex flex-col px-4 py-4 gap-1">
+          <div className="px-4 pt-4 pb-2">
+            <Image
+              src="/images/NI_logo_thumb_transparent.png"
+              alt="Natural Intelligence"
+              width={32}
+              height={32}
+              className="h-8 w-auto"
+            />
+          </div>
+          <nav className="flex flex-col px-4 py-2 gap-1">
             <Link href="/directory" onClick={() => setOpen(false)} className="px-3 py-2.5 rounded-lg text-sm font-medium text-text-primary hover:bg-surface-muted transition-colors">
               {copy.nav.directory}
             </Link>

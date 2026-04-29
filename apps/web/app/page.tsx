@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import { Avatar, VettedBadge, Pill } from '@natural-intelligence/ui'
@@ -122,6 +123,17 @@ export default async function HomePage() {
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <section className="py-20 md:py-28 text-center bg-surface-base">
         <div className="max-w-2xl mx-auto px-4">
+
+          <div className="flex justify-center mb-6">
+            <Image
+              src="/images/NI_logo_thumb_transparent.png"
+              alt="Natural Intelligence"
+              width={72}
+              height={72}
+              priority
+              className="h-[72px] w-auto"
+            />
+          </div>
 
           <Eyebrow>Naturopathic &amp; functional medicine</Eyebrow>
 

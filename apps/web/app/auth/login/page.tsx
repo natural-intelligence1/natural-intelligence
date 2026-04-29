@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { copy } from '@/lib/copy'
 import { login } from '@/app/actions/auth'
 
@@ -11,9 +12,15 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
     <div className="min-h-screen flex items-center justify-center px-4 py-16 bg-surface-base">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <p className="text-sm font-semibold text-text-primary mb-1">
-            Natural<span className="text-text-brand"> Intelligence</span>
-          </p>
+          <div className="flex justify-center mb-4">
+            <Image
+              src="/images/NI_logo_thumb_transparent.png"
+              alt="Natural Intelligence"
+              width={48}
+              height={48}
+              className="h-12 w-auto"
+            />
+          </div>
           <h1 className="text-2xl font-bold text-text-primary mb-1">{copy.auth.login.heading}</h1>
           <p className="text-sm text-text-secondary">{copy.auth.login.subheading}</p>
         </div>

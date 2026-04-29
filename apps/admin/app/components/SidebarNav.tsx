@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { copy } from '@/lib/copy'
 import { adminLogout } from '@/app/actions/auth'
@@ -40,12 +41,14 @@ export default function SidebarNav() {
   return (
     <aside className="w-64 flex-shrink-0 min-h-screen bg-sidebar-bg flex flex-col">
       <div className="px-6 py-5 border-b border-sidebar-border">
-        <span className="text-base font-semibold text-sidebar-text">
-          {copy.brand.name}
-        </span>
-        <span className="ml-2 text-xs font-medium text-sidebar-textMuted uppercase tracking-wider">
-          {copy.brand.suffix}
-        </span>
+        <Image
+          src="/images/NI_logo_thumb_transparent.png"
+          alt="Natural Intelligence"
+          width={28}
+          height={28}
+          className="h-7 w-auto"
+          style={{ filter: 'invert(1)' }}
+        />
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-0.5">

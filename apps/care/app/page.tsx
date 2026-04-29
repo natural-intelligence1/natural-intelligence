@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import WaitlistForm from './WaitlistForm'
 
 const MODULES = ['DailyPath', 'BioHub', 'RootFinder', 'LifeTracker', 'AutoAdjust'] as const
@@ -22,20 +23,15 @@ export default function CarePage() {
     >
       {/* ── Topbar ──────────────────────────────────────────────────────── */}
       <div className="px-10 py-8 flex-shrink-0">
-        <span className="inline-flex items-center gap-2.5">
-          <span
-            className="text-sm font-medium"
-            style={{ color: C.gold, letterSpacing: '0.04em' }}
-          >
-            NI ·
-          </span>
-          <span
-            className="text-sm"
-            style={{ color: C.textMuted, letterSpacing: '0.04em' }}
-          >
-            Natural Intelligence
-          </span>
-        </span>
+        <Image
+          src="/images/NI_logo_thumb_transparent.png"
+          alt="Natural Intelligence"
+          width={40}
+          height={40}
+          unoptimized
+          className="h-10 w-auto"
+          style={{ filter: 'invert(1)' }}
+        />
       </div>
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}

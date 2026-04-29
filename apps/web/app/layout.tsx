@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import { DM_Sans, Cormorant_Garamond, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { copy } from '@/lib/copy'
@@ -60,6 +61,16 @@ export const metadata: Metadata = {
     index:  true,
     follow: true,
   },
+  icons: {
+    icon: [
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-192.png',      sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png',      sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
 }
 
 const navLinks = [
@@ -114,8 +125,15 @@ export default async function RootLayout({
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16 relative">
               {/* Brand */}
-              <Link href="/" className="text-sm font-medium text-text-primary hover:opacity-80 transition-opacity flex-shrink-0">
-                Natural<span className="text-text-brand"> Intelligence</span>
+              <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0" aria-label="Natural Intelligence — home">
+                <Image
+                  src="/images/NI_logo_thumb_transparent.png"
+                  alt="Natural Intelligence"
+                  width={32}
+                  height={32}
+                  priority
+                  className="h-8 w-auto"
+                />
               </Link>
 
               {/* Desktop nav links */}
@@ -178,7 +196,13 @@ export default async function RootLayout({
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-10">
               {/* Brand column */}
               <div>
-                <p className="text-sm font-semibold text-text-primary mb-2">{copy.brand.name}</p>
+                <Image
+                  src="/images/NI_logo_full_transparent.png"
+                  alt="Natural Intelligence"
+                  width={140}
+                  height={40}
+                  className="h-8 w-auto mb-3"
+                />
                 <p className="text-sm text-text-muted leading-relaxed">{copy.brand.taglineShort}</p>
               </div>
 

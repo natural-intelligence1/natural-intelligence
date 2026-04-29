@@ -47,7 +47,7 @@ export default async function Image() {
           }}
         />
 
-        {/* Logo wordmark */}
+        {/* Logo mark */}
         <div
           style={{
             display: 'flex',
@@ -56,17 +56,14 @@ export default async function Image() {
             zIndex: 1,
           }}
         >
-          <span
-            style={{
-              fontSize: '18px',
-              fontWeight: 500,
-              color: '#0E0D0B',
-              letterSpacing: '0.04em',
-            }}
-          >
-            Natural{'  '}
-            <span style={{ color: '#B8935A' }}>Intelligence</span>
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://natural-intelligence.uk/images/NI_logo_full_on_cream.png"
+            alt="Natural Intelligence"
+            width={160}
+            height={48}
+            style={{ height: '40px', width: 'auto', objectFit: 'contain' }}
+          />
         </div>
 
         {/* Eyebrow */}
