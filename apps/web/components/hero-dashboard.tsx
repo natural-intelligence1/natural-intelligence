@@ -23,7 +23,7 @@ function VitalityRings() {
             const circ = 2 * Math.PI * r
             return (
               <g key={r}>
-                {/* Track ring */}
+                {/* Track */}
                 <circle
                   cx="100" cy="100" r={r}
                   fill="none"
@@ -66,33 +66,45 @@ const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
 export default function HeroDashboard() {
   return (
-    /* Hidden on mobile; absolutely bleeds to the right viewport edge on lg+ */
-    <div
-      className={[
-        'hidden lg:flex',
-        'lg:absolute lg:right-0 lg:top-0 lg:bottom-0 lg:w-[52%]',
-        'items-center justify-end',
-      ].join(' ')}
-    >
-      {/* ── Frame wrapper (relative so widgets can be absolute) ── */}
-      <div className="relative" style={{ width: '420px', maxWidth: '100%' }}>
+    /*
+     * Outer panel — absolutely fills the right 52 % of the hero section.
+     * The hero section already has position:relative and overflow:hidden,
+     * so this bleeds cleanly to the right viewport edge.
+     * Hidden on mobile; block on lg+.
+     */
+    <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[52%]">
 
-        {/* ── Dashboard frame — left-rounded, right flush ── */}
+      {/*
+       * Inner relative wrapper — full-height, used as the containing block
+       * for both the frame card AND the floating widgets.
+       * Widgets are siblings of the frame card so they are NOT clipped
+       * by the frame's overflow:hidden.
+       */}
+      <div className="relative w-full h-full">
+
+        {/* ── Dashboard frame — stretches to right viewport edge ── */}
+        {/*
+         * top-[8%] / bottom-[8%]: vertical breathing room inside the panel.
+         * left-[5%]: offset from panel left so the left-rounded corner is visible.
+         * right-0: flush with the viewport right edge — no right border/radius.
+         * shadow: left-only (-4px x-offset) → frame appears to float in from the right.
+         */}
         <div
-          className="bg-surface-base border border-border-default shadow-elevated overflow-hidden"
+          className={[
+            'absolute top-[8%] bottom-[8%] left-[5%] right-0',
+            'bg-surface-base border border-border-default border-r-0',
+            'overflow-hidden',
+            'shadow-[-4px_0_32px_rgba(14,13,11,0.08)]',
+          ].join(' ')}
           style={{ borderRadius: '20px 0 0 20px' }}
         >
           <div className="p-6 pt-8">
 
-            {/* Header row */}
+            {/* Frame header */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <p className="text-xs text-text-muted font-mono">
-                  Wednesday, 16 April
-                </p>
-                <p className="text-base font-medium text-text-primary">
-                  Good morning, Sarah.
-                </p>
+                <p className="text-xs text-text-muted font-mono">Wednesday, 16 April</p>
+                <p className="text-base font-medium text-text-primary">Good morning, Sarah.</p>
               </div>
               <div className="w-8 h-8 rounded-full bg-brand-subtle flex items-center justify-center">
                 <span className="text-xs font-medium text-text-brand font-mono">87</span>
@@ -107,12 +119,8 @@ export default function HeroDashboard() {
               <p className="text-[10px] font-semibold tracking-wider uppercase text-text-brand mb-2">
                 Next action
               </p>
-              <p className="text-sm font-medium text-text-primary">
-                Magnesium Glycinate
-              </p>
-              <p className="text-xs text-text-muted mt-0.5 font-mono">
-                400mg · 3:00pm · with food
-              </p>
+              <p className="text-sm font-medium text-text-primary">Magnesium Glycinate</p>
+              <p className="text-xs text-text-muted mt-0.5 font-mono">400mg · 3:00pm · with food</p>
               <div className="flex gap-2 mt-3">
                 <button className="flex-1 py-2 rounded-lg bg-brand-default text-text-inverted text-xs font-medium transition-opacity hover:opacity-90">
                   Done
@@ -145,16 +153,34 @@ export default function HeroDashboard() {
           </div>
         </div>
 
-        {/* ── Widget 1 — Lab trends (bleeds left) ── */}
-        <div className="absolute" style={{ top: '34px', left: '-46px' }}>
+        {/*
+         * Floating widgets — all positioned relative to the inner wrapper.
+         * Their coordinates are expressed as offsets from the frame card's
+         * own position (top-[8%], left-[5%]) using calc(), so they sit
+         * exactly where they would if positioned relative to the frame card
+         * itself — but as siblings they escape overflow:hidden.
+         *
+         * Widget 1: top:  calc(8% + 34px)  = frame-top  + 34px
+         *           left: calc(5% - 46px)  = frame-left - 46px  (bleeds left)
+         *
+         * Widget 2: bottom: calc(8% - 18px) = frame-bottom - 18px (bleeds down)
+         *           left:   calc(5% - 32px) = frame-left  - 32px  (bleeds left)
+         *
+         * Widget 3: bottom: calc(8% - 32px) = frame-bottom - 32px (bleeds down)
+         *           right:  0               = flush with panel right (inside viewport)
+         */}
+
+        {/* ── Widget 1 — Lab trends (top-left, bleeds left of frame) ── */}
+        <div
+          className="absolute"
+          style={{ top: 'calc(8% + 34px)', left: 'calc(5% - 46px)' }}
+        >
           <div className="bg-surface-base border border-border-default rounded-xl shadow-md px-3 py-2.5 w-[140px]">
             <p className="text-[9px] font-semibold tracking-wider uppercase text-text-muted mb-1">
               Ferritin
             </p>
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-medium text-text-primary font-mono">
-                18 µg/L
-              </span>
+              <span className="text-sm font-medium text-text-primary font-mono">18 µg/L</span>
               <span className="text-[10px] text-sage-600 font-medium">↑ improving</span>
             </div>
             {/* Mini sparkline */}
@@ -175,17 +201,23 @@ export default function HeroDashboard() {
           </div>
         </div>
 
-        {/* ── Widget 2 — Streak pill (bleeds bottom-left) ── */}
-        <div className="absolute" style={{ left: '-32px', bottom: '-18px' }}>
+        {/* ── Widget 2 — Streak pill (bottom-left, bleeds below frame) ── */}
+        <div
+          className="absolute"
+          style={{ bottom: 'calc(8% - 18px)', left: 'calc(5% - 32px)' }}
+        >
           <div className="bg-surface-base border border-border-default rounded-full shadow-md px-4 py-2 flex items-center gap-2">
-            {/* fire emoji is intentional data-UI for streak count */}
             <span className="text-base leading-none" role="img" aria-label="streak">🔥</span>
             <span className="text-xs font-medium text-text-primary">18 day streak</span>
           </div>
         </div>
 
-        {/* ── Widget 3 — Dr Chen message (bottom, inside frame bounds) ── */}
-        <div className="absolute" style={{ bottom: '-32px', right: '0px' }}>
+        {/* ── Widget 3 — Dr Chen message (bottom-right, inside panel) ── */}
+        {/* right:0 keeps it within the viewport — the frame's right edge is the viewport edge */}
+        <div
+          className="absolute"
+          style={{ bottom: 'calc(8% - 32px)', right: '0' }}
+        >
           <div className="bg-surface-base border border-border-default rounded-xl shadow-md px-3 py-2.5">
             <div className="flex items-center gap-2 mb-1">
               <div className="w-5 h-5 rounded-full bg-brand-subtle flex items-center justify-center flex-shrink-0">

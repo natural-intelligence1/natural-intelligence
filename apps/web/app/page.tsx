@@ -129,16 +129,34 @@ export default async function HomePage() {
             {/* ── LEFT — text content ──────────────────────────────────── */}
             <div className="flex flex-col justify-center max-w-lg lg:max-w-none">
 
-              {/* Logo mark */}
-              <div className="mb-6">
+              {/* Hero brand lockup — symbol + stacked wordmark */}
+              <div className="flex items-center gap-4 mb-10">
+
                 <Image
                   src="/images/NI_logo_thumb_transparent.png"
                   alt="Natural Intelligence"
-                  width={40}
-                  height={40}
+                  width={64}
+                  height={64}
                   priority
-                  className="h-10 w-auto object-contain opacity-80"
+                  className="object-contain flex-shrink-0"
+                  style={{ height: 'clamp(48px, 6vw, 64px)', width: 'auto' }}
                 />
+
+                <div className="flex flex-col leading-none">
+                  <span
+                    className="font-sans font-light text-text-primary tracking-[0.22em] uppercase"
+                    style={{ fontSize: '13px' }}
+                  >
+                    Natural
+                  </span>
+                  <span
+                    className="font-sans font-light text-text-primary tracking-[0.22em] uppercase"
+                    style={{ fontSize: '13px', marginTop: '3px' }}
+                  >
+                    Intelligence
+                  </span>
+                </div>
+
               </div>
 
               {/* Eyebrow */}
