@@ -122,33 +122,33 @@ export default async function HomePage() {
     <div>
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-surface-base pt-20 pb-0 md:pt-28 lg:pb-12">
+      <section className="relative overflow-hidden bg-surface-base pt-20 pb-0 md:pt-28 lg:pb-12 max-h-screen">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center pb-16 lg:pb-0 min-h-[600px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center pb-16 lg:pb-0 min-h-0">
 
             {/* ── LEFT — text content ──────────────────────────────────── */}
             <div className="flex flex-col justify-center max-w-lg lg:max-w-none">
 
               {/* Hero brand lockup — vertical signature: symbol above, wordmark below */}
-              <div className="mb-10">
+              <div className="mb-8">
 
                 {/* Symbol */}
                 <div className="mb-3">
                   <Image
                     src="/images/NI_logo_thumb_transparent.png"
                     alt="Natural Intelligence"
-                    width={176}
-                    height={176}
+                    width={88}
+                    height={88}
                     priority
                     className="object-contain"
-                    style={{ height: 'clamp(140px, 13vw, 176px)', width: 'auto' }}
+                    style={{ height: '88px', width: 'auto' }}
                   />
                 </div>
 
                 {/* Wordmark — single line, left-aligned */}
                 <p
                   className="font-sans font-normal text-text-primary uppercase"
-                  style={{ fontSize: 'clamp(15px, 1.6vw, 20px)', letterSpacing: '0.2em' }}
+                  style={{ fontSize: '13px', letterSpacing: '0.18em' }}
                 >
                   Natural Intelligence
                 </p>

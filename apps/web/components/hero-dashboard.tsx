@@ -72,7 +72,7 @@ export default function HeroDashboard() {
      * so this bleeds cleanly to the right viewport edge.
      * Hidden on mobile; block on lg+.
      */
-    <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[52%] xl:w-[50%]">
+    <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[52%]">
 
       {/*
        * Inner relative wrapper — full-height, used as the containing block
@@ -98,7 +98,7 @@ export default function HeroDashboard() {
           ].join(' ')}
           style={{ borderRadius: '20px 0 0 20px' }}
         >
-          <div className="p-5 pt-7">
+          <div className="p-6 pt-8">
 
             {/* Frame header */}
             <div className="flex items-center justify-between mb-6">
@@ -173,7 +173,7 @@ export default function HeroDashboard() {
         {/* ── Widget 1 — Lab trends (top-left, bleeds left of frame) ── */}
         <div
           className="absolute"
-          style={{ top: 'calc(8% + 28px)', left: 'calc(5% - 52px)' }}
+          style={{ top: 'calc(8% + 34px)', left: 'calc(5% - 46px)' }}
         >
           <div className="bg-surface-base border border-border-default rounded-xl shadow-md px-3 py-2.5 w-[140px]">
             <p className="text-[9px] font-semibold tracking-wider uppercase text-text-muted mb-1">
@@ -204,7 +204,7 @@ export default function HeroDashboard() {
         {/* ── Widget 2 — Streak pill (bottom-left, bleeds below frame) ── */}
         <div
           className="absolute"
-          style={{ bottom: 'calc(8% - 24px)', left: 'calc(5% - 36px)' }}
+          style={{ bottom: 'calc(8% - 18px)', left: 'calc(5% - 32px)' }}
         >
           <div className="bg-surface-base border border-border-default rounded-full shadow-md px-4 py-2 flex items-center gap-2">
             <span className="text-base leading-none" role="img" aria-label="streak">🔥</span>
@@ -213,10 +213,10 @@ export default function HeroDashboard() {
         </div>
 
         {/* ── Widget 3 — Dr Chen message (bottom-right, inside panel) ── */}
-        {/* right:8px keeps it clear of the viewport edge clip zone */}
+        {/* right:0 keeps it within the viewport — the frame's right edge is the viewport edge */}
         <div
           className="absolute"
-          style={{ bottom: 'calc(8% - 38px)', right: '8px' }}
+          style={{ bottom: 'calc(8% - 32px)', right: '0' }}
         >
           <div className="bg-surface-base border border-border-default rounded-xl shadow-md px-3 py-2.5">
             <div className="flex items-center gap-2 mb-1">
