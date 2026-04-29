@@ -130,27 +130,27 @@ export default async function HomePage() {
             <div className="flex flex-col justify-center max-w-lg lg:max-w-none">
 
               {/* Hero brand lockup — symbol + stacked wordmark */}
-              <div className="flex items-center gap-4 mb-10">
+              <div className="flex items-center gap-3 mb-7">
 
                 <Image
                   src="/images/NI_logo_thumb_transparent.png"
                   alt="Natural Intelligence"
-                  width={64}
-                  height={64}
+                  width={76}
+                  height={76}
                   priority
                   className="object-contain flex-shrink-0"
-                  style={{ height: 'clamp(48px, 6vw, 64px)', width: 'auto' }}
+                  style={{ height: 'clamp(56px, 6.5vw, 76px)', width: 'auto' }}
                 />
 
                 <div className="flex flex-col leading-none">
                   <span
-                    className="font-sans font-light text-text-primary tracking-[0.22em] uppercase"
+                    className="font-sans font-normal text-text-primary tracking-[0.22em] uppercase"
                     style={{ fontSize: '13px' }}
                   >
                     Natural
                   </span>
                   <span
-                    className="font-sans font-light text-text-primary tracking-[0.22em] uppercase"
+                    className="font-sans font-normal text-text-primary tracking-[0.22em] uppercase"
                     style={{ fontSize: '13px', marginTop: '3px' }}
                   >
                     Intelligence
