@@ -1,59 +1,74 @@
 import { ImageResponse } from 'next/og'
+import { readFile } from 'fs/promises'
+import { join } from 'path'
 
-export const runtime     = 'edge'
+export const runtime     = 'nodejs'
+export const dynamic     = 'force-dynamic'
 export const alt         = 'Natural Intelligence'
 export const size        = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
-export default function Image() {
+export default async function Image() {
+  const logoData   = await readFile(
+    join(process.cwd(), 'public/images/NI_logo_thumb_transparent.png')
+  )
+  const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`
+
   return new ImageResponse(
     (
       <div
         style={{
-          width: '1200px',
-          height: '630px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
+          width:           '1200px',
+          height:          '630px',
+          display:         'flex',
+          flexDirection:   'column',
+          alignItems:      'flex-start',
+          justifyContent:  'center',
           backgroundColor: '#F8F6F2',
-          padding: '0 96px',
-          position: 'relative',
-          fontFamily: 'system-ui, sans-serif',
+          padding:         '0 96px',
+          position:        'relative',
+          fontFamily:      'system-ui, sans-serif',
         }}
       >
         {/* Warm glow */}
         <div
           style={{
-            position: 'absolute',
-            bottom: '-80px',
-            right: '-80px',
-            width: '480px',
-            height: '480px',
+            position:     'absolute',
+            bottom:       '-80px',
+            right:        '-80px',
+            width:        '480px',
+            height:       '480px',
             borderRadius: '240px',
-            background:
-              'radial-gradient(circle, rgba(184,147,90,0.08) 0%, rgba(248,246,242,0) 70%)',
-            display: 'flex',
+            background:   'radial-gradient(circle, rgba(184,147,90,0.08) 0%, rgba(248,246,242,0) 70%)',
+            display:      'flex',
           }}
         />
 
-        {/* Logo wordmark */}
+        {/* Logo — fingerprint mark + wordmark */}
         <div
           style={{
-            display: 'flex',
+            display:       'flex',
             flexDirection: 'row',
-            alignItems: 'center',
-            marginBottom: '56px',
+            alignItems:    'center',
+            gap:           '16px',
+            marginBottom:  '56px',
           }}
         >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logoBase64}
+            width={72}
+            height={72}
+            style={{ objectFit: 'contain' }}
+          />
           <span
             style={{
-              fontSize: '15px',
-              fontWeight: '500',
-              color: '#0E0D0B',
+              fontSize:      '14px',
+              fontWeight:    '500',
+              color:         '#0E0D0B',
               letterSpacing: '0.18em',
               textTransform: 'uppercase',
-              display: 'flex',
+              display:       'flex',
             }}
           >
             Natural Intelligence
@@ -63,13 +78,13 @@ export default function Image() {
         {/* Eyebrow */}
         <div
           style={{
-            display: 'flex',
-            fontSize: '13px',
-            fontWeight: '600',
+            display:       'flex',
+            fontSize:      '13px',
+            fontWeight:    '600',
             textTransform: 'uppercase',
             letterSpacing: '0.12em',
-            color: '#B8935A',
-            marginBottom: '28px',
+            color:         '#B8935A',
+            marginBottom:  '28px',
           }}
         >
           Naturopathic &amp; functional medicine
@@ -78,14 +93,14 @@ export default function Image() {
         {/* H1 line 1 */}
         <div
           style={{
-            display: 'flex',
-            fontSize: '68px',
-            fontWeight: '300',
-            color: '#0E0D0B',
-            lineHeight: '1.05',
+            display:       'flex',
+            fontSize:      '68px',
+            fontWeight:    '300',
+            color:         '#0E0D0B',
+            lineHeight:    '1.05',
             letterSpacing: '-0.025em',
-            marginBottom: '4px',
-            fontStyle: 'italic',
+            marginBottom:  '4px',
+            fontStyle:     'italic',
           }}
         >
           The space between
@@ -94,13 +109,13 @@ export default function Image() {
         {/* H1 line 2 */}
         <div
           style={{
-            display: 'flex',
-            fontSize: '68px',
-            fontWeight: '600',
-            color: '#0E0D0B',
-            lineHeight: '1.05',
+            display:       'flex',
+            fontSize:      '68px',
+            fontWeight:    '600',
+            color:         '#0E0D0B',
+            lineHeight:    '1.05',
             letterSpacing: '-0.025em',
-            marginBottom: '36px',
+            marginBottom:  '36px',
           }}
         >
           normal and thriving.
@@ -109,12 +124,12 @@ export default function Image() {
         {/* Subline */}
         <div
           style={{
-            display: 'flex',
-            fontSize: '19px',
+            display:    'flex',
+            fontSize:   '19px',
             fontWeight: '400',
-            color: '#4A4945',
+            color:      '#4A4945',
             lineHeight: '1.55',
-            maxWidth: '560px',
+            maxWidth:   '560px',
           }}
         >
           Find trusted practitioners, join expert-led
@@ -122,73 +137,21 @@ export default function Image() {
           resources.
         </div>
 
-        {/* Module pills — NO .map(), explicit divs */}
+        {/* Module pills */}
         <div
           style={{
-            position: 'absolute',
-            bottom: '64px',
-            right: '96px',
-            display: 'flex',
+            position:      'absolute',
+            bottom:        '64px',
+            right:         '96px',
+            display:       'flex',
             flexDirection: 'row',
-            gap: '8px',
+            gap:           '8px',
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              backgroundColor: '#F2EFE9',
-              border: '1px solid #DDD9D1',
-              borderRadius: '6px',
-              padding: '7px 14px',
-              fontSize: '12px',
-              fontWeight: '500',
-              color: '#8A8880',
-            }}
-          >
-            DailyPath
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              backgroundColor: '#F2EFE9',
-              border: '1px solid #DDD9D1',
-              borderRadius: '6px',
-              padding: '7px 14px',
-              fontSize: '12px',
-              fontWeight: '500',
-              color: '#8A8880',
-            }}
-          >
-            BioHub
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              backgroundColor: '#F2EFE9',
-              border: '1px solid #DDD9D1',
-              borderRadius: '6px',
-              padding: '7px 14px',
-              fontSize: '12px',
-              fontWeight: '500',
-              color: '#8A8880',
-            }}
-          >
-            RootFinder
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              backgroundColor: '#F2EFE9',
-              border: '1px solid #DDD9D1',
-              borderRadius: '6px',
-              padding: '7px 14px',
-              fontSize: '12px',
-              fontWeight: '500',
-              color: '#8A8880',
-            }}
-          >
-            LifeTracker
-          </div>
+          <div style={{ display: 'flex', backgroundColor: '#F2EFE9', border: '1px solid #DDD9D1', borderRadius: '6px', padding: '7px 14px', fontSize: '12px', fontWeight: '500', color: '#8A8880' }}>DailyPath</div>
+          <div style={{ display: 'flex', backgroundColor: '#F2EFE9', border: '1px solid #DDD9D1', borderRadius: '6px', padding: '7px 14px', fontSize: '12px', fontWeight: '500', color: '#8A8880' }}>BioHub</div>
+          <div style={{ display: 'flex', backgroundColor: '#F2EFE9', border: '1px solid #DDD9D1', borderRadius: '6px', padding: '7px 14px', fontSize: '12px', fontWeight: '500', color: '#8A8880' }}>RootFinder</div>
+          <div style={{ display: 'flex', backgroundColor: '#F2EFE9', border: '1px solid #DDD9D1', borderRadius: '6px', padding: '7px 14px', fontSize: '12px', fontWeight: '500', color: '#8A8880' }}>LifeTracker</div>
         </div>
       </div>
     ),
