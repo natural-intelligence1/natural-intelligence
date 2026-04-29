@@ -122,40 +122,36 @@ export default async function HomePage() {
     <div>
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-surface-base pt-16 pb-0 md:pt-20 lg:pb-12">
+      <section className="relative overflow-hidden bg-surface-base pt-20 pb-0 md:pt-28 lg:pb-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center pb-16 lg:pb-0 min-h-[600px]">
 
             {/* ── LEFT — text content ──────────────────────────────────── */}
             <div className="flex flex-col justify-center max-w-lg lg:max-w-none">
 
-              {/* Hero brand lockup — symbol + stacked wordmark */}
-              <div className="flex items-center gap-3 mb-7">
+              {/* Hero brand lockup — vertical signature: symbol above, wordmark below */}
+              <div className="mb-8">
 
-                <Image
-                  src="/images/NI_logo_thumb_transparent.png"
-                  alt="Natural Intelligence"
-                  width={76}
-                  height={76}
-                  priority
-                  className="object-contain flex-shrink-0"
-                  style={{ height: 'clamp(56px, 6.5vw, 76px)', width: 'auto' }}
-                />
-
-                <div className="flex flex-col leading-none">
-                  <span
-                    className="font-sans font-normal text-text-primary tracking-[0.22em] uppercase"
-                    style={{ fontSize: '13px' }}
-                  >
-                    Natural
-                  </span>
-                  <span
-                    className="font-sans font-normal text-text-primary tracking-[0.22em] uppercase"
-                    style={{ fontSize: '13px', marginTop: '3px' }}
-                  >
-                    Intelligence
-                  </span>
+                {/* Symbol */}
+                <div className="mb-3">
+                  <Image
+                    src="/images/NI_logo_thumb_transparent.png"
+                    alt="Natural Intelligence"
+                    width={96}
+                    height={96}
+                    priority
+                    className="object-contain"
+                    style={{ height: 'clamp(76px, 7.5vw, 96px)', width: 'auto' }}
+                  />
                 </div>
+
+                {/* Wordmark — single line, left-aligned */}
+                <p
+                  className="font-sans font-normal text-text-primary uppercase"
+                  style={{ fontSize: 'clamp(11px, 1.1vw, 14px)', letterSpacing: '0.18em' }}
+                >
+                  Natural Intelligence
+                </p>
 
               </div>
 

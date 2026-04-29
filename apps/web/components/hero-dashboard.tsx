@@ -175,16 +175,16 @@ export default function HeroDashboard() {
           className="absolute"
           style={{ top: 'calc(8% + 28px)', left: 'calc(5% - 52px)' }}
         >
-          <div className="bg-surface-base border border-border-default rounded-xl shadow-md px-3 py-2 w-[130px] opacity-95">
-            <p className="text-[9px] font-semibold tracking-wider uppercase text-text-muted mb-1">
+          <div className="bg-surface-base border border-border-default rounded-xl shadow-md px-2.5 py-1.5 w-[108px] opacity-95">
+            <p className="text-[8px] font-semibold tracking-wider uppercase text-text-muted mb-1">
               Ferritin
             </p>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-medium text-text-primary font-mono">18 µg/L</span>
-              <span className="text-[9px] text-sage-600 font-medium">↑ improving</span>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-medium text-text-primary font-mono">18 µg/L</span>
+              <span className="text-[8px] text-sage-600 font-medium">↑ improving</span>
             </div>
             {/* Mini sparkline */}
-            <div className="flex items-end gap-0.5 mt-1.5 h-3">
+            <div className="flex items-end gap-0.5 mt-1 h-3">
               {[40, 55, 50, 65, 72].map((h, i) => (
                 <div
                   key={i}
@@ -196,7 +196,7 @@ export default function HeroDashboard() {
             {/* Connector line to frame */}
             <div
               className="absolute bg-border-default"
-              style={{ right: '-26px', top: '50%', width: '26px', height: '1px' }}
+              style={{ right: '-22px', top: '50%', width: '22px', height: '1px' }}
             />
           </div>
         </div>
@@ -206,9 +206,9 @@ export default function HeroDashboard() {
           className="absolute"
           style={{ bottom: 'calc(8% - 24px)', left: 'calc(5% - 36px)' }}
         >
-          <div className="bg-surface-base border border-border-default rounded-full shadow-md px-3 py-1.5 flex items-center gap-2 opacity-95">
-            <span className="text-sm leading-none" role="img" aria-label="streak">🔥</span>
-            <span className="text-[11px] font-medium text-text-primary">18 day streak</span>
+          <div className="bg-surface-base border border-border-default rounded-full shadow-md px-2.5 py-1 flex items-center gap-1.5 opacity-95">
+            <span className="text-xs leading-none" role="img" aria-label="streak">🔥</span>
+            <span className="text-[10px] font-medium text-text-primary">18 day streak</span>
           </div>
         </div>
 
@@ -218,14 +218,14 @@ export default function HeroDashboard() {
           className="absolute"
           style={{ bottom: 'calc(8% - 38px)', right: '8px' }}
         >
-          <div className="bg-surface-base border border-border-default rounded-xl shadow-md px-3 py-2 opacity-95">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-4 h-4 rounded-full bg-brand-subtle flex items-center justify-center flex-shrink-0">
-                <span className="text-[7px] font-medium text-text-brand">SC</span>
+          <div className="bg-surface-base border border-border-default rounded-xl shadow-md px-2.5 py-1.5 opacity-95">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <div className="w-3.5 h-3.5 rounded-full bg-brand-subtle flex items-center justify-center flex-shrink-0">
+                <span className="text-[6px] font-medium text-text-brand">SC</span>
               </div>
-              <span className="text-[9px] font-medium text-text-primary">Dr Chen</span>
+              <span className="text-[8px] font-medium text-text-primary">Dr Chen</span>
             </div>
-            <p className="text-[9px] text-text-muted max-w-[120px] leading-relaxed">
+            <p className="text-[8px] text-text-muted max-w-[100px] leading-relaxed">
               Your cortisol levels are improving — keep going.
             </p>
           </div>
