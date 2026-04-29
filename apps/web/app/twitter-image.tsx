@@ -1,19 +1,12 @@
 import { ImageResponse } from 'next/og'
-import { readFile } from 'fs/promises'
-import { join } from 'path'
+import { NI_LOGO_BASE64 } from './ni-logo-og'
 
-export const runtime     = 'nodejs'
-export const dynamic     = 'force-dynamic'
+export const runtime     = 'edge'
 export const alt         = 'Natural Intelligence'
 export const size        = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
-export default async function Image() {
-  const logoData   = await readFile(
-    join(process.cwd(), 'public/images/NI_logo_thumb_transparent.png')
-  )
-  const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`
-
+export default function Image() {
   return new ImageResponse(
     (
       <div
@@ -44,7 +37,7 @@ export default async function Image() {
           }}
         />
 
-        {/* Logo — fingerprint mark + wordmark */}
+        {/* Logo mark + wordmark */}
         <div
           style={{
             display:       'flex',
@@ -56,10 +49,10 @@ export default async function Image() {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={logoBase64}
+            src={NI_LOGO_BASE64}
             width={72}
             height={72}
-            style={{ objectFit: 'contain' }}
+            style={{ objectFit: 'contain', display: 'flex' }}
           />
           <span
             style={{

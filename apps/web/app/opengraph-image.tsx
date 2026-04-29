@@ -1,19 +1,12 @@
 import { ImageResponse } from 'next/og'
-import { readFile } from 'fs/promises'
-import { join } from 'path'
+import { NI_LOGO_BASE64 } from './ni-logo-og'
 
-export const runtime     = 'nodejs'
-export const dynamic     = 'force-dynamic'
+export const runtime     = 'edge'
 export const alt         = 'Natural Intelligence'
 export const size        = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
-export default async function Image() {
-  const logoData   = await readFile(
-    join(process.cwd(), 'public/images/NI_logo_thumb_transparent.png')
-  )
-  const logoBase64 = `data:image/png;base64,${logoData.toString('base64')}`
-
+export default function Image() {
   return new ImageResponse(
     (
       <div
@@ -44,31 +37,31 @@ export default async function Image() {
           }}
         />
 
-        {/* Logo — fingerprint mark + wordmark */}
+        {/* Logo mark + wordmark */}
         <div
           style={{
-            display:        'flex',
-            flexDirection:  'row',
-            alignItems:     'center',
-            gap:            '16px',
-            marginBottom:   '56px',
+            display:       'flex',
+            flexDirection: 'row',
+            alignItems:    'center',
+            gap:           '16px',
+            marginBottom:  '56px',
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={logoBase64}
+            src={NI_LOGO_BASE64}
             width={72}
             height={72}
-            style={{ objectFit: 'contain' }}
+            style={{ objectFit: 'contain', display: 'flex' }}
           />
           <span
             style={{
-              fontSize:       '14px',
-              fontWeight:     '500',
-              color:          '#0E0D0B',
-              letterSpacing:  '0.18em',
-              textTransform:  'uppercase',
-              display:        'flex',
+              fontSize:      '14px',
+              fontWeight:    '500',
+              color:         '#0E0D0B',
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              display:       'flex',
             }}
           >
             Natural Intelligence
@@ -78,13 +71,13 @@ export default async function Image() {
         {/* Eyebrow */}
         <div
           style={{
-            display:        'flex',
-            fontSize:       '13px',
-            fontWeight:     '600',
-            textTransform:  'uppercase',
-            letterSpacing:  '0.12em',
-            color:          '#B8935A',
-            marginBottom:   '28px',
+            display:       'flex',
+            fontSize:      '13px',
+            fontWeight:    '600',
+            textTransform: 'uppercase',
+            letterSpacing: '0.12em',
+            color:         '#B8935A',
+            marginBottom:  '28px',
           }}
         >
           Naturopathic &amp; functional medicine
@@ -93,14 +86,14 @@ export default async function Image() {
         {/* H1 line 1 */}
         <div
           style={{
-            display:        'flex',
-            fontSize:       '68px',
-            fontWeight:     '300',
-            color:          '#0E0D0B',
-            lineHeight:     '1.05',
-            letterSpacing:  '-0.025em',
-            marginBottom:   '4px',
-            fontStyle:      'italic',
+            display:       'flex',
+            fontSize:      '68px',
+            fontWeight:    '300',
+            color:         '#0E0D0B',
+            lineHeight:    '1.05',
+            letterSpacing: '-0.025em',
+            marginBottom:  '4px',
+            fontStyle:     'italic',
           }}
         >
           The space between
@@ -109,13 +102,13 @@ export default async function Image() {
         {/* H1 line 2 */}
         <div
           style={{
-            display:        'flex',
-            fontSize:       '68px',
-            fontWeight:     '600',
-            color:          '#0E0D0B',
-            lineHeight:     '1.05',
-            letterSpacing:  '-0.025em',
-            marginBottom:   '36px',
+            display:       'flex',
+            fontSize:      '68px',
+            fontWeight:    '600',
+            color:         '#0E0D0B',
+            lineHeight:    '1.05',
+            letterSpacing: '-0.025em',
+            marginBottom:  '36px',
           }}
         >
           normal and thriving.
