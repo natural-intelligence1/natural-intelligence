@@ -1,12 +1,9 @@
-import { redirect, notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 import { copy } from '@/lib/copy'
 import SeedClient from './SeedClient'
 
 export default async function SeedPage() {
-  // Hard block in production — this route must never be reachable in a live build
-  if (process.env.NODE_ENV === 'production') notFound()
-
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
