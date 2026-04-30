@@ -1,9 +1,6 @@
 import type { Metadata } from 'next'
 import { DM_Sans } from 'next/font/google'
 import './globals.css'
-import SidebarNav from '@/app/components/SidebarNav'
-import { redirect } from 'next/navigation'
-import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 
 const dmSans = DM_Sans({
   subsets:  ['latin'],
@@ -17,32 +14,19 @@ export const metadata: Metadata = {
   description: 'Admin portal',
 }
 
-export default async function RootLayout({
+// Bare shell — no auth check here.
+// /login renders directly inside this shell (no sidebar, no redirects).
+// All protected routes are wrapped by app/(protected)/layout.tsx which
+// enforces auth and renders the sidebar.
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
-
-  const adminClient = createAdminClient()
-  const { data: profile } = await adminClient
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') redirect('https://natural-intelligence.uk')
-
   return (
     <html lang="en" className={dmSans.variable}>
-      <body className="flex min-h-screen bg-surface-base">
-        <SidebarNav />
-        <main className="flex-1 overflow-auto bg-surface-base">
-          {children}
-        </main>
+      <body>
+        {children}
       </body>
     </html>
   )
