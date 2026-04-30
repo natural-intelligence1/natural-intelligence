@@ -46,19 +46,29 @@ export async function middleware(request: NextRequest) {
     (r) => pathname === r || pathname.startsWith('/auth/') || pathname.startsWith('/directory/') || pathname.startsWith('/resources/')
   )
 
+  // Helper: create a redirect response that carries any Supabase session
+  // cookies written during getUser() — prevents stale-token redirect loops.
+  function redirectWithCookies(destination: string, params?: Record<string, string>) {
+    const url = request.nextUrl.clone()
+    url.pathname = destination
+    url.search = ''
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
+    }
+    const response = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      response.cookies.set(cookie.name, cookie.value, cookie as any)
+    })
+    return response
+  }
+
   if (!user && !isPublic) {
-    const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = '/auth/login'
-    loginUrl.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(loginUrl)
+    return redirectWithCookies('/auth/login', { redirectTo: pathname })
   }
 
   // Redirect authenticated users away from login/signup
   if (user && (pathname === '/login' || pathname === '/signup' || pathname === '/auth/login' || pathname === '/auth/signup')) {
-    const dashboardUrl = request.nextUrl.clone()
-    dashboardUrl.pathname = '/dashboard'
-    dashboardUrl.search = ''
-    return NextResponse.redirect(dashboardUrl)
+    return redirectWithCookies('/dashboard')
   }
 
   return supabaseResponse

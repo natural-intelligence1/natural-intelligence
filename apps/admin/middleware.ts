@@ -34,21 +34,25 @@ export async function middleware(request: NextRequest) {
     (r) => pathname === r || pathname.startsWith('/auth/')
   )
 
-  // No session → send to admin login
-  if (!user && !isPublic) {
-    const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = '/login'
-    loginUrl.search = ''
-    return NextResponse.redirect(loginUrl)
+  // Helper: create a redirect response that carries any Supabase session
+  // cookies written during getUser() — without this, stale tokens are never
+  // cleared and the browser ends up in an infinite redirect loop.
+  function redirectWithCookies(destination: string) {
+    const url = request.nextUrl.clone()
+    url.pathname = destination
+    url.search = ''
+    const response = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach((cookie) => {
+      response.cookies.set(cookie.name, cookie.value, cookie as any)
+    })
+    return response
   }
 
+  // No session → send to admin login
+  if (!user && !isPublic) return redirectWithCookies('/login')
+
   // Redirect authenticated admin users away from login
-  if (user && pathname === '/login') {
-    const dashboardUrl = request.nextUrl.clone()
-    dashboardUrl.pathname = '/dashboard'
-    dashboardUrl.search = ''
-    return NextResponse.redirect(dashboardUrl)
-  }
+  if (user && pathname === '/login') return redirectWithCookies('/dashboard')
 
   // Role check happens in the protected layout (server component),
   // not here — avoids DB calls on every edge request.
