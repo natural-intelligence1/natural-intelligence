@@ -51,16 +51,16 @@ export async function middleware(request: NextRequest) {
   // No session → send to admin login
   if (!user && !isPublic) return redirectWithCookies('/login')
 
-  // Redirect authenticated admin users away from login
-  if (user && pathname === '/login') return redirectWithCookies('/dashboard')
-
   // Role check happens in the protected layout (server component),
   // not here — avoids DB calls on every edge request.
   return supabaseResponse
 }
 
 export const config = {
+  // Exclude /login and /auth/* from middleware — they must never be caught in
+  // a redirect loop. Unauthenticated-to-login redirect is handled for all
+  // other routes; login itself renders unconditionally.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|login|auth|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

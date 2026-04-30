@@ -1,10 +1,17 @@
+import { redirect } from 'next/navigation'
+import { createServerSupabaseClient } from '@natural-intelligence/db'
 import { adminLogin } from '@/app/actions/auth'
 
 interface AdminLoginPageProps {
   searchParams: { error?: string }
 }
 
-export default function AdminLoginPage({ searchParams }: AdminLoginPageProps) {
+export default async function AdminLoginPage({ searchParams }: AdminLoginPageProps) {
+  // If already authenticated, skip login — middleware won't do this since
+  // /login is excluded from the matcher to prevent redirect loops.
+  const supabase = createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) redirect('/dashboard')
   return (
     <main className="min-h-screen flex items-center justify-center bg-sidebar-bg px-4">
       <div className="w-full max-w-sm">
