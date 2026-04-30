@@ -50,6 +50,7 @@ export default function Image() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={NI_LOGO_BASE64}
+            alt=""
             width={72}
             height={72}
             style={{ objectFit: 'contain', display: 'flex' }}
