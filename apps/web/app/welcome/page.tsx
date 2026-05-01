@@ -5,9 +5,6 @@ import { createServerSupabaseClient } from '@natural-intelligence/db'
 
 // ─── Server action ────────────────────────────────────────────────────────────
 
-// profiles.onboarding_intent, heard_about,
-// onboarding_completed_at added in Sprint 7 migration
-// Types will be regenerated in next sprint
 async function completeOnboarding(formData: FormData) {
   'use server'
 
@@ -19,7 +16,7 @@ async function completeOnboarding(formData: FormData) {
   const heardAbout = (formData.get('heard_about') as string | null)?.trim()
   const intent     = (formData.get('intent') as string | null)?.trim()
 
-  await (supabase.from('profiles') as any).update({
+  await supabase.from('profiles').update({
     ...(fullName   ? { full_name:               fullName   } : {}),
     ...(intent     ? { onboarding_intent:        intent     } : {}),
     ...(heardAbout ? { heard_about:              heardAbout } : {}),

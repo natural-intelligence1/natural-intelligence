@@ -7,7 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Required by @supabase/supabase-js@2.101.1 for correct ClientOptions generic inference
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -710,8 +711,11 @@ export type Database = {
           bio: string | null
           created_at: string | null
           full_name: string | null
+          heard_about: string | null
           id: string
           is_test_data: boolean
+          onboarding_completed_at: string | null
+          onboarding_intent: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string | null
         }
@@ -720,8 +724,11 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           full_name?: string | null
+          heard_about?: string | null
           id: string
           is_test_data?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_intent?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string | null
         }
@@ -730,8 +737,11 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           full_name?: string | null
+          heard_about?: string | null
           id?: string
           is_test_data?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_intent?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string | null
         }
