@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
-import { sendEmail, practitionerApplicationEmail } from '@natural-intelligence/db'
+import { sendEmail, applicationSubmittedNotificationEmail } from '@natural-intelligence/db'
 
 // ─── Validation constants (must mirror client) ────────────────────────────────
 const BIO_MIN        = 80
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 5. Insert application ─────────────────────────────────────────────
-    const { error: insertError } = await adminClient
+    const { data: inserted, error: insertError } = await adminClient
       .from('practitioner_applications')
       .insert({
         profile_id,
@@ -133,6 +133,8 @@ export async function POST(request: NextRequest) {
         status:                   'submitted',
         submitted_at:             new Date().toISOString(),
       })
+      .select('id')
+      .single()
 
     if (insertError) {
       // Unique constraint violation = duplicate application race condition
@@ -143,13 +145,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
 
-    // ── 6. Notification email (non-fatal) ─────────────────────────────────
+    // ── 6. HTML notification email to admin (non-fatal) ───────────────────
     try {
-      await sendEmail(practitionerApplicationEmail({
-        fullName:    full_name,
-        email:       user.email ?? email,
-        specialties: Array.isArray(area_tags) ? area_tags : [],
-        submittedAt: new Date().toISOString(),
+      await sendEmail(applicationSubmittedNotificationEmail({
+        id:                 inserted?.id ?? 'unknown',
+        fullName:           full_name.trim(),
+        email:              user.email ?? email,
+        primaryProfessions: Array.isArray(primary_professions) ? primary_professions : [],
+        areaTags:           Array.isArray(area_tags) ? area_tags : [],
+        motivation:         motivation.trim(),
+        submittedAt:        new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' }),
       }))
     } catch (emailErr) {
       console.error('[apply] Email notification failed:', emailErr)

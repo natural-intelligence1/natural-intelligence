@@ -2,17 +2,19 @@
 
 import { useState } from 'react'
 import { copy } from '@/lib/copy'
-import { activatePractitioner, pausePractitioner, resendApprovalEmail } from '../actions'
+import { activatePractitioner, pausePractitioner, resendApprovalEmail, toggleDirectoryReady } from '../actions'
 
 interface Props {
-  practitionerId:  string
-  lifecycleStatus: string
+  practitionerId:   string
+  lifecycleStatus:  string
+  isDirectoryReady: boolean
 }
 
-export default function PractitionerActionsClient({ practitionerId, lifecycleStatus }: Props) {
+export default function PractitionerActionsClient({ practitionerId, lifecycleStatus, isDirectoryReady }: Props) {
   const [loading,      setLoading]      = useState(false)
   const [pauseReason,  setPauseReason]  = useState('')
   const [showPause,    setShowPause]    = useState(false)
+  const [dirReady,     setDirReady]     = useState(isDirectoryReady)
   const [feedback,     setFeedback]     = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
   const c = copy.practitioners
@@ -65,6 +67,22 @@ export default function PractitionerActionsClient({ practitionerId, lifecycleSta
             {c.actions.pause}
           </button>
         )}
+
+        {/* Directory ready toggle */}
+        <button
+          disabled={loading}
+          onClick={() => handle(async () => {
+            await toggleDirectoryReady(practitionerId, !dirReady)
+            setDirReady((v) => !v)
+          })}
+          className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-50 ${
+            dirReady
+              ? 'border-status-errorBorder bg-status-errorBg text-status-errorText'
+              : 'border-status-successBorder bg-status-successBg text-status-successText'
+          }`}
+        >
+          {dirReady ? 'Remove from directory' : 'Make visible in directory'}
+        </button>
 
         {/* Resend approval email */}
         <button

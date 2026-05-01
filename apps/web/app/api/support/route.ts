@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient, createServerSupabaseClient } from '@natural-intelligence/db'
-import { sendEmail, supportRequestEmail } from '../../../../../packages/db/src/email'
+import {
+  sendEmail,
+  supportRequestNotificationEmail,
+  supportRequestConfirmationEmail,
+} from '@natural-intelligence/db'
 
 // ─── Validation constants ─────────────────────────────────────────────────────
 
@@ -73,33 +77,54 @@ export async function POST(request: NextRequest) {
     // ── Insert via admin client (service role — bypasses RLS by design) ──────
     const supabase = createAdminClient()
 
-    const { error } = await supabase.from('support_requests').insert({
-      member_id:    user?.id ?? null,
-      full_name:    full_name.trim(),
-      email:        email.trim().toLowerCase(),
-      phone:        phone?.trim() || null,
-      request_type,
-      description:  description.trim(),
-      urgency:      resolvedUrgency,
-      status:       'new',
-      submitted_at: new Date().toISOString(),
-    })
+    const { data: inserted, error } = await supabase
+      .from('support_requests')
+      .insert({
+        member_id:    user?.id ?? null,
+        full_name:    full_name.trim(),
+        email:        email.trim().toLowerCase(),
+        phone:        phone?.trim() || null,
+        request_type,
+        description:  description.trim(),
+        urgency:      resolvedUrgency,
+        status:       'new',
+        submitted_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // ── Notification email (non-fatal) ───────────────────────────────────────
+    const submittedAt  = new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })
+    const resolvedEmail = email.trim().toLowerCase()
+    const resolvedName  = full_name.trim()
+
+    // ── Admin notification email (non-fatal) ─────────────────────────────────
     try {
-      await sendEmail(supportRequestEmail({
-        fullName:    full_name.trim(),
-        email:       email.trim().toLowerCase(),
+      await sendEmail(supportRequestNotificationEmail({
+        id:          inserted?.id ?? 'unknown',
+        fullName:    resolvedName,
+        email:       resolvedEmail,
         requestType: request_type,
         urgency:     resolvedUrgency,
-        submittedAt: new Date().toISOString(),
+        description: description.trim(),
+        submittedAt,
       }))
     } catch (emailErr) {
-      console.error('[support] Email notification failed:', emailErr)
+      console.error('[support] Admin notification email failed:', emailErr)
+    }
+
+    // ── Submitter confirmation email (non-fatal) ──────────────────────────────
+    try {
+      await sendEmail(supportRequestConfirmationEmail({
+        fullName:    resolvedName,
+        email:       resolvedEmail,
+        requestType: request_type,
+      }))
+    } catch (emailErr) {
+      console.error('[support] Confirmation email failed:', emailErr)
     }
 
     return NextResponse.json({ ok: true })

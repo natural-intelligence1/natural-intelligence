@@ -136,7 +136,11 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
       {/* Page heading */}
       <div className="mb-8">
         <h1 className="text-3xl font-semibold text-text-primary mb-2">{copy.directory.heading}</h1>
-        <p className="text-text-secondary">{copy.directory.subheading}</p>
+        <p className="text-text-secondary">
+          {sorted.length > 0
+            ? `${sorted.length} practitioner${sorted.length === 1 ? '' : 's'} · ${copy.directory.subheading}`
+            : copy.directory.subheading}
+        </p>
       </div>
 
       {/* Full-width search bar above the grid */}

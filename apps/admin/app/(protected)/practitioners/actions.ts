@@ -55,6 +55,21 @@ export async function pausePractitioner(practitionerId: string, reason: string) 
   revalidatePath(`/practitioners/${practitionerId}`)
 }
 
+export async function toggleDirectoryReady(practitionerId: string, ready: boolean) {
+  const { adminClient } = await requireAdmin()
+
+  await adminClient
+    .from('practitioners')
+    .update({
+      is_directory_ready: ready,
+      updated_at:         new Date().toISOString(),
+    })
+    .eq('id', practitionerId)
+
+  revalidatePath('/practitioners')
+  revalidatePath(`/practitioners/${practitionerId}`)
+}
+
 export async function resendApprovalEmail(practitionerId: string) {
   const { adminClient } = await requireAdmin()
 

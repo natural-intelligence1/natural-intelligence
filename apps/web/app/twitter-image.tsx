@@ -17,12 +17,13 @@ export default function Image() {
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#F8F6F2',
+          padding: '32px',
         }}
       >
         <img
           src={NI_LOGO_BASE64}
-          width={200}
-          height={200}
+          width={566}
+          height={566}
           style={{ objectFit: 'contain', display: 'flex' }}
         />
       </div>

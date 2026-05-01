@@ -65,5 +65,5 @@ export async function signupWithConsent(formData: FormData) {
     }
   }
 
-  redirect('/dashboard')
+  redirect('/welcome')
 }

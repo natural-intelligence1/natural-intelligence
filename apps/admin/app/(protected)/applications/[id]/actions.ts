@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
-import { sendEmail, applicationDecisionEmail } from '@natural-intelligence/db'
+import { sendEmail, applicationDecisionEmail, applicationApprovedEmail } from '@natural-intelligence/db'
 
 // ─── Shared admin guard ───────────────────────────────────────────────────────
 
@@ -106,7 +106,7 @@ export async function approveApplication(applicationId: string, notes: string) {
       credentials:              app.credentials ? [app.credentials] : [],
       website_url:              app.website_url  ?? null,
       linkedin_url:             app.linkedin_url ?? null,
-      trust_level:              'vetted' as const,
+      trust_level:              'unvetted' as const,
       is_active:                true,
       lifecycle_status:         isReady ? 'active' : 'approved_pending_profile',
       profile_completeness_pct: pct,
@@ -129,15 +129,14 @@ export async function approveApplication(applicationId: string, notes: string) {
     await adminClient.from('profiles').update({ role: 'practitioner' }).eq('id', profileId)
   }
 
-  // Send decision email (non-fatal)
+  // Send HTML approval email (non-fatal)
   const appEmail    = (app as any).email as string | null
   const appFullName = (app as any).full_name as string | null
   if (appEmail && appFullName) {
     try {
-      await sendEmail(applicationDecisionEmail({
-        to:       appEmail,
+      await sendEmail(applicationApprovedEmail({
         fullName: appFullName,
-        decision: 'approved',
+        email:    appEmail,
       }))
     } catch (e) {
       console.error('[approveApplication] Email failed:', e)

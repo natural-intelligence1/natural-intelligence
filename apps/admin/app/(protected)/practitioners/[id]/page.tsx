@@ -225,6 +225,7 @@ export default async function PractitionerDetailPage({ params }: Props) {
           <PractitionerActionsClient
             practitionerId={p.id}
             lifecycleStatus={lifecycle}
+            isDirectoryReady={Boolean((p as any).is_directory_ready)}
           />
         </section>
 

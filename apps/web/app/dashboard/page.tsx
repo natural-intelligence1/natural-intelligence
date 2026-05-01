@@ -122,6 +122,45 @@ export default async function DashboardPage() {
             <p className="text-sm text-text-muted">{user.email}</p>
           </div>
 
+          {/* ── Getting started card (shown until first action taken) ──────── */}
+          {!practitionerRow &&
+            !application &&
+            (!registrations || registrations.length === 0) &&
+            (!supportRequests || supportRequests.length === 0) && (
+            <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
+              <h2 className="text-base font-semibold text-text-primary mb-4">Getting started</h2>
+              <div className="space-y-3">
+                <Link
+                  href="/directory"
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border-default hover:bg-surface-muted transition-colors group"
+                >
+                  <span className="text-text-brand text-sm">→</span>
+                  <span className="text-sm font-medium text-text-primary group-hover:text-text-brand transition-colors">
+                    Browse the practitioner directory
+                  </span>
+                </Link>
+                <Link
+                  href="/workshops"
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border-default hover:bg-surface-muted transition-colors group"
+                >
+                  <span className="text-text-brand text-sm">→</span>
+                  <span className="text-sm font-medium text-text-primary group-hover:text-text-brand transition-colors">
+                    Explore upcoming workshops
+                  </span>
+                </Link>
+                <Link
+                  href="/support"
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border-default hover:bg-surface-muted transition-colors group"
+                >
+                  <span className="text-text-brand text-sm">→</span>
+                  <span className="text-sm font-medium text-text-primary group-hover:text-text-brand transition-colors">
+                    Submit a support request
+                  </span>
+                </Link>
+              </div>
+            </section>
+          )}
+
           {/* Metric cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
             <div className="rounded-xl border border-border-default bg-surface-raised p-5 shadow-sm">
