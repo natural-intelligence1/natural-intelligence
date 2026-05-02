@@ -7,6 +7,7 @@ const sidebarLinks = [
   { label: 'Overview',     href: '/dashboard',          active: true  },
   { label: 'My workshops', href: '/dashboard/workshops', active: false },
   { label: 'My requests',  href: '/dashboard/requests',  active: false },
+  { label: 'BioHub',       href: '/dashboard/biohub',    active: false },
   { label: 'Intelligence', href: '/dashboard/intelligence', active: false, comingSoon: true },
   { label: 'Settings',     href: '/dashboard/settings',  active: false, comingSoon: true },
 ]
@@ -243,6 +244,27 @@ export default async function DashboardPage() {
                 })}
               </div>
             )}
+          </section>
+
+          {/* ── BioHub teaser card ────────────────────────────────────────────── */}
+          <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">BioHub</p>
+                <h3 className="text-sm font-semibold text-text-primary mb-1">Lab report analysis</h3>
+                <p className="text-sm text-text-secondary leading-relaxed">
+                  Upload a PDF lab report and see your biomarkers mapped against functional reference ranges — not just GP limits.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <Link
+                href="/dashboard/biohub"
+                className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
+              >
+                Upload a report
+              </Link>
+            </div>
           </section>
 
           {/* ── Intelligence teaser ───────────────────────────────────────────── */}

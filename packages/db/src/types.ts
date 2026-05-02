@@ -58,6 +58,84 @@ export type Database = {
           },
         ]
       }
+      biomarker_results: {
+        Row: {
+          created_at: string | null
+          functional_zone: number | null
+          gp_interpretation: string | null
+          gp_range_high: number | null
+          gp_range_low: number | null
+          id: string
+          marker_key: string | null
+          marker_name: string
+          member_id: string
+          ni_interpretation: string | null
+          ni_optimal_high: number | null
+          ni_optimal_low: number | null
+          ni_range_high: number | null
+          ni_range_low: number | null
+          raw_value: string | null
+          report_id: string
+          unit: string | null
+          value: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          functional_zone?: number | null
+          gp_interpretation?: string | null
+          gp_range_high?: number | null
+          gp_range_low?: number | null
+          id?: string
+          marker_key?: string | null
+          marker_name: string
+          member_id: string
+          ni_interpretation?: string | null
+          ni_optimal_high?: number | null
+          ni_optimal_low?: number | null
+          ni_range_high?: number | null
+          ni_range_low?: number | null
+          raw_value?: string | null
+          report_id: string
+          unit?: string | null
+          value?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          functional_zone?: number | null
+          gp_interpretation?: string | null
+          gp_range_high?: number | null
+          gp_range_low?: number | null
+          id?: string
+          marker_key?: string | null
+          marker_name?: string
+          member_id?: string
+          ni_interpretation?: string | null
+          ni_optimal_high?: number | null
+          ni_optimal_low?: number | null
+          ni_range_high?: number | null
+          ni_range_low?: number | null
+          raw_value?: string | null
+          report_id?: string
+          unit?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "biomarker_results_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "lab_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "biomarker_results_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           author_id: string
@@ -300,6 +378,125 @@ export type Database = {
             columns: ["practitioner_id"]
             isOneToOne: false
             referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      functional_ranges: {
+        Row: {
+          created_at: string | null
+          gp_range_high: number | null
+          gp_range_low: number | null
+          id: string
+          marker_key: string
+          marker_name: string
+          ni_optimal_high: number | null
+          ni_optimal_low: number | null
+          ni_range_high: number | null
+          ni_range_low: number | null
+          notes: string | null
+          unit: string | null
+          updated_at: string | null
+          zone_1_max: number | null
+          zone_2_max: number | null
+          zone_3_max: number | null
+          zone_4_max: number | null
+          zone_4_min: number | null
+          zone_5_max: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          gp_range_high?: number | null
+          gp_range_low?: number | null
+          id?: string
+          marker_key: string
+          marker_name: string
+          ni_optimal_high?: number | null
+          ni_optimal_low?: number | null
+          ni_range_high?: number | null
+          ni_range_low?: number | null
+          notes?: string | null
+          unit?: string | null
+          updated_at?: string | null
+          zone_1_max?: number | null
+          zone_2_max?: number | null
+          zone_3_max?: number | null
+          zone_4_max?: number | null
+          zone_4_min?: number | null
+          zone_5_max?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          gp_range_high?: number | null
+          gp_range_low?: number | null
+          id?: string
+          marker_key?: string
+          marker_name?: string
+          ni_optimal_high?: number | null
+          ni_optimal_low?: number | null
+          ni_range_high?: number | null
+          ni_range_low?: number | null
+          notes?: string | null
+          unit?: string | null
+          updated_at?: string | null
+          zone_1_max?: number | null
+          zone_2_max?: number | null
+          zone_3_max?: number | null
+          zone_4_max?: number | null
+          zone_4_min?: number | null
+          zone_5_max?: number | null
+        }
+        Relationships: []
+      }
+      lab_reports: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          lab_name: string | null
+          member_id: string
+          parse_error: string | null
+          parsed_at: string | null
+          report_date: string | null
+          updated_at: string | null
+          upload_status: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          lab_name?: string | null
+          member_id: string
+          parse_error?: string | null
+          parsed_at?: string | null
+          report_date?: string | null
+          updated_at?: string | null
+          upload_status?: string
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          lab_name?: string | null
+          member_id?: string
+          parse_error?: string | null
+          parsed_at?: string | null
+          report_date?: string | null
+          updated_at?: string | null
+          upload_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_reports_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

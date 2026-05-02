@@ -11,6 +11,7 @@
     "clean": "rm -rf .next"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
     "@natural-intelligence/db": "workspace:*",
     "@natural-intelligence/design-tokens": "workspace:*",
     "@natural-intelligence/ui": "workspace:*",
