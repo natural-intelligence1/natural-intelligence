@@ -7,8 +7,9 @@ const sidebarLinks = [
   { label: 'Overview',     href: '/dashboard',          active: true  },
   { label: 'My workshops', href: '/dashboard/workshops', active: false },
   { label: 'My requests',  href: '/dashboard/requests',  active: false },
-  { label: 'BioHub',       href: '/dashboard/biohub',    active: false },
-  { label: 'Intelligence', href: '/dashboard/intelligence', active: false, comingSoon: true },
+  { label: 'BioHub',       href: '/dashboard/biohub',       active: false },
+  { label: 'RootFinder',   href: '/dashboard/rootfinder',   active: false },
+  { label: 'Intelligence', href: '/dashboard/intelligence',  active: false, comingSoon: true },
   { label: 'Settings',     href: '/dashboard/settings',  active: false, comingSoon: true },
 ]
 
@@ -263,6 +264,27 @@ export default async function DashboardPage() {
                 className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
               >
                 Upload a report
+              </Link>
+            </div>
+          </section>
+
+          {/* ── RootFinder teaser card ────────────────────────────────────────── */}
+          <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">RootFinder</p>
+                <h3 className="text-sm font-semibold text-text-primary mb-1">Find your root cause</h3>
+                <p className="text-sm text-text-secondary leading-relaxed">
+                  Select the symptoms you&apos;ve been experiencing and our analysis engine will identify the most likely functional root causes driving them.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <Link
+                href="/dashboard/rootfinder"
+                className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
+              >
+                Start analysis
               </Link>
             </div>
           </section>

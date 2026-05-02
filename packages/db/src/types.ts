@@ -121,17 +121,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "biomarker_results_report_id_fkey"
-            columns: ["report_id"]
-            isOneToOne: false
-            referencedRelation: "lab_reports"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "biomarker_results_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "biomarker_results_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "lab_reports"
             referencedColumns: ["id"]
           },
         ]
@@ -497,6 +497,54 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_symptom_logs: {
+        Row: {
+          duration: string | null
+          id: string
+          logged_at: string | null
+          member_id: string
+          notes: string | null
+          session_id: string | null
+          severity: number | null
+          symptom_id: string
+        }
+        Insert: {
+          duration?: string | null
+          id?: string
+          logged_at?: string | null
+          member_id: string
+          notes?: string | null
+          session_id?: string | null
+          severity?: number | null
+          symptom_id: string
+        }
+        Update: {
+          duration?: string | null
+          id?: string
+          logged_at?: string | null
+          member_id?: string
+          notes?: string | null
+          session_id?: string | null
+          severity?: number | null
+          symptom_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_symptom_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_symptom_logs_symptom_id_fkey"
+            columns: ["symptom_id"]
+            isOneToOne: false
+            referencedRelation: "symptoms"
             referencedColumns: ["id"]
           },
         ]
@@ -997,6 +1045,90 @@ export type Database = {
           },
         ]
       }
+      root_causes: {
+        Row: {
+          colour: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          key: string
+          name: string
+          sphere_position_phi: number | null
+          sphere_position_theta: number | null
+        }
+        Insert: {
+          colour?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key: string
+          name: string
+          sphere_position_phi?: number | null
+          sphere_position_theta?: number | null
+        }
+        Update: {
+          colour?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key?: string
+          name?: string
+          sphere_position_phi?: number | null
+          sphere_position_theta?: number | null
+        }
+        Relationships: []
+      }
+      rootfinder_results: {
+        Row: {
+          confidence_score: number
+          created_at: string | null
+          id: string
+          member_id: string
+          rank: number
+          root_cause_id: string
+          session_id: string
+          symptom_count: number
+          weighted_score: number
+        }
+        Insert: {
+          confidence_score: number
+          created_at?: string | null
+          id?: string
+          member_id: string
+          rank: number
+          root_cause_id: string
+          session_id: string
+          symptom_count: number
+          weighted_score: number
+        }
+        Update: {
+          confidence_score?: number
+          created_at?: string | null
+          id?: string
+          member_id?: string
+          rank?: number
+          root_cause_id?: string
+          session_id?: string
+          symptom_count?: number
+          weighted_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rootfinder_results_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rootfinder_results_root_cause_id_fkey"
+            columns: ["root_cause_id"]
+            isOneToOne: false
+            referencedRelation: "root_causes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           care_plan_id: string | null
@@ -1109,6 +1241,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      symptom_root_mappings: {
+        Row: {
+          id: string
+          root_cause_id: string
+          symptom_id: string
+          weight: number
+        }
+        Insert: {
+          id?: string
+          root_cause_id: string
+          symptom_id: string
+          weight?: number
+        }
+        Update: {
+          id?: string
+          root_cause_id?: string
+          symptom_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "symptom_root_mappings_root_cause_id_fkey"
+            columns: ["root_cause_id"]
+            isOneToOne: false
+            referencedRelation: "root_causes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "symptom_root_mappings_symptom_id_fkey"
+            columns: ["symptom_id"]
+            isOneToOne: false
+            referencedRelation: "symptoms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      symptoms: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          key: string
+          name: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key: string
+          name: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key?: string
+          name?: string
+        }
+        Relationships: []
       }
     }
     Views: {
