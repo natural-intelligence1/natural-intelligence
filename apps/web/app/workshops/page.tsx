@@ -60,6 +60,14 @@ interface WorkshopsPageProps {
   searchParams: { type?: string }
 }
 
+const formatEventTime = (dateStr: string) =>
+  new Date(dateStr).toLocaleTimeString('en-GB', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Europe/London',
+  })
+
 export default async function WorkshopsPage({ searchParams }: WorkshopsPageProps) {
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -192,7 +200,7 @@ export default async function WorkshopsPage({ searchParams }: WorkshopsPageProps
                   {date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
                 <p className="text-xs text-text-muted mb-1">
-                  {date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  {formatEventTime(event.starts_at)}
                 </p>
 
                 {hostProfile?.full_name && (

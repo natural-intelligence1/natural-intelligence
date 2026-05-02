@@ -27,9 +27,16 @@ const sizeClasses: Record<AvatarSize, string> = {
 }
 
 function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/)
+  const cleaned = name
+    .replace(/^(Dr|Mr|Mrs|Ms|Prof|Rev)\.?\s+/i, '')
+    .trim()
+  const parts = cleaned.split(/\s+/)
   if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? '?'
-  return ((parts[0][0] ?? '') + (parts[parts.length - 1][0] ?? '')).toUpperCase()
+  return parts
+    .map((p) => p[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
 }
 
 export function Avatar({ name, imageUrl, size = 'md', className = '' }: AvatarProps) {

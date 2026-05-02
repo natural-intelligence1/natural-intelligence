@@ -118,6 +118,14 @@ export default async function HomePage() {
     { name: 'Practitioner sync', desc: 'Shared notes & goals' },
   ]
 
+  const formatEventTime = (dateStr: string) =>
+    new Date(dateStr).toLocaleTimeString('en-GB', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Europe/London',
+    })
+
   return (
     <div>
 
@@ -343,7 +351,7 @@ export default async function HomePage() {
                 const date      = new Date(event.starts_at)
                 const day       = date.toLocaleDateString('en-GB', { day: 'numeric' })
                 const month     = date.toLocaleDateString('en-GB', { month: 'short' })
-                const time      = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                const time      = formatEventTime(event.starts_at)
                 const hostName  = event.profiles?.full_name ?? ''
 
                 return (
