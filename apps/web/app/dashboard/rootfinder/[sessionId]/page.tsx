@@ -4,6 +4,8 @@ import { createServerSupabaseClient, createAdminClient } from '@natural-intellig
 import { BlochSphere } from './BlochSphere'
 import type { SpherePoint } from './BlochSphere'
 
+// bg-surface-raised → bg-surface-raised (design token alignment)
+
 interface PageProps {
   params: { sessionId: string }
 }
@@ -73,6 +75,18 @@ export default async function RootFinderResultsPage({ params }: PageProps) {
     rootCause:       r.root_causes,
   }))
 
+  const primary   = results[0]
+  const secondary = results.slice(1)
+
+  // Fetch matching protocol template for the primary root cause
+  const { data: suggestedTemplate } = await adminClient
+    .from('protocol_templates')
+    .select('id, name, description')
+    .eq('root_cause_key', primary.rootCause.key)
+    .eq('status', 'published')
+    .limit(1)
+    .maybeSingle()
+
   // Fetch symptom logs for this session
   const { data: rawLogs } = await adminClient
     .from('member_symptom_logs')
@@ -87,9 +101,6 @@ export default async function RootFinderResultsPage({ params }: PageProps) {
       symptom:  l.symptoms as { id: string; name: string; category: string | null } | null,
     }))
     .filter((l) => l.symptom !== null)
-
-  const primary   = results[0]
-  const secondary = results.slice(1)
 
   // Build sphere points for BlochSphere animation
   const spherePoints: SpherePoint[] = results.map((r) => ({
@@ -167,7 +178,7 @@ export default async function RootFinderResultsPage({ params }: PageProps) {
                 {secondary.map((r) => (
                   <div
                     key={r.id}
-                    className="rounded-xl border border-border-default bg-white p-5"
+                    className="rounded-xl border border-border-default bg-surface-raised p-5"
                   >
                     <div className="flex items-center gap-2 mb-2">
                       {r.rootCause.colour && (
@@ -206,8 +217,31 @@ export default async function RootFinderResultsPage({ params }: PageProps) {
             </section>
           )}
 
+          {/* DailyPath protocol suggestion */}
+          {suggestedTemplate && (
+            <section className="bg-[#F8F1E4] border border-[#B8935A]/30 rounded-xl p-5">
+              <p className="text-[10px] font-medium text-text-brand uppercase tracking-widest mb-1">
+                Recommended next step
+              </p>
+              <h2 className="text-base font-semibold text-text-primary mb-1">
+                Start the {suggestedTemplate.name}
+              </h2>
+              {suggestedTemplate.description && (
+                <p className="text-sm text-text-secondary leading-relaxed mb-3 line-clamp-2">
+                  {suggestedTemplate.description.slice(0, 100)}{suggestedTemplate.description.length > 100 ? '…' : ''}
+                </p>
+              )}
+              <Link
+                href={`/dashboard/dailypath?template=${suggestedTemplate.id}`}
+                className="text-sm font-medium text-text-brand hover:text-text-primary transition-colors"
+              >
+                Start this protocol →
+              </Link>
+            </section>
+          )}
+
           {/* What to do with this */}
-          <section className="rounded-xl border border-border-default bg-white p-6">
+          <section className="rounded-xl border border-border-default bg-surface-raised p-6">
             <h2 className="text-sm font-semibold text-text-primary mb-3">What to do with this</h2>
             <p className="text-sm text-text-secondary leading-relaxed mb-4">
               These findings are a starting point — patterns from your symptoms matched against our
@@ -238,7 +272,7 @@ export default async function RootFinderResultsPage({ params }: PageProps) {
           {/* Collapsible symptom log */}
           {logs.length > 0 && (
             <section>
-              <details className="rounded-xl border border-border-default bg-white overflow-hidden">
+              <details className="rounded-xl border border-border-default bg-surface-raised overflow-hidden">
                 <summary className="px-6 py-4 cursor-pointer text-sm font-semibold text-text-primary list-none flex items-center justify-between select-none">
                   Symptoms you logged ({logs.length})
                   <span className="text-text-muted text-xs">▼</span>

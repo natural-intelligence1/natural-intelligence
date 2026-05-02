@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      adherence_streaks: {
+        Row: {
+          created_at:           string | null
+          current_streak:       number
+          id:                   string
+          last_completed_date:  string | null
+          longest_streak:       number
+          member_id:            string
+          protocol_id:          string
+          total_days_completed: number
+          updated_at:           string | null
+        }
+        Insert: {
+          created_at?:           string | null
+          current_streak?:       number
+          id?:                   string
+          last_completed_date?:  string | null
+          longest_streak?:       number
+          member_id:             string
+          protocol_id:           string
+          total_days_completed?: number
+          updated_at?:           string | null
+        }
+        Update: {
+          created_at?:           string | null
+          current_streak?:       number
+          id?:                   string
+          last_completed_date?:  string | null
+          longest_streak?:       number
+          member_id?:            string
+          protocol_id?:          string
+          total_days_completed?: number
+          updated_at?:           string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "adherence_streaks_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "adherence_streaks_protocol_id_fkey"
+            columns: ["protocol_id"]
+            isOneToOne: false
+            referencedRelation: "member_protocols"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -273,6 +324,70 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      daily_adherence: {
+        Row: {
+          completed:    boolean
+          completed_at: string | null
+          created_at:   string | null
+          id:           string
+          item_id:      string
+          item_name:    string
+          log_date:     string
+          member_id:    string
+          protocol_id:  string
+          skip_reason:  string | null
+          skipped:      boolean
+        }
+        Insert: {
+          completed?:    boolean
+          completed_at?: string | null
+          created_at?:   string | null
+          id?:           string
+          item_id:       string
+          item_name:     string
+          log_date:      string
+          member_id:     string
+          protocol_id:   string
+          skip_reason?:  string | null
+          skipped?:      boolean
+        }
+        Update: {
+          completed?:    boolean
+          completed_at?: string | null
+          created_at?:   string | null
+          id?:           string
+          item_id?:      string
+          item_name?:    string
+          log_date?:     string
+          member_id?:    string
+          protocol_id?:  string
+          skip_reason?:  string | null
+          skipped?:      boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_adherence_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "protocol_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_adherence_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_adherence_protocol_id_fkey"
+            columns: ["protocol_id"]
+            isOneToOne: false
+            referencedRelation: "member_protocols"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       event_registrations: {
         Row: {
@@ -549,6 +664,54 @@ export type Database = {
           },
         ]
       }
+      member_protocols: {
+        Row: {
+          created_at:  string | null
+          id:          string
+          member_id:   string
+          name:        string
+          paused_at:   string | null
+          started_at:  string
+          status:      string
+          template_id: string
+        }
+        Insert: {
+          created_at?:  string | null
+          id?:          string
+          member_id:    string
+          name:         string
+          paused_at?:   string | null
+          started_at:   string
+          status?:      string
+          template_id:  string
+        }
+        Update: {
+          created_at?:  string | null
+          id?:          string
+          member_id?:   string
+          name?:        string
+          paused_at?:   string | null
+          started_at?:  string
+          status?:      string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_protocols_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_protocols_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "protocol_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           body: string
@@ -676,6 +839,94 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protocol_items: {
+        Row: {
+          created_at:     string | null
+          dose:           string | null
+          duration_weeks: number | null
+          id:             string
+          item_type:      string
+          name:           string
+          notes:          string | null
+          sort_order:     number
+          template_id:    string
+          timing:         string | null
+        }
+        Insert: {
+          created_at?:     string | null
+          dose?:           string | null
+          duration_weeks?: number | null
+          id?:             string
+          item_type?:      string
+          name:            string
+          notes?:          string | null
+          sort_order?:     number
+          template_id:     string
+          timing?:         string | null
+        }
+        Update: {
+          created_at?:     string | null
+          dose?:           string | null
+          duration_weeks?: number | null
+          id?:             string
+          item_type?:      string
+          name?:           string
+          notes?:          string | null
+          sort_order?:     number
+          template_id?:    string
+          timing?:         string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "protocol_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protocol_templates: {
+        Row: {
+          created_at:     string | null
+          description:    string | null
+          duration_weeks: number
+          id:             string
+          name:           string
+          root_cause_id:  string | null
+          root_cause_key: string | null
+          status:         string
+        }
+        Insert: {
+          created_at?:     string | null
+          description?:    string | null
+          duration_weeks?: number
+          id?:             string
+          name:            string
+          root_cause_id?:  string | null
+          root_cause_key?: string | null
+          status?:         string
+        }
+        Update: {
+          created_at?:     string | null
+          description?:    string | null
+          duration_weeks?: number
+          id?:             string
+          name?:           string
+          root_cause_id?:  string | null
+          root_cause_key?: string | null
+          status?:         string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_templates_root_cause_id_fkey"
+            columns: ["root_cause_id"]
+            isOneToOne: false
+            referencedRelation: "root_causes"
             referencedColumns: ["id"]
           },
         ]

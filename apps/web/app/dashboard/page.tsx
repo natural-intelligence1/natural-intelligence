@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { copy } from '@/lib/copy'
-import { createServerSupabaseClient } from '@natural-intelligence/db'
+import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 
 const sidebarLinks = [
   { label: 'Overview',     href: '/dashboard',          active: true  },
@@ -9,6 +9,7 @@ const sidebarLinks = [
   { label: 'My requests',  href: '/dashboard/requests',  active: false },
   { label: 'BioHub',       href: '/dashboard/biohub',       active: false },
   { label: 'RootFinder',   href: '/dashboard/rootfinder',   active: false },
+  { label: 'DailyPath',    href: '/dashboard/dailypath',    active: false },
   { label: 'Intelligence', href: '/dashboard/intelligence',  active: false, comingSoon: true },
   { label: 'Settings',     href: '/dashboard/settings',  active: false, comingSoon: true },
 ]
@@ -51,6 +52,45 @@ export default async function DashboardPage() {
     .limit(10)
 
   const firstName = profile?.full_name?.split(' ')[0] ?? null
+
+  // DailyPath — active protocol + today's progress
+  const adminClient = createAdminClient()
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: activeProtocol } = await adminClient
+    .from('member_protocols')
+    .select('id, name, started_at, template_id, protocol_templates(duration_weeks)')
+    .eq('member_id', user.id)
+    .eq('status', 'active')
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  let todayProgress: { completed: number; total: number } | null = null
+  let activeStreak = 0
+
+  if (activeProtocol) {
+    const [{ data: todayRows }, { data: streakRow }] = await Promise.all([
+      adminClient
+        .from('daily_adherence')
+        .select('completed, skipped')
+        .eq('member_id', user.id)
+        .eq('protocol_id', activeProtocol.id)
+        .eq('log_date', today),
+      adminClient
+        .from('adherence_streaks')
+        .select('current_streak')
+        .eq('member_id', user.id)
+        .eq('protocol_id', activeProtocol.id)
+        .maybeSingle(),
+    ])
+    const rows = todayRows ?? []
+    todayProgress = {
+      completed: rows.filter((r: any) => r.completed || r.skipped).length,
+      total:     rows.length,
+    }
+    activeStreak = streakRow?.current_streak ?? 0
+  }
 
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
@@ -289,14 +329,52 @@ export default async function DashboardPage() {
             </div>
           </section>
 
-          {/* ── Intelligence teaser ───────────────────────────────────────────── */}
-          <section className="rounded-xl border border-border-default bg-surface-raised p-6">
-            <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-2">Coming soon</p>
-            <h3 className="text-sm font-semibold text-text-primary mb-1">Care intelligence</h3>
-            <p className="text-sm text-text-secondary leading-relaxed">
-              Personalised daily protocols, lab result interpretation, and AI-assisted pattern recognition — built around you, guided by your practitioner.
-            </p>
-          </section>
+          {/* ── DailyPath card ────────────────────────────────────────────────── */}
+          {activeProtocol && todayProgress ? (
+            <section className="rounded-xl border border-border-default bg-surface-raised p-5 mb-8">
+              <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">DailyPath</p>
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-text-primary">{activeProtocol.name}</p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {todayProgress.completed}/{todayProgress.total} items complete today
+                    {activeStreak > 0 && <> · 🔥 {activeStreak} day streak</>}
+                  </p>
+                </div>
+              </div>
+              {/* Mini progress bar */}
+              <div className="h-1.5 w-full rounded-full bg-surface-muted overflow-hidden mb-4">
+                <div
+                  className="h-full rounded-full bg-brand-default transition-all"
+                  style={{
+                    width: todayProgress.total > 0
+                      ? `${Math.round((todayProgress.completed / todayProgress.total) * 100)}%`
+                      : '0%',
+                  }}
+                />
+              </div>
+              <Link
+                href="/dashboard/dailypath"
+                className="text-sm font-medium text-text-brand hover:text-text-primary transition-colors"
+              >
+                Open DailyPath →
+              </Link>
+            </section>
+          ) : (
+            <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
+              <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">DailyPath</p>
+              <h3 className="text-sm font-semibold text-text-primary mb-1">Start your daily protocol</h3>
+              <p className="text-sm text-text-secondary leading-relaxed mb-4">
+                A personalised routine built around your health pattern.
+              </p>
+              <Link
+                href="/dashboard/dailypath"
+                className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
+              >
+                Browse protocols →
+              </Link>
+            </section>
+          )}
         </div>
       </div>
     </div>
