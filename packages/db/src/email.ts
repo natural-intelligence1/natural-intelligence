@@ -230,6 +230,59 @@ export function applicationApprovedEmail({
   }
 }
 
+// ─── 3A — Care portal waitlist: admin notification ───────────────────────────
+
+export function waitlistNotificationEmail({
+  email,
+  joinedAt,
+}: {
+  email:    string
+  joinedAt: string
+}): EmailPayload {
+  const to = process.env.NOTIFY_EMAIL ?? 'info@natural-intelligence.uk'
+  return {
+    to,
+    subject: `New care portal waitlist signup — ${email}`,
+    html: htmlShell(`
+      <h1 style="font-size: 22px; font-weight: 500; margin: 0 0 32px; color: #0E0D0B;">
+        New waitlist signup
+      </h1>
+      <table style="width: 100%; border-collapse: collapse;">
+        ${tableRow('Email', email)}
+        ${tableRow('Signed up', joinedAt)}
+      </table>
+      ${ctaButton('https://admin.natural-intelligence.uk/support', 'View in admin →')}
+    `),
+  }
+}
+
+// ─── 3B — Care portal waitlist: confirmation to subscriber ───────────────────
+
+export function waitlistConfirmationEmail({
+  email,
+}: {
+  email: string
+}): EmailPayload {
+  return {
+    to:      email,
+    subject: "You're on the waitlist — Natural Intelligence Care",
+    html: htmlShell(`
+      <h1 style="font-size: 22px; font-weight: 500; margin: 0 0 16px; color: #0E0D0B;">
+        You're on the list.
+      </h1>
+      <p style="font-size: 15px; color: #4A4945; line-height: 1.7; margin: 0 0 16px;">
+        We'll let you know as soon as
+        <strong>care.natural-intelligence.uk</strong> opens — your personalised
+        health protocol, lab results interpreted, and patterns understood.
+      </p>
+      <p style="font-size: 15px; color: #4A4945; line-height: 1.7; margin: 0 0 32px;">
+        In the meantime, explore our practitioner directory and upcoming workshops.
+      </p>
+      ${ctaButton('https://natural-intelligence.uk', 'Visit Natural Intelligence →')}
+    `),
+  }
+}
+
 // ─── Legacy plain-text templates (retained for backward compatibility) ─────────
 
 export function practitionerApplicationEmail(data: {

@@ -3,18 +3,6 @@ import { redirect } from 'next/navigation'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 
-function CompletenessBar({ pct }: { pct: number }) {
-  const colour = pct === 100 ? 'bg-status-successText' : pct >= 60 ? 'bg-status-warningText' : 'bg-status-errorText'
-  return (
-    <div className="mt-2">
-      <div className="h-1.5 rounded-full bg-surface-muted overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${colour}`} style={{ width: `${pct}%` }} />
-      </div>
-      <p className="text-xs text-brand-text mt-1">{copy.dashboard.practitioner.activePct(pct)}</p>
-    </div>
-  )
-}
-
 const sidebarLinks = [
   { label: 'Overview',     href: '/dashboard',          active: true  },
   { label: 'My workshops', href: '/dashboard/workshops', active: false },
@@ -34,7 +22,10 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  // Application status (for non-practitioner users who may have applied)
+  // Practitioners get their own dedicated dashboard
+  if (profile?.role === 'practitioner') redirect('/dashboard/practitioner')
+
+  // Application status (for members who have applied to become practitioners)
   const { data: application } = await supabase
     .from('practitioner_applications')
     .select('status')
@@ -56,21 +47,6 @@ export default async function DashboardPage() {
     .select('id, request_type, description, urgency, status, submitted_at')
     .order('submitted_at', { ascending: false })
     .limit(10)
-
-  // Practitioner row (if applicable)
-  let practitionerRow: {
-    id: string; tagline: string | null; is_directory_ready: boolean
-    profile_completeness_pct: number; lifecycle_status: string
-  } | null = null
-
-  if (profile?.role === 'practitioner') {
-    const { data: pRow } = await supabase
-      .from('practitioners')
-      .select('id, tagline, is_directory_ready, profile_completeness_pct, lifecycle_status')
-      .eq('profile_id', user.id)
-      .maybeSingle()
-    practitionerRow = pRow ?? null
-  }
 
   const firstName = profile?.full_name?.split(' ')[0] ?? null
 
@@ -123,8 +99,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* ── Getting started card (shown until first action taken) ──────── */}
-          {!practitionerRow &&
-            !application &&
+          {!application &&
             (!registrations || registrations.length === 0) &&
             (!supportRequests || supportRequests.length === 0) && (
             <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
@@ -177,33 +152,8 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* ── Practitioner profile banner ─────────────────────────────────── */}
-          {profile?.role === 'practitioner' && practitionerRow && (
-            <section className="rounded-xl border border-brand-default bg-brand-light p-5 mb-8">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-brand-text mb-1">
-                    {copy.dashboard.sections.practitioner}
-                  </p>
-                  <p className="text-xs text-brand-text opacity-80">
-                    {practitionerRow.is_directory_ready
-                      ? copy.dashboard.practitioner.readyForDirectory
-                      : copy.dashboard.practitioner.notReadyForDirectory}
-                  </p>
-                  <CompletenessBar pct={practitionerRow.profile_completeness_pct} />
-                </div>
-                <Link href="/dashboard/profile"
-                  className="flex-shrink-0 px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-xs font-medium transition-colors">
-                  {practitionerRow.tagline
-                    ? copy.dashboard.practitioner.editProfile
-                    : copy.dashboard.practitioner.completeProfileCta}
-                </Link>
-              </div>
-            </section>
-          )}
-
-          {/* ── Application status banner (non-practitioners who applied) ── */}
-          {!practitionerRow && application && (
+          {/* ── Application status banner (members who have applied) ── */}
+          {application && (
             <section className="rounded-xl border border-border-default bg-surface-raised p-5 mb-8">
               <p className="text-sm font-semibold text-text-primary mb-1">
                 {copy.dashboard.sections.application}

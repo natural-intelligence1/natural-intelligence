@@ -567,6 +567,7 @@ export type Database = {
           accepts_referrals: boolean
           activated_at: string | null
           area_tags: string[] | null
+          bio: string | null
           city: string | null
           client_types: string[] | null
           collaboration_types: string[] | null
@@ -609,6 +610,7 @@ export type Database = {
           accepts_referrals?: boolean
           activated_at?: string | null
           area_tags?: string[] | null
+          bio?: string | null
           city?: string | null
           client_types?: string[] | null
           collaboration_types?: string[] | null
@@ -651,6 +653,7 @@ export type Database = {
           accepts_referrals?: boolean
           activated_at?: string | null
           area_tags?: string[] | null
+          bio?: string | null
           city?: string | null
           client_types?: string[] | null
           collaboration_types?: string[] | null
@@ -955,6 +958,10 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_profile_completeness: {
+        Args: { p: Database["public"]["Tables"]["practitioners"]["Row"] }
+        Returns: number
+      }
       get_my_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]

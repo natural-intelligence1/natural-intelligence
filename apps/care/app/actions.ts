@@ -1,6 +1,6 @@
 'use server'
 
-import { createAdminClient } from '@natural-intelligence/db'
+import { createAdminClient, sendEmail, waitlistNotificationEmail, waitlistConfirmationEmail } from '@natural-intelligence/db'
 
 export async function submitWaitlist(email: string): Promise<{ ok: boolean }> {
   const trimmed = email.trim().toLowerCase()
@@ -20,5 +20,18 @@ export async function submitWaitlist(email: string): Promise<{ ok: boolean }> {
       status:       'new',
     })
 
-  return { ok: !error }
+  if (error) return { ok: false }
+
+  const now = new Date().toLocaleString('en-GB', {
+    day: 'numeric', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+
+  // Fire-and-forget — both emails are best-effort, non-fatal
+  await Promise.allSettled([
+    sendEmail(waitlistNotificationEmail({ email: trimmed, joinedAt: now })),
+    sendEmail(waitlistConfirmationEmail({ email: trimmed })),
+  ])
+
+  return { ok: true }
 }
