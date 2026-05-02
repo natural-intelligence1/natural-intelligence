@@ -4,14 +4,16 @@ import { copy } from '@/lib/copy'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 
 const sidebarLinks = [
-  { label: 'Overview',     href: '/dashboard',          active: true  },
-  { label: 'My workshops', href: '/dashboard/workshops', active: false },
-  { label: 'My requests',  href: '/dashboard/requests',  active: false },
-  { label: 'BioHub',       href: '/dashboard/biohub',       active: false },
-  { label: 'RootFinder',   href: '/dashboard/rootfinder',   active: false },
-  { label: 'DailyPath',    href: '/dashboard/dailypath',    active: false },
-  { label: 'Intelligence', href: '/dashboard/intelligence',  active: false, comingSoon: true },
-  { label: 'Settings',     href: '/dashboard/settings',  active: false, comingSoon: true },
+  { label: 'Overview',     href: '/dashboard',                active: true  },
+  { label: 'My workshops', href: '/dashboard/workshops',       active: false },
+  { label: 'My requests',  href: '/dashboard/requests',        active: false },
+  { label: 'BioHub',       href: '/dashboard/biohub',         active: false },
+  { label: 'RootFinder',   href: '/dashboard/rootfinder',     active: false },
+  { label: 'DailyPath',    href: '/dashboard/dailypath',      active: false },
+  { label: 'Trajectory',   href: '/dashboard/trajectory',     active: false },
+  { label: 'LifeTracker',  href: '/dashboard/lifetracker',    active: false },
+  { label: 'Intelligence', href: '/dashboard/intelligence',   active: false, comingSoon: true },
+  { label: 'Settings',     href: '/dashboard/settings',       active: false, comingSoon: true },
 ]
 
 export default async function DashboardPage() {
@@ -68,6 +70,33 @@ export default async function DashboardPage() {
 
   let todayProgress: { completed: number; total: number } | null = null
   let activeStreak = 0
+
+  // Trajectory — count distinct markers & latest date
+  const { data: trajectoryStats } = await adminClient
+    .from('biomarker_trajectory')
+    .select('marker_key, report_date')
+    .eq('member_id', user.id)
+    .order('report_date', { ascending: false })
+    .limit(200)
+
+  const distinctMarkers = new Set((trajectoryStats ?? []).map((r: { marker_key: string }) => r.marker_key)).size
+  const latestReportDate = (trajectoryStats ?? [])[0] as { marker_key: string; report_date: string | null } | undefined
+
+  // LifeTracker — today's vitality score
+  const { data: latestVitality } = await adminClient
+    .from('vitality_scores')
+    .select('overall_score, score_date')
+    .eq('member_id', user.id)
+    .order('score_date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const { data: todayCheckin } = await adminClient
+    .from('lifetracker_checkins')
+    .select('id')
+    .eq('member_id', user.id)
+    .eq('checkin_date', today)
+    .maybeSingle()
 
   if (activeProtocol) {
     const [{ data: todayRows }, { data: streakRow }] = await Promise.all([
@@ -328,6 +357,89 @@ export default async function DashboardPage() {
               </Link>
             </div>
           </section>
+
+          {/* ── Trajectory card ──────────────────────────────────────────────── */}
+          {distinctMarkers > 0 ? (
+            <section className="rounded-xl border border-border-default bg-surface-raised p-5 mb-8">
+              <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">Trajectory</p>
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-text-primary">Biomarker trends</p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {distinctMarkers} marker{distinctMarkers !== 1 ? 's' : ''} tracked
+                    {latestReportDate?.report_date && (
+                      <> · Last report{' '}
+                        {new Date(latestReportDate.report_date).toLocaleDateString('en-GB', {
+                          day: 'numeric', month: 'short',
+                        })}
+                      </>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/dashboard/trajectory"
+                className="text-sm font-medium text-text-brand hover:text-text-primary transition-colors"
+              >
+                View trends →
+              </Link>
+            </section>
+          ) : (
+            <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
+              <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">Trajectory</p>
+              <h3 className="text-sm font-semibold text-text-primary mb-1">Track your biomarkers over time</h3>
+              <p className="text-sm text-text-secondary leading-relaxed mb-4">
+                Upload lab reports in BioHub and Trajectory will chart how your markers shift across reports.
+              </p>
+              <Link
+                href="/dashboard/biohub"
+                className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
+              >
+                Upload a lab report
+              </Link>
+            </section>
+          )}
+
+          {/* ── LifeTracker card ──────────────────────────────────────────────── */}
+          {latestVitality ? (
+            <section className="rounded-xl border border-border-default bg-surface-raised p-5 mb-8">
+              <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">LifeTracker</p>
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-text-primary">Vitality score</p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {todayCheckin ? '✓ Checked in today' : 'No check-in yet today'}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-2xl font-light font-mono text-text-primary leading-none">
+                    {latestVitality.overall_score ?? '—'}
+                  </p>
+                  <p className="text-[10px] text-text-muted uppercase tracking-wide mt-0.5">Vitality</p>
+                </div>
+              </div>
+              <Link
+                href="/dashboard/lifetracker"
+                className="text-sm font-medium text-text-brand hover:text-text-primary transition-colors"
+              >
+                {todayCheckin ? 'View LifeTracker →' : 'Check in now →'}
+              </Link>
+            </section>
+          ) : (
+            <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
+              <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">LifeTracker</p>
+              <h3 className="text-sm font-semibold text-text-primary mb-1">Track your daily vitality</h3>
+              <p className="text-sm text-text-secondary leading-relaxed mb-4">
+                Rate how you feel each day across energy, sleep, mood, and digestion to build your vitality score.
+              </p>
+              <Link
+                href="/dashboard/lifetracker"
+                className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
+              >
+                Start tracking →
+              </Link>
+            </section>
+          )}
 
           {/* ── DailyPath card ────────────────────────────────────────────────── */}
           {activeProtocol && todayProgress ? (

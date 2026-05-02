@@ -1,14 +1,26 @@
 'use client'
 
+// ─── Vitality data shape (exported for page.tsx import) ───────────────────────
+
+export interface VitalityData {
+  overallScore:   number
+  physicalScore:  number
+  cognitiveScore: number
+  emotionalScore: number
+  hormonalScore:  number
+}
+
 // ─── Four-ring vitality SVG ───────────────────────────────────────────────────
 
-function VitalityRings() {
+function VitalityRings({ vitalityData }: { vitalityData?: VitalityData | null }) {
+  // Use real scores (0-100 → 0-1) or demo values
   const rings = [
-    { r: 85, pct: 0.78, color: '#4E7A5C', label: 'Physical'  },
-    { r: 70, pct: 0.65, color: '#7A9DBF', label: 'Cognitive' },
-    { r: 55, pct: 0.82, color: '#B87840', label: 'Emotional' },
-    { r: 40, pct: 0.71, color: '#B8935A', label: 'Hormonal'  },
+    { r: 85, pct: vitalityData ? vitalityData.physicalScore  / 100 : 0.78, color: '#4E7A5C', label: 'Physical'  },
+    { r: 70, pct: vitalityData ? vitalityData.cognitiveScore / 100 : 0.65, color: '#7A9DBF', label: 'Cognitive' },
+    { r: 55, pct: vitalityData ? vitalityData.emotionalScore / 100 : 0.82, color: '#B87840', label: 'Emotional' },
+    { r: 40, pct: vitalityData ? vitalityData.hormonalScore  / 100 : 0.71, color: '#B8935A', label: 'Hormonal'  },
   ]
+  const centreScore = vitalityData ? vitalityData.overallScore : 87
 
   return (
     <div className="flex justify-center">
@@ -49,7 +61,7 @@ function VitalityRings() {
         {/* Centre score */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-2xl font-medium text-text-primary font-mono leading-none">
-            87
+            {centreScore}
           </span>
           <span className="text-[10px] text-text-muted uppercase tracking-wider mt-1">
             Vitality
@@ -96,7 +108,11 @@ function VitalityRings() {
 
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-export default function HeroDashboard() {
+interface HeroDashboardProps {
+  vitalityData?: VitalityData | null
+}
+
+export default function HeroDashboard({ vitalityData }: HeroDashboardProps) {
   return (
     /*
      * Outer panel — absolutely fills the right 52 % of the hero section.
@@ -139,12 +155,14 @@ export default function HeroDashboard() {
                 <p className="text-base font-medium text-text-primary">Good morning, Sarah.</p>
               </div>
               <div className="w-8 h-8 rounded-full bg-brand-subtle flex items-center justify-center">
-                <span className="text-xs font-medium text-text-brand font-mono">87</span>
+                <span className="text-xs font-medium text-text-brand font-mono">
+                  {vitalityData ? vitalityData.overallScore : 87}
+                </span>
               </div>
             </div>
 
             {/* Four-ring vitality chart */}
-            <VitalityRings />
+            <VitalityRings vitalityData={vitalityData} />
 
             {/* Next action card */}
             <div className="mt-6 bg-surface-raised rounded-xl p-4 border border-border-default">

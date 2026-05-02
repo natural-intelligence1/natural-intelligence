@@ -223,6 +223,24 @@ Only output valid JSON. No markdown. No explanation.`
 
     if (biomarkerRows.length > 0) {
       await adminClient.from('biomarker_results').insert(biomarkerRows)
+
+      // Insert trajectory data — one row per biomarker with a value, keyed by report date
+      const reportDate = parsed.report_date ?? new Date().toISOString().split('T')[0]
+      const trajectoryRows = biomarkerRows
+        .filter(r => r.value !== null && r.marker_key)
+        .map(r => ({
+          member_id:       memberId,
+          report_id:       reportId,
+          marker_key:      r.marker_key!,
+          marker_name:     r.marker_name,
+          value:           r.value,
+          unit:            r.unit ?? null,
+          functional_zone: r.functional_zone ?? null,
+          report_date:     reportDate,
+        }))
+      if (trajectoryRows.length > 0) {
+        await adminClient.from('biomarker_trajectory').insert(trajectoryRows)
+      }
     }
 
     // Mark parsed

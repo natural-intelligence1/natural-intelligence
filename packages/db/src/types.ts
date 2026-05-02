@@ -187,6 +187,53 @@ export type Database = {
           },
         ]
       }
+      biomarker_trajectory: {
+        Row: {
+          created_at:      string | null
+          functional_zone: number | null
+          id:              string
+          marker_key:      string
+          marker_name:     string
+          member_id:       string
+          report_date:     string | null
+          report_id:       string | null
+          unit:            string | null
+          value:           number | null
+        }
+        Insert: {
+          created_at?:      string | null
+          functional_zone?: number | null
+          id?:              string
+          marker_key:       string
+          marker_name:      string
+          member_id:        string
+          report_date?:     string | null
+          report_id?:       string | null
+          unit?:            string | null
+          value?:           number | null
+        }
+        Update: {
+          created_at?:      string | null
+          functional_zone?: number | null
+          id?:              string
+          marker_key?:      string
+          marker_name?:     string
+          member_id?:       string
+          report_date?:     string | null
+          report_id?:       string | null
+          unit?:            string | null
+          value?:           number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "biomarker_trajectory_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           author_id: string
@@ -609,6 +656,109 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "lab_reports_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lifetracker_checkins: {
+        Row: {
+          checkin_date:     string
+          created_at:       string | null
+          digestion_rating: number | null
+          energy_rating:    number | null
+          id:               string
+          member_id:        string
+          mood_rating:      number | null
+          notes:            string | null
+          overall_rating:   number | null
+          sleep_rating:     number | null
+        }
+        Insert: {
+          checkin_date:      string
+          created_at?:       string | null
+          digestion_rating?: number | null
+          energy_rating?:    number | null
+          id?:               string
+          member_id:         string
+          mood_rating?:      number | null
+          notes?:            string | null
+          overall_rating?:   number | null
+          sleep_rating?:     number | null
+        }
+        Update: {
+          checkin_date?:     string
+          created_at?:       string | null
+          digestion_rating?: number | null
+          energy_rating?:    number | null
+          id?:               string
+          member_id?:        string
+          mood_rating?:      number | null
+          notes?:            string | null
+          overall_rating?:   number | null
+          sleep_rating?:     number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lifetracker_checkins_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lifetracker_goals: {
+        Row: {
+          baseline_value: number | null
+          category:       string | null
+          created_at:     string | null
+          current_value:  number | null
+          description:    string | null
+          id:             string
+          member_id:      string
+          status:         string
+          target_date:    string | null
+          target_unit:    string | null
+          target_value:   number | null
+          title:          string
+          updated_at:     string | null
+        }
+        Insert: {
+          baseline_value?: number | null
+          category?:       string | null
+          created_at?:     string | null
+          current_value?:  number | null
+          description?:    string | null
+          id?:             string
+          member_id:       string
+          status?:         string
+          target_date?:    string | null
+          target_unit?:    string | null
+          target_value?:   number | null
+          title:           string
+          updated_at?:     string | null
+        }
+        Update: {
+          baseline_value?: number | null
+          category?:       string | null
+          created_at?:     string | null
+          current_value?:  number | null
+          description?:    string | null
+          id?:             string
+          member_id?:      string
+          status?:         string
+          target_date?:    string | null
+          target_unit?:    string | null
+          target_value?:   number | null
+          title?:          string
+          updated_at?:     string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lifetracker_goals_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -1555,6 +1705,59 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      vitality_scores: {
+        Row: {
+          adherence_pct:   number | null
+          biomarker_score: number | null
+          cognitive_score: number | null
+          created_at:      string | null
+          emotional_score: number | null
+          hormonal_score:  number | null
+          id:              string
+          member_id:       string
+          notes:           string | null
+          overall_score:   number | null
+          physical_score:  number | null
+          score_date:      string
+        }
+        Insert: {
+          adherence_pct?:   number | null
+          biomarker_score?: number | null
+          cognitive_score?: number | null
+          created_at?:      string | null
+          emotional_score?: number | null
+          hormonal_score?:  number | null
+          id?:              string
+          member_id:        string
+          notes?:           string | null
+          overall_score?:   number | null
+          physical_score?:  number | null
+          score_date:       string
+        }
+        Update: {
+          adherence_pct?:   number | null
+          biomarker_score?: number | null
+          cognitive_score?: number | null
+          created_at?:      string | null
+          emotional_score?: number | null
+          hormonal_score?:  number | null
+          id?:              string
+          member_id?:       string
+          notes?:           string | null
+          overall_score?:   number | null
+          physical_score?:  number | null
+          score_date?:      string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vitality_scores_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

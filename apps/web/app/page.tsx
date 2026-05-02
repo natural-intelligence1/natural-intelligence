@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { copy } from '@/lib/copy'
-import { createServerSupabaseClient } from '@natural-intelligence/db'
+import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 import { Avatar, VettedBadge, Pill } from '@natural-intelligence/ui'
 import HeroDashboard from '@/components/hero-dashboard'
+import type { VitalityData } from '@/components/hero-dashboard'
 
 // ─── Icon primitives ──────────────────────────────────────────────────────────
 
@@ -55,6 +56,29 @@ function StepNumber({ n }: { n: number }) {
 
 export default async function HomePage() {
   const supabase = createServerSupabaseClient()
+
+  // Fetch logged-in user's latest vitality score for the hero rings
+  const { data: { user } } = await supabase.auth.getUser()
+  let vitalityData: VitalityData | null = null
+  if (user) {
+    const adminClient = createAdminClient()
+    const { data: vs } = await adminClient
+      .from('vitality_scores')
+      .select('overall_score, physical_score, cognitive_score, emotional_score, hormonal_score')
+      .eq('member_id', user.id)
+      .order('score_date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (vs) {
+      vitalityData = {
+        overallScore:   vs.overall_score   ?? 0,
+        physicalScore:  vs.physical_score  ?? 0,
+        cognitiveScore: vs.cognitive_score ?? 0,
+        emotionalScore: vs.emotional_score ?? 0,
+        hormonalScore:  vs.hormonal_score  ?? 0,
+      }
+    }
+  }
 
   const { data: practitioners } = await supabase
     .from('practitioners')
@@ -214,7 +238,7 @@ export default async function HomePage() {
             </div>
 
             {/* ── RIGHT — dashboard scene (client component, lg+ only) ── */}
-            <HeroDashboard />
+            <HeroDashboard vitalityData={vitalityData} />
 
           </div>
         </div>
