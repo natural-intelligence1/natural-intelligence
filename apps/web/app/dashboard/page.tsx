@@ -3,18 +3,6 @@ import { redirect } from 'next/navigation'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 
-const sidebarLinks = [
-  { label: 'Overview',     href: '/dashboard',                active: true  },
-  { label: 'My workshops', href: '/dashboard/workshops',       active: false },
-  { label: 'My requests',  href: '/dashboard/requests',        active: false },
-  { label: 'BioHub',       href: '/dashboard/biohub',         active: false },
-  { label: 'RootFinder',   href: '/dashboard/rootfinder',     active: false },
-  { label: 'DailyPath',    href: '/dashboard/dailypath',      active: false },
-  { label: 'Trajectory',   href: '/dashboard/trajectory',     active: false },
-  { label: 'LifeTracker',  href: '/dashboard/lifetracker',    active: false },
-  { label: 'Intelligence', href: '/dashboard/intelligence',   active: false, comingSoon: true },
-  { label: 'Settings',     href: '/dashboard/settings',       active: false, comingSoon: true },
-]
 
 export default async function DashboardPage() {
   const supabase = createServerSupabaseClient()
@@ -122,45 +110,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-      <div className="md:grid md:grid-cols-[220px_1fr] gap-8">
-
-        {/* ── Sidebar nav ──────────────────────────────────────────────────── */}
-        <aside className="hidden md:block">
-          <div className="sticky top-24">
-            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3 px-3">
-              Dashboard
-            </p>
-            <nav className="space-y-0.5">
-              {sidebarLinks.map((link) => (
-                link.comingSoon ? (
-                  <span
-                    key={link.href}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-text-muted opacity-40 cursor-not-allowed"
-                  >
-                    {link.label}
-                    <span className="text-2xs font-medium tracking-wide uppercase text-text-muted">Soon</span>
-                  </span>
-                ) : (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      link.active
-                        ? 'bg-brand-subtle text-text-brand'
-                        : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary'
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                )
-              ))}
-            </nav>
-          </div>
-        </aside>
-
-        {/* ── Main content ─────────────────────────────────────────────────── */}
-        <div>
+    <div>
           {/* Greeting */}
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-text-primary mb-0.5">
@@ -487,8 +437,6 @@ export default async function DashboardPage() {
               </Link>
             </section>
           )}
-        </div>
-      </div>
     </div>
   )
 }

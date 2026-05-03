@@ -102,15 +102,7 @@ export default async function ProtocolDetailPage({ params }: PageProps) {
   const rootCause      = templateMeta?.root_causes as { name: string; colour: string | null } | null
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
-      {/* Back link */}
-      <Link
-        href="/dashboard/dailypath"
-        className="inline-flex items-center text-xs text-text-brand hover:text-text-primary mb-8 transition-colors"
-      >
-        ← Back to DailyPath
-      </Link>
-
+    <div className="max-w-2xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-start justify-between gap-4 mb-2">

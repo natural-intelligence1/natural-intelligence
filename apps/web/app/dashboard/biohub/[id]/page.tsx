@@ -164,13 +164,10 @@ export default async function BioHubReportPage({
   // Processing / failed states
   if (report.upload_status === 'uploaded' || report.upload_status === 'processing') {
     return (
-      <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         {/* Auto-refresh every 5 s while processing */}
         {/* eslint-disable-next-line @next/next/no-head-element */}
         <meta httpEquiv="refresh" content="5" />
-        <Link href="/dashboard/biohub" className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors mb-8">
-          ← BioHub
-        </Link>
         <div className="rounded-xl border border-border-default bg-surface-raised p-8 text-center">
           <div className="w-8 h-8 rounded-full border-2 border-text-brand border-t-transparent animate-spin mx-auto mb-4" />
           <p className="text-sm font-semibold text-text-primary mb-1">Analysing your report</p>
@@ -182,10 +179,7 @@ export default async function BioHubReportPage({
 
   if (report.upload_status === 'failed') {
     return (
-      <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
-        <Link href="/dashboard/biohub" className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors mb-8">
-          ← BioHub
-        </Link>
+      <div className="max-w-3xl mx-auto">
         <div className="rounded-xl border border-red-200 bg-surface-raised p-8 text-center">
           <p className="text-sm font-semibold text-red-600 mb-1">Analysis failed</p>
           {report.parse_error && (
@@ -218,11 +212,7 @@ export default async function BioHubReportPage({
   const outOfRangeCount = biomarkers?.filter((b) => b.functional_zone !== null && b.functional_zone !== 4).length ?? 0
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
-      <Link href="/dashboard/biohub" className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors mb-8">
-        ← BioHub
-      </Link>
-
+    <div className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">Lab Report</p>

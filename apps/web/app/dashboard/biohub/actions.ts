@@ -4,9 +4,15 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 
 // ─── Guard: ANTHROPIC_API_KEY ────────────────────────────────────────────────
+// Model: claude-opus-4-5 (Anthropic). Set ANTHROPIC_API_KEY in Vercel
+// environment variables (Production + Preview) or in .env.local for local dev.
 function getAnthropicClient() {
   if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY is not set. Add it to your .env.local file.')
+    throw new Error(
+      'ANTHROPIC_API_KEY is not configured. ' +
+      'Set it in the Vercel dashboard (Settings → Environment Variables) ' +
+      'or in .env.local for local development.'
+    )
   }
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 }

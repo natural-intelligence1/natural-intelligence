@@ -39,12 +39,9 @@ export default async function DashboardRequestsPage() {
     .order('submitted_at', { ascending: false })
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto">
       <div className="mb-8">
-        <Link href="/dashboard" className="text-sm text-text-muted hover:text-text-secondary mb-4 inline-block">
-          ← {copy.dashboard.heading}
-        </Link>
-        <h1 className="text-2xl font-bold text-text-primary mt-2">{copy.dashboard.sections.requests}</h1>
+        <h1 className="text-2xl font-bold text-text-primary">{copy.dashboard.sections.requests}</h1>
         <p className="text-sm text-text-muted mt-1">Read-only — contact us if you need to update a request.</p>
       </div>
 

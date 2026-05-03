@@ -2,15 +2,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
-
-const sidebarLinks = [
-  { label: 'Overview',   href: '/dashboard/practitioner',         active: true  },
-  { label: 'My profile', href: '/dashboard/practitioner/profile', active: false },
-  { label: 'Referrals',  href: null,                              active: false, comingSoon: true },
-  { label: 'Workshops',  href: '/workshops',                      active: false },
-]
-
 const MODULES = ['DailyPath', 'BioHub', 'RootFinder', 'LifeTracker', 'AutoAdjust'] as const
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -80,47 +71,7 @@ export default async function PractitionerDashboardPage() {
   const isLive    = practitioner.is_directory_ready
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-      <div className="md:grid md:grid-cols-[220px_1fr] gap-8">
-
-        {/* ── Sidebar nav ──────────────────────────────────────────────────── */}
-        <aside className="hidden md:block">
-          <div className="sticky top-24">
-            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3 px-3">
-              Practitioner
-            </p>
-            <nav className="space-y-0.5">
-              {sidebarLinks.map((link) =>
-                link.comingSoon ? (
-                  <span
-                    key={link.label}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-text-muted opacity-40 cursor-not-allowed"
-                  >
-                    {link.label}
-                    <span className="text-[10px] font-medium tracking-wide uppercase text-text-muted">
-                      Soon
-                    </span>
-                  </span>
-                ) : (
-                  <Link
-                    key={link.label}
-                    href={link.href!}
-                    className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      link.active
-                        ? 'bg-brand-subtle text-text-brand'
-                        : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary'
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                )
-              )}
-            </nav>
-          </div>
-        </aside>
-
-        {/* ── Main content ─────────────────────────────────────────────────── */}
-        <div>
+    <div>
 
           {/* Header */}
           <div className="flex items-start justify-between gap-4 mb-8">
@@ -293,8 +244,6 @@ export default async function PractitionerDashboardPage() {
             </a>
           </section>
 
-        </div>
-      </div>
     </div>
   )
 }

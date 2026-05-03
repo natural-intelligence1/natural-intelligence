@@ -44,7 +44,7 @@ export default async function RootFinderPage() {
     : null
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">RootFinder</p>

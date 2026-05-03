@@ -1,0 +1,11 @@
+-- Sprint 15 — record-only migration (already applied to live DB via MCP)
+--
+-- Problem: care app inserts request_type = 'waitlist' into member_support_requests,
+-- but the check constraint only allowed a fixed set of values that did not include 'waitlist'.
+-- Every care portal waitlist submission was silently failing.
+--
+-- Fix applied directly via Supabase MCP before this migration file was created.
+-- This file exists as a permanent record of the change.
+--
+-- The constraint was updated to add 'waitlist' as a valid request_type value.
+-- No further action required — this migration is a no-op if run against the live DB.

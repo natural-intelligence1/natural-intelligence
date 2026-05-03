@@ -146,7 +146,7 @@ export default function PractitionerProfilePage() {
 
   if (loading) {
     return (
-      <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <p className="text-text-muted text-sm">{copy.errors.serverError}</p>
       </div>
     )
@@ -154,27 +154,15 @@ export default function PractitionerProfilePage() {
 
   if (!practitionerId) {
     return (
-      <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto text-center">
+      <div className="max-w-3xl mx-auto text-center">
         <p className="text-text-secondary mb-4">{copy.errors.accessDenied}</p>
-        <Link href="/dashboard" className="text-brand-default hover:underline text-sm">
-          {c.back}
-        </Link>
       </div>
     )
   }
 
   return (
-    <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto">
       <div className="mb-8">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary mb-4 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          {c.back}
-        </Link>
         <h1 className="text-3xl font-bold text-text-primary mb-1">{c.heading}</h1>
         <p className="text-text-secondary text-sm">{c.subheading}</p>
       </div>

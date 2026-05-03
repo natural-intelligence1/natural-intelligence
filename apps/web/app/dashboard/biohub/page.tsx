@@ -25,15 +25,7 @@ export default async function BioHubPage() {
     .limit(20)
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
-      {/* Back link */}
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors mb-8"
-      >
-        ← Dashboard
-      </Link>
-
+    <div className="max-w-3xl mx-auto">
       <div className="mb-8">
         <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">BioHub</p>
         <h1 className="text-2xl font-bold text-text-primary mb-1">Lab report analysis</h1>

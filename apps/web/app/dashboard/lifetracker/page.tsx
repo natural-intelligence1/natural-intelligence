@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 import { CheckinForm } from './CheckinForm'
@@ -131,14 +130,7 @@ export default async function LifeTrackerPage() {
   )
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center text-xs text-text-brand hover:text-text-primary mb-8 transition-colors"
-      >
-        ← Dashboard
-      </Link>
-
+    <div className="max-w-2xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">LifeTracker</p>

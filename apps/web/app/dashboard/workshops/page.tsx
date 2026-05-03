@@ -24,12 +24,9 @@ export default async function DashboardWorkshopsPage() {
     .order('registered_at', { ascending: false })
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto">
       <div className="mb-8">
-        <Link href="/dashboard" className="text-sm text-text-muted hover:text-text-secondary mb-4 inline-block">
-          ← {copy.dashboard.heading}
-        </Link>
-        <h1 className="text-2xl font-bold text-text-primary mt-2">{copy.dashboard.sections.workshops}</h1>
+        <h1 className="text-2xl font-bold text-text-primary">{copy.dashboard.sections.workshops}</h1>
       </div>
 
       {!registrations || registrations.length === 0 ? (

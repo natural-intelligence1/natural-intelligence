@@ -45,10 +45,12 @@ export default async function WelcomePage() {
     'w-full px-3 py-2.5 rounded-lg border border-border-default bg-surface-base text-text-primary placeholder:text-text-placeholder text-sm focus:outline-none focus:ring-2 focus:ring-brand-default focus:border-transparent transition-colors'
 
   const intents = [
-    { value: 'find_practitioner',  label: 'Finding a practitioner'           },
-    { value: 'learn_health',       label: 'Learning about natural health'     },
-    { value: 'understand_labs',    label: 'Understanding my lab results'      },
-    { value: 'ongoing_care',       label: 'Supporting my ongoing care'        },
+    { value: 'own_health',            label: 'Improving my own health'         },
+    { value: 'find_practitioner',     label: 'Finding a practitioner'          },
+    { value: 'track_symptoms',        label: 'Tracking my symptoms & labs'     },
+    { value: 'workshops_community',   label: 'Workshops & community'           },
+    { value: 'practitioner_student',  label: 'I\'m a practitioner or student'  },
+    { value: 'exploring',             label: 'Just exploring'                  },
   ]
 
   const heardOptions = [
@@ -108,7 +110,7 @@ export default async function WelcomePage() {
             <p className="block text-sm font-medium text-text-primary mb-3">
               What brings you here?
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {intents.map((intent) => (
                 <label
                   key={intent.value}

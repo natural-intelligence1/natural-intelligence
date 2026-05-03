@@ -154,7 +154,7 @@ export default async function DailyPathPage({ searchParams }: PageProps) {
     const weekNumber = Math.floor(daysDiff / 7) + 1
 
     return (
-      <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         <DailyView
           protocol={{
             id:            protocol.id,
@@ -199,7 +199,7 @@ export default async function DailyPathPage({ searchParams }: PageProps) {
   const suggested = templates?.find((t: any) => t.root_cause_key && t.root_cause_key === rootCauseKey) ?? null
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <p className="text-[11px] font-medium text-text-brand uppercase tracking-widest mb-1">DailyPath</p>

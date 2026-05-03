@@ -77,14 +77,7 @@ export default async function TrajectoryPage() {
   }))
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
-      <Link
-        href="/dashboard"
-        className="inline-flex items-center text-xs text-text-brand hover:text-text-primary mb-8 transition-colors"
-      >
-        ← Dashboard
-      </Link>
-
+    <div className="max-w-4xl mx-auto">
       <div className="mb-8">
         <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">Trajectory</p>
         <h1 className="text-2xl font-bold text-text-primary">Biomarker trends</h1>
