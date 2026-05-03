@@ -1,9 +1,16 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import { DirectorySearch } from '@/components/directory-search'
 import { Avatar, Pill } from '@natural-intelligence/ui'
 import { Suspense } from 'react'
+
+export const metadata: Metadata = {
+  title: 'Practitioner directory',
+  description:
+    'Find trusted naturopathic and functional medicine practitioners across the UK.',
+}
 
 interface DirectoryPageProps {
   searchParams: {

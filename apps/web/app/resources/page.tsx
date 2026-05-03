@@ -1,7 +1,14 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import { Pill } from '@natural-intelligence/ui'
+
+export const metadata: Metadata = {
+  title: 'Health resources',
+  description:
+    'Evidence-based articles, guides, and tools on functional medicine and natural health.',
+}
 
 interface ResourcesPageProps {
   searchParams: { type?: string }

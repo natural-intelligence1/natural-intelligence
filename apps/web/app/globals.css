@@ -21,6 +21,51 @@
   }
 }
 
+/* ── Focus-visible ring ──────────────────────────────────────────────────────
+   Applied globally so keyboard users always have a visible focus indicator.
+   The :focus:not(:focus-visible) reset removes it for mouse users.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--color-brand-default, #4E7A5C);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── Skip-to-content link ─────────────────────────────────────────────────────
+   Visually hidden until focused; lets keyboard users jump past navigation.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.skip-to-content:focus {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  width: auto;
+  height: auto;
+  padding: 8px 16px;
+  background: var(--color-surface-base, #faf9f7);
+  border: 2px solid var(--color-brand-default, #4E7A5C);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary, #1a1917);
+  z-index: 9999;
+  overflow: visible;
+}
+
 /* ── Hero dashboard animations ───────────────────────────────────────────────
    The VitalityRings SVG uses a breathing scale (1.0 → 1.02 → 1.0) over 8 s.
    Rotation (-90deg) is baked into the keyframes to avoid transform conflicts

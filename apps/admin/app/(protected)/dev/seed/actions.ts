@@ -548,6 +548,47 @@ export async function seedShowcasePractitioners(): Promise<{ practitioners: numb
   }
 }
 
+// ─── Fix workshop event times ─────────────────────────────────────────────────
+// Updates the three showcase events with correct UK evening times (BST → UTC).
+// Safe to run multiple times.
+export async function fixEventTimes(): Promise<{ updated: number }> {
+  const { adminClient } = await requireAdmin()
+
+  const fixes = [
+    { title: 'Understanding your cortisol cycle',            hour: 18, minute: 0,  durationMins: 60 },
+    { title: 'Reading your lab results like a practitioner', hour: 17, minute: 0,  durationMins: 60 },
+    { title: 'Gut health fundamentals — live Q&A',           hour: 11, minute: 30, durationMins: 60 },
+  ]
+
+  let updated = 0
+
+  for (const fix of fixes) {
+    const { data: event } = await adminClient
+      .from('events')
+      .select('id, starts_at')
+      .eq('title', fix.title)
+      .maybeSingle()
+
+    if (!event) continue
+
+    // Preserve the seeded date; override the time component to the correct UTC hour.
+    const d = new Date(event.starts_at)
+    d.setUTCHours(fix.hour, fix.minute, 0, 0)
+    const newStart = d.toISOString()
+    const newEnd   = new Date(d.getTime() + fix.durationMins * 60 * 1000).toISOString()
+
+    const { error } = await adminClient
+      .from('events')
+      .update({ starts_at: newStart, ends_at: newEnd })
+      .eq('id', event.id)
+
+    if (!error) updated++
+  }
+
+  revalidatePath('/workshops')
+  return { updated }
+}
+
 // ─── Reset all test data ──────────────────────────────────────────────────────
 export async function resetTestData(): Promise<{ deleted: Record<string, number> }> {
   const { adminClient } = await requireAdmin()

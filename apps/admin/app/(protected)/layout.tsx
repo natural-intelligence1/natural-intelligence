@@ -16,6 +16,10 @@ export default async function ProtectedLayout({
   // but we double-check here as a server-side safety net.
   if (!user) redirect('/login')
 
+  // TODO(hardening): Add rate limiting on this layout (or middleware) to prevent
+  // brute-force enumeration of admin routes. Recommend: Upstash Ratelimit with
+  // a sliding window of 60 requests per minute per IP.
+
   const adminClient = createAdminClient()
   const { data: profile } = await adminClient
     .from('profiles')

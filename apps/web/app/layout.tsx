@@ -29,6 +29,7 @@ const jetbrainsMono = JetBrains_Mono({
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import { NavMobile } from '@/components/nav-mobile'
 import { LogoutButton } from '@/components/logout-button'
+import { CookieBanner } from '@/components/cookie-banner'
 
 export const metadata: Metadata = {
   title: {
@@ -120,6 +121,11 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${dmSans.variable} ${cormorantGaramond.variable} ${jetbrainsMono.variable}`}>
       <body className="bg-surface-base text-text-primary min-h-screen flex flex-col">
+        {/* Skip-to-content — visible only on keyboard focus */}
+        <a href="#main-content" className="skip-to-content">
+          Skip to main content
+        </a>
+
         {/* Navigation */}
         <header className="sticky top-0 z-nav bg-surface-base/95 backdrop-blur-sm border-b border-border-default">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -186,7 +192,7 @@ export default async function RootLayout({
         </header>
 
         {/* Main content */}
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           {children}
         </main>
 
@@ -244,6 +250,7 @@ export default async function RootLayout({
             </div>
           </div>
         </footer>
+        <CookieBanner />
       </body>
     </html>
   )

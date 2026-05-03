@@ -112,9 +112,14 @@ export default async function SupportPage({ searchParams }: Props) {
                 {requests.map((req) => (
                   <tr key={req.id} className={`hover:bg-surface-muted transition-colors cursor-pointer ${urgencyRowBorder[req.urgency ?? ''] ?? ''}`}>
                     <td className="px-4 py-3">
-                      <Link href={`/support/${req.id}`} className="text-text-primary font-medium hover:underline">
-                        {req.full_name}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/support/${req.id}`} className="text-text-primary font-medium hover:underline">
+                          {req.full_name}
+                        </Link>
+                        {req.is_test_data && (
+                          <Badge variant="warning">test</Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-text-secondary">{req.email}</td>
                     <td className="px-4 py-3 text-text-secondary">

@@ -1,8 +1,15 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient, sendEmail, eventRegistrationConfirmationEmail } from '@natural-intelligence/db'
 import { RegisterButton } from '@/components/register-button'
 import { Pill } from '@natural-intelligence/ui'
+
+export const metadata: Metadata = {
+  title: 'Workshops & events',
+  description:
+    'Join expert-led workshops, webinars, and live Q&As on functional medicine and natural health.',
+}
 
 async function registerForEvent(eventId: string): Promise<{ error?: string }> {
   'use server'

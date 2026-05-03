@@ -8,6 +8,7 @@ import {
   seedTestSupportRequest,
   seedShowcaseData,
   seedShowcasePractitioners,
+  fixEventTimes,
   resetTestData,
 } from './actions'
 
@@ -142,6 +143,16 @@ export default function SeedClient() {
                 (v) =>
                   `${c.success} Seeded — ${v.practitioners} practitioners, ` +
                   `${v.events} events, ${v.resources} resources.`,
+              )
+            }
+          />
+          <SeedButton
+            label="Fix event times (BST → UTC)"
+            disabled={loading}
+            onClick={() =>
+              run(
+                () => fixEventTimes(),
+                (v) => `${c.success} Updated ${v.updated} event time(s) to correct UTC.`,
               )
             }
           />

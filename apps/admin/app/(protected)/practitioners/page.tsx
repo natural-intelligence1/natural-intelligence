@@ -101,9 +101,14 @@ export default async function PractitionersPage() {
                   return (
                     <tr key={p.id} className="hover:bg-surface-muted transition-colors">
                       <td className="px-4 py-3">
-                        <Link href={`/practitioners/${p.id}`} className="font-medium text-text-primary hover:underline">
-                          {name}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/practitioners/${p.id}`} className="font-medium text-text-primary hover:underline">
+                            {name}
+                          </Link>
+                          {p.is_test_data && (
+                            <Badge variant="warning">test</Badge>
+                          )}
+                        </div>
                         {p.city && (
                           <p className="text-xs text-text-muted mt-0.5">{[p.city, p.country].filter(Boolean).join(', ')}</p>
                         )}
