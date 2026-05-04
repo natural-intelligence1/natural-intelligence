@@ -9,26 +9,9 @@ import TimingSelector       from './components/TimingSelector'
 import EnergyCurveSelector  from './components/EnergyCurveSelector'
 import CyclePatternSelector from './components/CyclePatternSelector'
 import NumberStepper        from './components/NumberStepper'
-import {
-  createClient,
-  saveIntakeAnswer,
-  getOrCreateIntakeSession,
-} from '@natural-intelligence/db'
-
-// ─── Dual-write persist type ──────────────────────────────────────────────────
-// Passed to every Section so they can call persist alongside setForm.
-
-type PersistMeta = {
-  clinicalObjective?: string
-  mappedSystems?:     string[]
-  mappedHypotheses?:  string[]
-}
-type PersistFn = (
-  questionId:    string,
-  value:         unknown,
-  sectionNumber: number,
-  meta?:         PersistMeta,
-) => void
+import { createClient }     from '@natural-intelligence/db'
+import { useIntakeAnswers } from './hooks/useIntakeAnswers'
+import type { FormState, PersistMeta, PersistFn } from './types'
 
 // ─── Journey nodes ────────────────────────────────────────────────────────────
 
@@ -302,47 +285,7 @@ function WarmTextarea({
 }
 
 // ─── Form state ───────────────────────────────────────────────────────────────
-
-interface FormState {
-  arrival_emotion:      string
-  primary_concerns:     string[]
-  concern_duration:     string
-  symptom_pattern:      string
-  systems_reviewed:     string[]
-  gi_bloating:          boolean | null
-  gi_timing:            string[]
-  gi_severity:          number | null
-  gi_stool_type:        number | null
-  energy_low_times:     string[]
-  energy_curve:         string
-  energy_severity:      number | null
-  hormonal_symptoms:    string[]
-  cycle_patterns:       string[]
-  timeline_last_well:   string
-  timeline_trigger:     string
-  sleep_hours:          number | null
-  sleep_quality:        number | null
-  stress_level:         number | null
-  energy_level:         number | null
-  exercise_frequency:   string
-  diet_description:     string
-  diagnosed_conditions: string[]
-  current_medications:  string
-  current_supplements:  string
-  past_treatments:      string
-  practitioner_types:   string[]
-  surgeries_or_injuries:string
-  family_history:       string[]
-  psychosocial_impact:  string
-  psychosocial_worry:   string
-  psychosocial_supported: string
-  health_goals:         string[]
-  timeline_expectation: string
-  biggest_barrier:      string
-  readiness_time:       string
-  readiness_budget:     string
-  readiness_change:     string
-}
+// FormState interface lives in ./types.ts — imported at the top of this file.
 
 function initialState(e: Record<string, unknown> | null): FormState {
   const arr = (k: string) => (e?.[k] as string[] | null) ?? []
@@ -468,11 +411,7 @@ function Section0({
         <EmojiCardGrid
           options={ARRIVAL_EMOTIONS}
           selected={form.arrival_emotion ? [form.arrival_emotion] : []}
-          onChange={v => {
-            setForm(f => ({ ...f, arrival_emotion: v[0] ?? '' }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('arrival_emotion', v[0] ?? '', 0, { clinicalObjective: 'tone_baseline' })
-          }}
+          onChange={v => persist('arrival_emotion', v[0] ?? '', 0, { clinicalObjective: 'tone_baseline' })}
           cols={5}
           single={true}
           className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 [&>button]:min-h-32"
@@ -541,11 +480,7 @@ function Section1({
         <BigChipCloud
           options={PRIMARY_CONCERNS}
           selected={form.primary_concerns}
-          onChange={v => {
-            setForm(f => ({ ...f, primary_concerns: v }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('primary_concerns', v, 1, { clinicalObjective: 'concern_identification' })
-          }}
+          onChange={v => persist('primary_concerns', v, 1, { clinicalObjective: 'concern_identification' })}
         />
       </div>
       <div>
@@ -553,11 +488,7 @@ function Section1({
         <EmojiCardGrid
           options={DURATION_EMOJIS}
           selected={form.concern_duration ? [form.concern_duration] : []}
-          onChange={v => {
-            setForm(f => ({ ...f, concern_duration: v[0] ?? '' }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('concern_duration', v[0] ?? '', 1, { clinicalObjective: 'symptom_chronology' })
-          }}
+          onChange={v => persist('concern_duration', v[0] ?? '', 1, { clinicalObjective: 'symptom_chronology' })}
           cols={4}
         />
       </div>
@@ -566,11 +497,7 @@ function Section1({
         <WordChipRow
           options={PATTERN_WORDS}
           selected={form.symptom_pattern}
-          onChange={v => {
-            setForm(f => ({ ...f, symptom_pattern: v }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('symptom_pattern', v, 1, { clinicalObjective: 'symptom_pattern' })
-          }}
+          onChange={v => persist('symptom_pattern', v, 1, { clinicalObjective: 'symptom_pattern' })}
         />
       </div>
     </div>
@@ -606,11 +533,7 @@ function Section2({
           <p className="text-sm font-medium text-text-primary mb-3">Do you experience bloating?</p>
           <BooleanCards
             value={form.gi_bloating}
-            onChange={v => {
-              setForm(f => ({ ...f, gi_bloating: v }))
-              // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-              persist('gi_bloating', v, 2, { clinicalObjective: 'gi_assessment', mappedSystems: ['gastrointestinal'] })
-            }}
+            onChange={v => persist('gi_bloating', v, 2, { clinicalObjective: 'gi_assessment', mappedSystems: ['gastrointestinal'] })}
             yesLabel="Yes" noLabel="Not really"
             yesSub="It's an issue for me" noSub="Not a significant problem"
           />
@@ -621,11 +544,7 @@ function Section2({
               <p className="text-sm font-medium text-text-primary mb-3">When does it happen?</p>
               <TimingSelector
                 value={form.gi_timing}
-                onChange={v => {
-                  setForm(f => ({ ...f, gi_timing: v }))
-                  // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-                  persist('gi_timing', v, 2, { clinicalObjective: 'gi_timing', mappedSystems: ['gastrointestinal'] })
-                }}
+                onChange={v => persist('gi_timing', v, 2, { clinicalObjective: 'gi_timing', mappedSystems: ['gastrointestinal'] })}
                 context="digestive"
               />
             </div>
@@ -633,11 +552,7 @@ function Section2({
               <p className="text-sm font-medium text-text-primary mb-3">How severe is it on a bad day?</p>
               <IntakeVisualScale
                 value={form.gi_severity}
-                onChange={v => {
-                  setForm(f => ({ ...f, gi_severity: v }))
-                  // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-                  persist('gi_severity', v, 2, { clinicalObjective: 'severity_assessment', mappedSystems: ['gastrointestinal'] })
-                }}
+                onChange={v => persist('gi_severity', v, 2, { clinicalObjective: 'severity_assessment', mappedSystems: ['gastrointestinal'] })}
               />
             </div>
           </div>
@@ -655,22 +570,14 @@ function Section2({
           <BigChipCloud
             options={HORMONAL_SYMPTOMS}
             selected={form.hormonal_symptoms}
-            onChange={v => {
-              setForm(f => ({ ...f, hormonal_symptoms: v }))
-              // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-              persist('hormonal_symptoms', v, 2, { clinicalObjective: 'hormonal_assessment', mappedSystems: ['hormonal'] })
-            }}
+            onChange={v => persist('hormonal_symptoms', v, 2, { clinicalObjective: 'hormonal_assessment', mappedSystems: ['hormonal'] })}
           />
         </div>
         <div>
           <p className="text-sm font-medium text-text-primary mb-3">Do your symptoms follow a cycle pattern?</p>
           <CyclePatternSelector
             value={form.cycle_patterns}
-            onChange={v => {
-              setForm(f => ({ ...f, cycle_patterns: v }))
-              // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-              persist('cycle_patterns', v, 2, { clinicalObjective: 'cycle_pattern', mappedSystems: ['hormonal'] })
-            }}
+            onChange={v => persist('cycle_patterns', v, 2, { clinicalObjective: 'cycle_pattern', mappedSystems: ['hormonal'] })}
           />
         </div>
       </div>
@@ -686,33 +593,21 @@ function Section2({
           <BigChipCloud
             options={ENERGY_LOW_TIMES}
             selected={form.energy_low_times}
-            onChange={v => {
-              setForm(f => ({ ...f, energy_low_times: v }))
-              // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-              persist('energy_low_times', v, 2, { clinicalObjective: 'energy_pattern', mappedSystems: ['metabolic'] })
-            }}
+            onChange={v => persist('energy_low_times', v, 2, { clinicalObjective: 'energy_pattern', mappedSystems: ['metabolic'] })}
           />
         </div>
         <div>
           <p className="text-sm font-medium text-text-primary mb-3">Which pattern describes your energy across the day?</p>
           <EnergyCurveSelector
             value={form.energy_curve || null}
-            onChange={v => {
-              setForm(f => ({ ...f, energy_curve: v }))
-              // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-              persist('energy_curve', v, 2, { clinicalObjective: 'energy_curve', mappedSystems: ['metabolic'] })
-            }}
+            onChange={v => persist('energy_curve', v, 2, { clinicalObjective: 'energy_curve', mappedSystems: ['metabolic'] })}
           />
         </div>
         <div>
           <p className="text-sm font-medium text-text-primary mb-3">How severe is the fatigue on a bad day?</p>
           <IntakeVisualScale
             value={form.energy_severity}
-            onChange={v => {
-              setForm(f => ({ ...f, energy_severity: v }))
-              // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-              persist('energy_severity', v, 2, { clinicalObjective: 'severity_assessment', mappedSystems: ['metabolic'] })
-            }}
+            onChange={v => persist('energy_severity', v, 2, { clinicalObjective: 'severity_assessment', mappedSystems: ['metabolic'] })}
           />
         </div>
       </div>
@@ -727,11 +622,7 @@ function Section2({
           <BigChipCloud
             options={COGNITIVE_SYMPTOMS}
             selected={form.hormonal_symptoms}
-            onChange={v => {
-              setForm(f => ({ ...f, hormonal_symptoms: v }))
-              // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-              persist('hormonal_symptoms', v, 2, { clinicalObjective: 'cognitive_assessment', mappedSystems: ['neurological'] })
-            }}
+            onChange={v => persist('hormonal_symptoms', v, 2, { clinicalObjective: 'cognitive_assessment', mappedSystems: ['neurological'] })}
           />
         </div>
       </div>
@@ -747,11 +638,7 @@ function Section2({
         <BigChipCloud
           options={['Digestive', 'Hormonal', 'Energy & metabolism', 'Cognitive', 'Musculoskeletal', 'Skin', 'Immune', 'Cardiovascular', 'Nervous system']}
           selected={form.systems_reviewed}
-          onChange={v => {
-            setForm(f => ({ ...f, systems_reviewed: v }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('systems_reviewed', v, 2, { clinicalObjective: 'systems_overview' })
-          }}
+          onChange={v => persist('systems_reviewed', v, 2, { clinicalObjective: 'systems_overview' })}
         />
       </div>
     </div>
@@ -780,11 +667,7 @@ function Section3({
         <EmojiCardGrid
           options={LAST_WELL_EMOJIS}
           selected={form.timeline_last_well ? [form.timeline_last_well] : []}
-          onChange={v => {
-            setForm(f => ({ ...f, timeline_last_well: v[0] ?? '' }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('timeline_last_well', v[0] ?? '', 3, { clinicalObjective: 'symptom_onset' })
-          }}
+          onChange={v => persist('timeline_last_well', v[0] ?? '', 3, { clinicalObjective: 'symptom_onset' })}
           cols={5}
         />
       </div>
@@ -794,7 +677,6 @@ function Section3({
         <WarmTextarea
           value={form.timeline_trigger}
           onChange={v => setForm(f => ({ ...f, timeline_trigger: v }))}
-          // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
           onBlur={v => persist('timeline_trigger', v, 3, { clinicalObjective: 'potential_trigger' })}
           placeholder="e.g. A really stressful period at work. I had a virus and never quite recovered. It came on gradually with no clear trigger."
           rows={5}
@@ -831,11 +713,7 @@ function Section4({
         {/* B4: NumberStepper replaces MoonSelector — [−] 7 hours [+] */}
         <NumberStepper
           value={form.sleep_hours}
-          onChange={v => {
-            setForm(f => ({ ...f, sleep_hours: v }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('sleep_hours', v, 4, { clinicalObjective: 'sleep_quantity' })
-          }}
+          onChange={v => persist('sleep_hours', v, 4, { clinicalObjective: 'sleep_quantity' })}
           min={0}
           max={12}
           default={7}
@@ -846,11 +724,7 @@ function Section4({
         <p className="text-sm font-medium text-text-primary mb-3">How would you rate the quality of that sleep?</p>
         <NamedFiveDot
           value={form.sleep_quality}
-          onChange={v => {
-            setForm(f => ({ ...f, sleep_quality: v }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('sleep_quality', v, 4, { clinicalObjective: 'sleep_quality' })
-          }}
+          onChange={v => persist('sleep_quality', v, 4, { clinicalObjective: 'sleep_quality' })}
           labels={['Terrible', 'Poor', 'Fair', 'Good', 'Excellent']}
         />
       </div>
@@ -858,11 +732,7 @@ function Section4({
         <p className="text-sm font-medium text-text-primary mb-3">What is your typical stress level?</p>
         <NamedFiveDot
           value={form.stress_level}
-          onChange={v => {
-            setForm(f => ({ ...f, stress_level: v }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('stress_level', v, 4, { clinicalObjective: 'stress_assessment' })
-          }}
+          onChange={v => persist('stress_level', v, 4, { clinicalObjective: 'stress_assessment' })}
           labels={['Very low', 'Low', 'Moderate', 'High', 'Very high']}
         />
       </div>
@@ -870,11 +740,7 @@ function Section4({
         <p className="text-sm font-medium text-text-primary mb-3">How would you rate your day-to-day energy?</p>
         <NamedFiveDot
           value={form.energy_level}
-          onChange={v => {
-            setForm(f => ({ ...f, energy_level: v }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('energy_level', v, 4, { clinicalObjective: 'energy_baseline' })
-          }}
+          onChange={v => persist('energy_level', v, 4, { clinicalObjective: 'energy_baseline' })}
           labels={['Depleted', 'Low', 'Moderate', 'Good', 'Excellent']}
         />
       </div>
@@ -883,11 +749,7 @@ function Section4({
         <EmojiCardGrid
           options={EXERCISE_EMOJIS}
           selected={form.exercise_frequency ? [form.exercise_frequency] : []}
-          onChange={v => {
-            setForm(f => ({ ...f, exercise_frequency: v[0] ?? '' }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('exercise_frequency', v[0] ?? '', 4, { clinicalObjective: 'lifestyle_activity' })
-          }}
+          onChange={v => persist('exercise_frequency', v[0] ?? '', 4, { clinicalObjective: 'lifestyle_activity' })}
           cols={4}
         />
       </div>
@@ -896,11 +758,7 @@ function Section4({
         <BigChipCloud
           options={DIET_OPTIONS}
           selected={form.diet_description ? [form.diet_description] : []}
-          onChange={v => {
-            setForm(f => ({ ...f, diet_description: v[0] ?? '' }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('diet_description', v[0] ?? '', 4, { clinicalObjective: 'dietary_pattern' })
-          }}
+          onChange={v => persist('diet_description', v[0] ?? '', 4, { clinicalObjective: 'dietary_pattern' })}
           multi={false}
         />
       </div>
@@ -941,11 +799,7 @@ function Section5({
         <p className="text-sm font-medium text-text-primary mb-2">Any existing diagnoses or conditions?</p>
         <TagInput
           value={form.diagnosed_conditions}
-          onChange={v => {
-            setForm(f => ({ ...f, diagnosed_conditions: v }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('diagnosed_conditions', v, 5, { clinicalObjective: 'medical_history' })
-          }}
+          onChange={v => persist('diagnosed_conditions', v, 5, { clinicalObjective: 'medical_history' })}
           placeholder="Add a condition and press Enter"
           presets={CONDITION_PRESETS}
         />
@@ -958,7 +812,6 @@ function Section5({
         <WarmTextarea
           value={form.current_medications}
           onChange={v => setForm(f => ({ ...f, current_medications: v }))}
-          // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
           onBlur={v => persist('current_medications', v, 5, { clinicalObjective: 'medication_list' })}
           placeholder="e.g. Levothyroxine 50mcg, oral contraceptive pill…"
           rows={2}
@@ -969,8 +822,8 @@ function Section5({
         <TagInput
           value={form.current_supplements.split(',').map(s => s.trim()).filter(Boolean)}
           onChange={v => {
+            // current_supplements: FormState stores comma-joined string; persist receives array
             setForm(f => ({ ...f, current_supplements: v.join(', ') }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
             persist('current_supplements', v, 5, { clinicalObjective: 'supplement_list' })
           }}
           placeholder="Add supplement and press Enter"
@@ -982,11 +835,7 @@ function Section5({
         <BigChipCloud
           options={PRACTITIONER_OPTIONS}
           selected={form.practitioner_types}
-          onChange={v => {
-            setForm(f => ({ ...f, practitioner_types: v }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('practitioner_types', v, 5, { clinicalObjective: 'care_history' })
-          }}
+          onChange={v => persist('practitioner_types', v, 5, { clinicalObjective: 'care_history' })}
         />
       </div>
       <div>
@@ -994,7 +843,6 @@ function Section5({
         <WarmTextarea
           value={form.past_treatments}
           onChange={v => setForm(f => ({ ...f, past_treatments: v }))}
-          // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
           onBlur={v => persist('past_treatments', v, 5, { clinicalObjective: 'treatment_history' })}
           placeholder="e.g. Elimination diet, acupuncture, CBT…"
           rows={2}
@@ -1005,11 +853,7 @@ function Section5({
         <BigChipCloud
           options={FAMILY_HISTORY_OPTIONS}
           selected={form.family_history}
-          onChange={v => {
-            setForm(f => ({ ...f, family_history: v }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('family_history', v, 5, { clinicalObjective: 'family_history' })
-          }}
+          onChange={v => persist('family_history', v, 5, { clinicalObjective: 'family_history' })}
         />
       </div>
       {isDigestive && (
@@ -1017,11 +861,7 @@ function Section5({
           <p className="text-sm font-medium text-text-primary mb-3">Bowel pattern — which type most resembles yours?</p>
           <BristolStoolSelector
             value={form.gi_stool_type}
-            onChange={v => {
-              setForm(f => ({ ...f, gi_stool_type: v }))
-              // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-              persist('gi_stool_type', v, 5, { clinicalObjective: 'stool_form_assessment', mappedSystems: ['gastrointestinal'] })
-            }}
+            onChange={v => persist('gi_stool_type', v, 5, { clinicalObjective: 'stool_form_assessment', mappedSystems: ['gastrointestinal'] })}
           />
         </div>
       )}
@@ -1055,7 +895,6 @@ function Section6({
         <WarmTextarea
           value={form.psychosocial_impact}
           onChange={v => setForm(f => ({ ...f, psychosocial_impact: v }))}
-          // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
           onBlur={v => persist('psychosocial_impact', v, 6, { clinicalObjective: 'psychosocial_impact' })}
           placeholder="e.g. I've had to reduce my hours at work, it affects my relationships…"
           rows={4}
@@ -1066,7 +905,6 @@ function Section6({
         <WarmTextarea
           value={form.psychosocial_worry}
           onChange={v => setForm(f => ({ ...f, psychosocial_worry: v }))}
-          // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
           onBlur={v => persist('psychosocial_worry', v, 6, { clinicalObjective: 'psychosocial_worry' })}
           placeholder="e.g. That it will get worse. That no one can find the cause…"
           rows={4}
@@ -1077,11 +915,7 @@ function Section6({
         <EmojiCardGrid
           options={SUPPORTED_EMOJIS}
           selected={form.psychosocial_supported ? [form.psychosocial_supported] : []}
-          onChange={v => {
-            setForm(f => ({ ...f, psychosocial_supported: v[0] ?? '' }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('psychosocial_supported', v[0] ?? '', 6, { clinicalObjective: 'social_support' })
-          }}
+          onChange={v => persist('psychosocial_supported', v[0] ?? '', 6, { clinicalObjective: 'social_support' })}
           cols={4}
         />
         {unsupported && (
@@ -1125,11 +959,7 @@ function Section7({
         <BigChipCloud
           options={GOAL_OPTIONS}
           selected={form.health_goals}
-          onChange={v => {
-            setForm(f => ({ ...f, health_goals: v }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('health_goals', v, 7, { clinicalObjective: 'patient_goals' })
-          }}
+          onChange={v => persist('health_goals', v, 7, { clinicalObjective: 'patient_goals' })}
         />
       </div>
       <div>
@@ -1137,11 +967,7 @@ function Section7({
         <EmojiCardGrid
           options={TIMELINE_EMOJIS}
           selected={form.timeline_expectation ? [form.timeline_expectation] : []}
-          onChange={v => {
-            setForm(f => ({ ...f, timeline_expectation: v[0] ?? '' }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('timeline_expectation', v[0] ?? '', 7, { clinicalObjective: 'timeline_expectation' })
-          }}
+          onChange={v => persist('timeline_expectation', v[0] ?? '', 7, { clinicalObjective: 'timeline_expectation' })}
           cols={4}
         />
       </div>
@@ -1150,7 +976,6 @@ function Section7({
         <WarmTextarea
           value={form.biggest_barrier}
           onChange={v => setForm(f => ({ ...f, biggest_barrier: v }))}
-          // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
           onBlur={v => persist('biggest_barrier', v, 7, { clinicalObjective: 'barriers' })}
           placeholder="e.g. Cost, not knowing where to start, lack of time, conflicting advice…"
           rows={3}
@@ -1193,11 +1018,7 @@ function Section8({
         <EmojiCardGrid
           options={TIME_EMOJIS}
           selected={form.readiness_time ? [form.readiness_time] : []}
-          onChange={v => {
-            setForm(f => ({ ...f, readiness_time: v[0] ?? '' }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('readiness_time', v[0] ?? '', 8, { clinicalObjective: 'readiness_time' })
-          }}
+          onChange={v => persist('readiness_time', v[0] ?? '', 8, { clinicalObjective: 'readiness_time' })}
           cols={4}
         />
       </div>
@@ -1206,11 +1027,7 @@ function Section8({
         <EmojiCardGrid
           options={BUDGET_EMOJIS}
           selected={form.readiness_budget ? [form.readiness_budget] : []}
-          onChange={v => {
-            setForm(f => ({ ...f, readiness_budget: v[0] ?? '' }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('readiness_budget', v[0] ?? '', 8, { clinicalObjective: 'readiness_budget' })
-          }}
+          onChange={v => persist('readiness_budget', v[0] ?? '', 8, { clinicalObjective: 'readiness_budget' })}
           cols={3}
         />
       </div>
@@ -1219,11 +1036,7 @@ function Section8({
         <EmojiCardGrid
           options={CHANGE_EMOJIS}
           selected={form.readiness_change ? [form.readiness_change] : []}
-          onChange={v => {
-            setForm(f => ({ ...f, readiness_change: v[0] ?? '' }))
-            // TODO(post-16.2): drop legacy intake_responses write once synopsis pipeline reads from intake_answers
-            persist('readiness_change', v[0] ?? '', 8, { clinicalObjective: 'readiness_change' })
-          }}
+          onChange={v => persist('readiness_change', v[0] ?? '', 8, { clinicalObjective: 'readiness_change' })}
           cols={4}
         />
       </div>
@@ -1302,57 +1115,31 @@ export function IntakeForm({
   const initial = Math.min((existing?.completed_sections as number | undefined) ?? 0, TOTAL - 1)
 
   const [section,   setSection]   = useState<number>(initial)
-  const [form,      setForm]      = useState<FormState>(() => initialState(existing))
   const [consent,   setConsent]   = useState(false)
   const [saving,    setSaving]    = useState(false)
   const [error,     setError]     = useState<string | null>(null)
   const [opacity,   setOpacity]   = useState(1)
-  const [sessionId, setSessionId] = useState<string | null>(null)
 
-  // C3.4 Step 1 — browser Supabase client (created once)
+  // C4.2 — browser Supabase client (created once, passed to hook)
   const supabase = useMemo(() => createClient(), [])
 
-  // C3.4 Step 1 — session bootstrap on mount
-  // On failure: log and fall back to legacy-only mode — do NOT block the form.
-  useEffect(() => {
-    let cancelled = false
-    getOrCreateIntakeSession(supabase, memberId)
-      .then(session => {
-        if (!cancelled) setSessionId(session.id)
-      })
-      .catch(err => {
-        console.error('IntakeForm: session bootstrap failed', {
-          memberId,
-          err: err instanceof Error ? err.message : String(err),
-        })
-        // Legacy mode: saveIntakeSection still fires at section boundaries
-      })
-    return () => { cancelled = true }
-  }, [supabase, memberId])
+  // C4.2 — useIntakeAnswers: session bootstrap + per-answer dual-write + hydration
+  const {
+    form,
+    setForm,
+    setAnswer,
+    isHydrating,
+    hydrationError,
+    resumeSection,
+  } = useIntakeAnswers({ supabase, memberId, initialForm: initialState(existing) })
 
-  // C3.4 Step 2 — persistAnswer: dual-write alongside every setForm capture site.
-  // Fire-and-forget: errors are logged but never block the user.
-  // C3.5: logs questionId, sectionNumber, err.message, err.code — NOT the value.
-  const persistAnswer = useCallback<PersistFn>(
-    (questionId, value, sectionNumber, meta) => {
-      if (!sessionId) return
-      saveIntakeAnswer(supabase, {
-        sessionId,
-        questionId,
-        sectionNumber,
-        value,
-        ...meta,
-      }).catch(err => {
-        console.error('saveIntakeAnswer failed', {
-          questionId,
-          sectionNumber,
-          err: err instanceof Error ? err.message : String(err),
-          code: (err as { code?: string }).code,
-        })
-      })
-    },
-    [sessionId, supabase],
-  )
+  // C4.3 — jump to the furthest answered section once hydration completes
+  useEffect(() => {
+    if (!isHydrating && resumeSection > initial) {
+      setSection(resumeSection)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHydrating])
 
   function transition(fn: () => void) {
     setOpacity(0)
@@ -1417,20 +1204,25 @@ export function IntakeForm({
         <AcknowledgementBanner text={arrivalAck(form.arrival_emotion)} />
       )}
 
+      {/* Hydration error — quiet inline notice, never blocks the form */}
+      {hydrationError && (
+        <p className="text-xs text-text-muted mb-3 text-center">{hydrationError}</p>
+      )}
+
       {/* Section content with fade transition */}
       <div
-        style={{ opacity, transition: 'opacity 160ms ease-out' }}
+        style={{ opacity: isHydrating ? 0.4 : opacity, transition: 'opacity 160ms ease-out' }}
         className="rounded-2xl border border-border-default bg-surface-raised p-6 mb-6"
       >
-        {section === 0 && <Section0 form={form} setForm={setForm} persist={persistAnswer} />}
-        {section === 1 && <Section1 form={form} setForm={setForm} persist={persistAnswer} />}
-        {section === 2 && <Section2 form={form} setForm={setForm} persist={persistAnswer} />}
-        {section === 3 && <Section3 form={form} setForm={setForm} persist={persistAnswer} />}
-        {section === 4 && <Section4 form={form} setForm={setForm} persist={persistAnswer} />}
-        {section === 5 && <Section5 form={form} setForm={setForm} persist={persistAnswer} />}
-        {section === 6 && <Section6 form={form} setForm={setForm} persist={persistAnswer} />}
-        {section === 7 && <Section7 form={form} setForm={setForm} persist={persistAnswer} />}
-        {section === 8 && <Section8 form={form} setForm={setForm} persist={persistAnswer} />}
+        {section === 0 && <Section0 form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 1 && <Section1 form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 2 && <Section2 form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 3 && <Section3 form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 4 && <Section4 form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 5 && <Section5 form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 6 && <Section6 form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 7 && <Section7 form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 8 && <Section8 form={form} setForm={setForm} persist={setAnswer} />}
         {section === 9 && <Section9 consent={consent} setConsent={setConsent} />}
       </div>
 

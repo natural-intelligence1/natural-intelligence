@@ -11,6 +11,7 @@
   "scripts": {
     "type-check": "tsc --noEmit",
     "test": "vitest run",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {

@@ -46,6 +46,7 @@ describe('saveIntakeAnswer', () => {
       const mock = makeMockSupabase({ data: BASE_ROW, error: null })
       const result = await saveIntakeAnswer(mock, {
         sessionId:         'session-uuid-1',
+        memberId:          'member-uuid-1',
         questionId:        'arrival_emotion',
         sectionNumber:     0,
         value:             'calm',
@@ -58,6 +59,7 @@ describe('saveIntakeAnswer', () => {
       const mock = makeMockSupabase({ data: BASE_ROW, error: null })
       await saveIntakeAnswer(mock, {
         sessionId:     'session-uuid-1',
+        memberId:      'member-uuid-1',
         questionId:    'arrival_emotion',
         sectionNumber: 0,
         value:         'calm',
@@ -69,6 +71,7 @@ describe('saveIntakeAnswer', () => {
       const mock = makeMockSupabase({ data: BASE_ROW, error: null })
       await saveIntakeAnswer(mock, {
         sessionId:     'session-uuid-1',
+        memberId:      'member-uuid-1',
         questionId:    'gi_severity',
         sectionNumber: 2,
         value:         7,
@@ -83,6 +86,7 @@ describe('saveIntakeAnswer', () => {
       const mock = makeMockSupabase({ data: BASE_ROW, error: null })
       await saveIntakeAnswer(mock, {
         sessionId:     's1',
+        memberId:      'm1',
         questionId:    'q1',
         sectionNumber: 0,
         value:         'x',
@@ -97,6 +101,7 @@ describe('saveIntakeAnswer', () => {
       const mock = makeMockSupabase({ data: updatedRow, error: null })
       const result = await saveIntakeAnswer(mock, {
         sessionId:     'session-uuid-1',
+        memberId:      'member-uuid-1',
         questionId:    'arrival_emotion',
         sectionNumber: 0,
         value:         'energised',
@@ -111,6 +116,7 @@ describe('saveIntakeAnswer', () => {
       const mock = makeMockSupabase({ data: BASE_ROW, error: null })
       await saveIntakeAnswer(mock, {
         sessionId:     's1',
+        memberId:      'm1',
         questionId:    'q1',
         sectionNumber: 0,
         value:         'x',
@@ -128,6 +134,7 @@ describe('saveIntakeAnswer', () => {
       const mock = makeMockSupabase({ data: rowWithArray, error: null })
       const result = await saveIntakeAnswer(mock, {
         sessionId:     's1',
+        memberId:      'm1',
         questionId:    'primary_concerns',
         sectionNumber: 1,
         value:         arrayValue,
@@ -146,6 +153,7 @@ describe('saveIntakeAnswer', () => {
       await expect(
         saveIntakeAnswer(mock, {
           sessionId:     's1',
+          memberId:      'm1',
           questionId:    'q1',
           sectionNumber: 0,
           value:         'x',
@@ -161,6 +169,7 @@ describe('saveIntakeAnswer', () => {
       await expect(
         saveIntakeAnswer(mock, {
           sessionId:     's1',
+          memberId:      'm1',
           questionId:    'q1',
           sectionNumber: 0,
           value:         'x',

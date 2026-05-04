@@ -10,6 +10,7 @@ import { sectionIdFromNumber } from './sectionCoercion'
 
 export interface SaveIntakeAnswerInput {
   sessionId:          string
+  memberId:           string   // required — intake_answers.member_id is NOT NULL, no default
   questionId:         string
   sectionNumber:      number
   value:              unknown
@@ -40,6 +41,7 @@ export async function saveIntakeAnswer(
 ): Promise<IntakeAnswerRow> {
   const {
     sessionId,
+    memberId,
     questionId,
     sectionNumber,
     value,
@@ -53,6 +55,7 @@ export async function saveIntakeAnswer(
     .upsert(
       {
         session_id:         sessionId,
+        member_id:          memberId,
         question_id:        questionId,
         // Live schema uses section_id text — convert via sectionCoercion helper
         section_id:         sectionIdFromNumber(sectionNumber),
