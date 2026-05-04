@@ -7,14 +7,19 @@
 // Replaces the scattered session/persistAnswer/setForm logic that was spread
 // across IntakeForm.tsx. All TODO(post-16.2) dual-write notes live here.
 
-import { useState, useCallback, useEffect } from 'react'
-import type { SupabaseClient }              from '@supabase/supabase-js'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import type { SupabaseClient }                       from '@supabase/supabase-js'
 import {
   saveIntakeAnswer,
   getOrCreateIntakeSession,
   sectionNumberFromId,
-} from '@natural-intelligence/db'
+} from '@natural-intelligence/db/intake'
+import type { SaveIntakeAnswerInput } from '@natural-intelligence/db/intake'
 import type { FormState, PersistMeta } from '../types'
+
+// ─── Save status ──────────────────────────────────────────────────────────────
+
+export type SaveStatus = 'idle' | 'saving' | 'error'
 
 // ─── Return type ──────────────────────────────────────────────────────────────
 
@@ -33,6 +38,10 @@ export interface UseIntakeAnswersResult {
   hydrationError: string | null
   /** Highest section number found in DB rows; 0 when no prior answers. */
   resumeSection:  number
+  /** C5.5 — save status for UI indicator */
+  saveStatus:     SaveStatus
+  /** C5.5 — retry the last failed save */
+  retryLastSave:  () => void
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -51,6 +60,17 @@ export function useIntakeAnswers({
   const [isHydrating,    setIsHydrating]    = useState(true)
   const [hydrationError, setHydrationError] = useState<string | null>(null)
   const [resumeSection,  setResumeSection]  = useState(0)
+
+  // C5.5 — save status
+  const [saveStatus,     setSaveStatus]     = useState<SaveStatus>('idle')
+
+  // Pending save counter — when it drops to 0, transition idle (or error).
+  // Using a ref so increment/decrement never cause re-renders on their own.
+  const pendingCount  = useRef(0)
+  // Timer ref for the 800 ms debounce before "saving" appears in the UI
+  const savingTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Stash of the last input for retry
+  const lastInput     = useRef<SaveIntakeAnswerInput | null>(null)
 
   // ── Step 1: Bootstrap session on mount ──────────────────────────────────────
   useEffect(() => {
@@ -118,6 +138,48 @@ export function useIntakeAnswers({
     return () => { cancelled = true }
   }, [sessionId, supabase, initialForm])
 
+  // ── Internal save helper ─────────────────────────────────────────────────────
+  // Shared by setAnswer and retryLastSave. Manages the debounced status transitions.
+
+  const fireSave = useCallback(
+    (input: SaveIntakeAnswerInput) => {
+      lastInput.current = input
+
+      // Increment pending; schedule "saving" indicator after 800 ms debounce
+      pendingCount.current += 1
+      if (savingTimer.current === null) {
+        savingTimer.current = setTimeout(() => {
+          savingTimer.current = null
+          if (pendingCount.current > 0) setSaveStatus('saving')
+        }, 800)
+      }
+
+      saveIntakeAnswer(supabase, input)
+        .then(() => {
+          pendingCount.current = Math.max(0, pendingCount.current - 1)
+          if (pendingCount.current === 0) setSaveStatus('idle')
+        })
+        .catch(err => {
+          pendingCount.current = Math.max(0, pendingCount.current - 1)
+          console.error('[useIntakeAnswers] saveIntakeAnswer failed', {
+            questionId:    input.questionId,
+            sectionNumber: input.sectionNumber,
+            err:           err instanceof Error ? err.message : String(err),
+            code:          (err as { code?: string }).code,
+          })
+          setSaveStatus('error')
+        })
+    },
+    [supabase],
+  )
+
+  // ── retryLastSave ───────────────────────────────────────────────────────────
+  const retryLastSave = useCallback(() => {
+    if (!lastInput.current) return
+    setSaveStatus('idle')   // reset before retry so UI can transition again
+    fireSave(lastInput.current)
+  }, [fireSave])
+
   // ── setAnswer: sync FormState + fire-and-forget DB write ────────────────────
   // TODO(post-16.2): drop dual-write to legacy intake_responses once the
   // synopsis pipeline reads exclusively from intake_answers.
@@ -133,23 +195,16 @@ export function useIntakeAnswers({
 
       if (!sessionId) return   // session not yet bootstrapped; local-only for now
 
-      saveIntakeAnswer(supabase, {
+      fireSave({
         sessionId,
         memberId,
         questionId:  questionId as string,
         sectionNumber,
         value,
         ...meta,
-      }).catch(err => {
-        console.error('[useIntakeAnswers] saveIntakeAnswer failed', {
-          questionId,
-          sectionNumber,
-          err:  err instanceof Error ? err.message : String(err),
-          code: (err as { code?: string }).code,
-        })
       })
     },
-    [sessionId, memberId, supabase],
+    [sessionId, memberId, fireSave],
   )
 
   return {
@@ -160,5 +215,7 @@ export function useIntakeAnswers({
     isHydrating,
     hydrationError,
     resumeSection,
+    saveStatus,
+    retryLastSave,
   }
 }

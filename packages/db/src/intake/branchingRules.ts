@@ -30,6 +30,24 @@ export const BRANCHING_RULES: Rule[] = [
     exclusive: true,
   },
 
+  // Priority 30: between digestive (40) and energy (20), preserving
+  // detectPrimarySystem priority order: digestive > hormonal > energy > cognitive.
+  {
+    id:       'sb_hormonal',
+    when:     {
+      questionId: 'primary_concerns',
+      op:         'contains',
+      value:      [
+        'hormonal', 'pcos', 'oestrogen', 'estrogen', 'progesterone',
+        'menstrual', 'menopause', 'perimenopause', 'endometriosis',
+        'thyroid', 'period', 'cycle issue',
+      ],
+    },
+    activates: { type: 'subBranch', target: 'section2/hormonal', reason: 'Hormonal concern detected' },
+    priority:  30,
+    exclusive: true,
+  },
+
   {
     id:       'sb_energy',
     when:     {

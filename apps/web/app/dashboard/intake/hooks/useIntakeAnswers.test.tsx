@@ -152,4 +152,82 @@ describe('useIntakeAnswers', () => {
     })
   })
 
+  // ── C5.5: saveStatus transitions ─────────────────────────────────────────────
+
+  it('saveStatus starts as idle', () => {
+    const supabase = makeSupabaseMock()
+    const { result } = renderHook(() =>
+      useIntakeAnswers({ supabase, memberId: 'member-1', initialForm: INITIAL_FORM }),
+    )
+    expect(result.current.saveStatus).toBe('idle')
+  })
+
+  it('saveStatus returns to idle after successful save', async () => {
+    vi.mocked(saveIntakeAnswer).mockResolvedValue({} as never)
+    const supabase = makeSupabaseMock()
+    const { result } = renderHook(() =>
+      useIntakeAnswers({ supabase, memberId: 'member-1', initialForm: INITIAL_FORM }),
+    )
+
+    await waitFor(() => expect(result.current.sessionId).toBeTruthy())
+    act(() => { result.current.setAnswer('arrival_emotion', 'hopeful', 0) })
+    await waitFor(() => expect(result.current.saveStatus).toBe('idle'))
+  })
+
+  it('saveStatus transitions to saving after 800 ms debounce when save is pending', async () => {
+    vi.useFakeTimers()
+    // Save never resolves within the timer window
+    vi.mocked(saveIntakeAnswer).mockImplementation(
+      () => new Promise(resolve => setTimeout(resolve, 5000))
+    )
+    const supabase = makeSupabaseMock()
+    const { result } = renderHook(() =>
+      useIntakeAnswers({ supabase, memberId: 'member-1', initialForm: INITIAL_FORM }),
+    )
+
+    await waitFor(() => expect(result.current.sessionId).toBeTruthy())
+    act(() => { result.current.setAnswer('arrival_emotion', 'hopeful', 0) })
+
+    // Before debounce fires — still idle
+    expect(result.current.saveStatus).toBe('idle')
+
+    // Advance past 800 ms threshold
+    act(() => { vi.advanceTimersByTime(801) })
+    expect(result.current.saveStatus).toBe('saving')
+
+    vi.useRealTimers()
+  })
+
+  it('saveStatus transitions to error when save fails', async () => {
+    vi.mocked(saveIntakeAnswer).mockRejectedValueOnce(new Error('network error'))
+    const supabase = makeSupabaseMock()
+    const { result } = renderHook(() =>
+      useIntakeAnswers({ supabase, memberId: 'member-1', initialForm: INITIAL_FORM }),
+    )
+
+    await waitFor(() => expect(result.current.sessionId).toBeTruthy())
+    act(() => { result.current.setAnswer('arrival_emotion', 'hopeful', 0) })
+    await waitFor(() => expect(result.current.saveStatus).toBe('error'))
+  })
+
+  it('retryLastSave re-fires the failed save and returns to idle on success', async () => {
+    const spy = vi.mocked(saveIntakeAnswer)
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockResolvedValueOnce({} as never)
+
+    const supabase = makeSupabaseMock()
+    const { result } = renderHook(() =>
+      useIntakeAnswers({ supabase, memberId: 'member-1', initialForm: INITIAL_FORM }),
+    )
+
+    await waitFor(() => expect(result.current.sessionId).toBeTruthy())
+    act(() => { result.current.setAnswer('arrival_emotion', 'hopeful', 0) })
+    await waitFor(() => expect(result.current.saveStatus).toBe('error'))
+
+    act(() => { result.current.retryLastSave() })
+    await waitFor(() => expect(result.current.saveStatus).toBe('idle'))
+
+    expect(spy).toHaveBeenCalledTimes(2)
+  })
+
 })

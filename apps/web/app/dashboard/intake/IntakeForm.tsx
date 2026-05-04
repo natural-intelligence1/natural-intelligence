@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { saveIntakeSection, completeIntake } from './actions'
 import IntakeVisualScale    from './components/IntakeVisualScale'
 import BristolStoolSelector from './components/BristolStoolSelector'
@@ -9,7 +9,8 @@ import TimingSelector       from './components/TimingSelector'
 import EnergyCurveSelector  from './components/EnergyCurveSelector'
 import CyclePatternSelector from './components/CyclePatternSelector'
 import NumberStepper        from './components/NumberStepper'
-import { createClient }     from '@natural-intelligence/db'
+import { createClient }                  from '@natural-intelligence/db/client'
+import { evaluateRules, BRANCHING_RULES } from '@natural-intelligence/db/intake'
 import { useIntakeAnswers } from './hooks/useIntakeAnswers'
 import type { FormState, PersistMeta, PersistFn } from './types'
 
@@ -334,16 +335,10 @@ function initialState(e: Record<string, unknown> | null): FormState {
   }
 }
 
-function detectPrimarySystem(concerns: string[]): string {
-  if (concerns.some(c => c.toLowerCase().includes('digest') || c.toLowerCase().includes('bloat'))) return 'digestive'
-  if (concerns.some(c => c.toLowerCase().includes('hormonal'))) return 'hormonal'
-  if (concerns.some(c => c.toLowerCase().includes('tired') || c.toLowerCase().includes('fatigue') || c.toLowerCase().includes('exhaust'))) return 'energy'
-  if (concerns.some(c => c.toLowerCase().includes('brain fog') || c.toLowerCase().includes('focus'))) return 'cognitive'
-  return 'general'
-}
+// detectPrimarySystem deleted in C5 — replaced by evaluateRules + BRANCHING_RULES.
+// getSectionData now receives the derived primarySystem from the caller.
 
-function getSectionData(f: FormState, s: number): Record<string, unknown> {
-  const primarySystem = detectPrimarySystem(f.primary_concerns)
+function getSectionData(f: FormState, s: number, primarySystem: string): Record<string, unknown> {
   switch (s) {
     case 1: return { arrival_emotion: f.arrival_emotion || null }
     case 2: return { primary_concerns: f.primary_concerns, concern_duration: f.concern_duration || null, symptom_pattern: f.symptom_pattern || null, primary_system: primarySystem }
@@ -520,11 +515,16 @@ const COGNITIVE_SYMPTOMS = [
   'Slow processing', 'Overwhelmed by tasks', 'Brain fog after eating',
 ]
 
-function Section2({
-  form, setForm, persist,
-}: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; persist: PersistFn }) {
-  const branch = detectPrimarySystem(form.primary_concerns)
+type Section2Branch = 'digestive' | 'hormonal' | 'energy' | 'cognitive' | 'general'
 
+function Section2({
+  branch, form, setForm, persist,
+}: {
+  branch:  Section2Branch
+  form:    FormState
+  setForm: React.Dispatch<React.SetStateAction<FormState>>
+  persist: PersistFn
+}) {
   if (branch === 'digestive') {
     return (
       <div className="space-y-7">
@@ -788,9 +788,8 @@ const PRACTITIONER_OPTIONS = [
 ]
 
 function Section5({
-  form, setForm, persist,
-}: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; persist: PersistFn }) {
-  const isDigestive = detectPrimarySystem(form.primary_concerns) === 'digestive'
+  form, setForm, persist, isDigestive,
+}: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; persist: PersistFn; isDigestive: boolean }) {
   return (
     <div className="space-y-7">
       <SectionHeader section={5} name="Medical" heading="Your health background." subtitle="Share only what you feel comfortable with — everything here is optional." />
@@ -1131,6 +1130,8 @@ export function IntakeForm({
     isHydrating,
     hydrationError,
     resumeSection,
+    saveStatus,
+    retryLastSave,
   } = useIntakeAnswers({ supabase, memberId, initialForm: initialState(existing) })
 
   // C4.3 — jump to the furthest answered section once hydration completes
@@ -1140,6 +1141,26 @@ export function IntakeForm({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHydrating])
+
+  // C5.2 Step B — reactive rule evaluation (replaces detectPrimarySystem)
+  const ruleResult = useMemo(
+    () => evaluateRules(form as unknown as Record<string, unknown>, BRANCHING_RULES),
+    [form],
+  )
+
+  // C5.2 Step C — derive section2 sub-branch from rule evaluation
+  const section2Branch = useMemo<Section2Branch>(() => {
+    const active = ruleResult.activeSubBranches['section2'] ?? []
+    if (active.length === 0) return 'general'
+    return active[0] as Section2Branch
+  }, [ruleResult])
+
+  // isDigestive derived from engine for Section5 Bristol Stool selector
+  const isDigestive = section2Branch === 'digestive'
+
+  // C5.4 — dev rule-trace inspector (dev + ?debug=rules only)
+  const searchParams = useSearchParams()
+  const showDebug    = process.env.NODE_ENV === 'development' && searchParams?.get('debug') === 'rules'
 
   function transition(fn: () => void) {
     setOpacity(0)
@@ -1155,14 +1176,14 @@ export function IntakeForm({
     setSaving(true)
     setError(null)
     try {
-      await saveIntakeSection(getSectionData(form, section + 1), section + 1)
+      await saveIntakeSection(getSectionData(form, section + 1, section2Branch), section + 1)
       transition(() => setSection(s => s + 1))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }
-  }, [form, section])
+  }, [form, section, section2Branch])
 
   const handleBack = useCallback(() => {
     if (section <= 0) return
@@ -1178,14 +1199,14 @@ export function IntakeForm({
     setSaving(true)
     setError(null)
     try {
-      await saveIntakeSection(getSectionData(form, 9), 9)
+      await saveIntakeSection(getSectionData(form, 9, section2Branch), 9)
       await completeIntake({ consent_to_ai_analysis: true, consent_given_at: new Date().toISOString() })
       router.push('/dashboard/synopsis')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setSaving(false)
     }
-  }, [consent, form, router])
+  }, [consent, form, router, section2Branch])
 
   const isSection0  = section === 0
   const isLastSection = section === TOTAL - 1
@@ -1216,10 +1237,10 @@ export function IntakeForm({
       >
         {section === 0 && <Section0 form={form} setForm={setForm} persist={setAnswer} />}
         {section === 1 && <Section1 form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 2 && <Section2 form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 2 && <Section2 branch={section2Branch} form={form} setForm={setForm} persist={setAnswer} />}
         {section === 3 && <Section3 form={form} setForm={setForm} persist={setAnswer} />}
         {section === 4 && <Section4 form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 5 && <Section5 form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 5 && <Section5 form={form} setForm={setForm} persist={setAnswer} isDigestive={isDigestive} />}
         {section === 6 && <Section6 form={form} setForm={setForm} persist={setAnswer} />}
         {section === 7 && <Section7 form={form} setForm={setForm} persist={setAnswer} />}
         {section === 8 && <Section8 form={form} setForm={setForm} persist={setAnswer} />}
@@ -1258,8 +1279,45 @@ export function IntakeForm({
 
       {!isSection0 && (
         <p className="text-xs text-text-muted text-center mt-4">
-          Your progress is saved automatically as you move between sections.
+          {saveStatus === 'saving' && (
+            <span className="italic text-text-secondary">Saving…</span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="text-red-500">
+              Not saved ·{' '}
+              <button type="button" onClick={retryLastSave} className="underline hover:no-underline">Retry</button>
+            </span>
+          )}
+          {saveStatus === 'idle' && 'Your progress is saved automatically as you move between sections.'}
         </p>
+      )}
+
+      {/* C5.4 — dev rule-trace inspector: visible only in dev + ?debug=rules */}
+      {showDebug && (
+        <div className="fixed bottom-4 right-4 max-w-sm max-h-96 overflow-auto rounded border border-border-default bg-surface-raised text-xs p-3 z-50 shadow-lg">
+          <p className="font-semibold mb-2 text-text-primary">Rule trace</p>
+          <p className="text-text-secondary mb-1">
+            <span className="text-text-muted">activeSections: </span>
+            {JSON.stringify(ruleResult.activeSections)}
+          </p>
+          <p className="text-text-secondary mb-1">
+            <span className="text-text-muted">activeSubBranches: </span>
+            {JSON.stringify(ruleResult.activeSubBranches)}
+          </p>
+          <p className="text-text-secondary mb-2">
+            <span className="text-text-muted">flags: </span>
+            {JSON.stringify(ruleResult.flags)}
+          </p>
+          <div className="space-y-1 border-t border-border-default pt-2">
+            {ruleResult.trace.map(t => (
+              <div key={t.ruleId} className="text-text-muted leading-snug">
+                <span className={t.fired ? 'text-text-primary' : ''}>{t.fired ? '✓' : '✗'} {t.ruleId}</span>
+                {t.suppressedBy && <span className="text-text-placeholder"> (suppressed by {t.suppressedBy})</span>}
+                {t.reason && <span> — {t.reason}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )
