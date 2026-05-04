@@ -39,7 +39,7 @@ function bgActive(n: number): string {
 // Text colour inside the active square
 function textActive(n: number): string {
   if (n === 0) return 'text-text-muted'
-  return 'text-white'
+  return 'text-text-inverted'
 }
 
 function zoneLabel(zone: Zone, value: number): string {
