@@ -201,3 +201,71 @@ describe('BRANCHING_RULES — Sprint 16.3 Tier 1 flags', () => {
   })
 
 })
+
+// ─── Sprint 16.3 Tier 1 Commit 2 — flag_menstrual_flow_high ──────────────────
+
+describe('BRANCHING_RULES — flag_menstrual_flow_high (Commit 2)', () => {
+
+  function flags(answers: Record<string, unknown>): string[] {
+    return evaluateRules(answers, BRANCHING_RULES).flags
+  }
+
+  // ── Firing condition: menstrual_flow_heaviness >= 5 ────────────────────────
+
+  it('flag_menstrual_flow_high fires at flow_heaviness = 5 (boundary / Flooding)', () => {
+    expect(flags({ menstrual_flow_heaviness: 5 })).toContain('flag_menstrual_flow_high')
+  })
+
+  // ── Boundary non-firing: below threshold ───────────────────────────────────
+
+  it('flag_menstrual_flow_high does NOT fire at flow_heaviness = 4 (Very heavy)', () => {
+    expect(flags({ menstrual_flow_heaviness: 4 })).not.toContain('flag_menstrual_flow_high')
+  })
+
+  it('flag_menstrual_flow_high does NOT fire when menstrual_flow_heaviness is null', () => {
+    expect(flags({ menstrual_flow_heaviness: null })).not.toContain('flag_menstrual_flow_high')
+  })
+
+  // ── Additive: fires alongside other Tier 1 flags ────────────────────────────
+
+  it('all three Tier 1 flags fire simultaneously when all conditions are met', () => {
+    const result = flags({
+      concern_severity_baseline: 9,
+      post_exertional_worsening: true,
+      menstrual_flow_heaviness:  5,
+    })
+    expect(result).toContain('flag_severity_high')
+    expect(result).toContain('flag_post_exertional_pattern')
+    expect(result).toContain('flag_menstrual_flow_high')
+  })
+
+})
+
+// ─── Sprint 16.3 Tier 1 Commit 2 — showCycleQuestions gate logic ─────────────
+// Gate: menstrual_status is set AND not in { prefer_not_to_say, post_menopause,
+//        surgical_menopause, never_menstruated }
+
+describe('showCycleQuestions gate — menstrual_status values', () => {
+
+  const GATE_EXCLUDED = new Set([
+    'prefer_not_to_say', 'post_menopause', 'surgical_menopause', 'never_menstruated',
+  ])
+  const CYCLE_STATUSES = ['regular_cycles', 'irregular', 'on_hrt', 'on_ocp']
+
+  function showCycle(status: string): boolean {
+    return status !== '' && !GATE_EXCLUDED.has(status)
+  }
+
+  it.each(CYCLE_STATUSES)('shows cycle questions for menstrual_status = %s', status => {
+    expect(showCycle(status)).toBe(true)
+  })
+
+  it.each([...GATE_EXCLUDED])('hides cycle questions for menstrual_status = %s', status => {
+    expect(showCycle(status)).toBe(false)
+  })
+
+  it('hides cycle questions when menstrual_status is empty (unanswered)', () => {
+    expect(showCycle('')).toBe(false)
+  })
+
+})

@@ -323,6 +323,10 @@ function initialState(e: Record<string, unknown> | null): FormState {
     energy_severity:           null,
     // Sprint 16.3 Tier 1 — Section 2 energy
     post_exertional_worsening: null,
+    // Sprint 16.3 Tier 1 — Section 2 hormonal (items 6–8)
+    menstrual_status:          str('menstrual_status'),
+    menstrual_cycle_length:    null,
+    menstrual_flow_heaviness:  null,
     hormonal_symptoms:         [],
     cycle_patterns:            [],
     timeline_last_well:        str('timeline_last_well'),
@@ -390,6 +394,27 @@ const INTAKE_LEVELS: { key: string; label: string }[] = [
   { key: 'moderate', label: 'Moderate' },
   { key: 'high',     label: 'High'     },
 ]
+
+// Item 6: menstrual status options (Step 2.2; perimenopause removed, on_hrt/on_ocp split)
+const MENSTRUAL_STATUS_OPTIONS: { key: string; label: string }[] = [
+  { key: 'regular_cycles',       label: 'Regular cycles'        },
+  { key: 'irregular',            label: 'Irregular cycles'      },
+  { key: 'post_menopause',       label: 'Post-menopause'        },
+  { key: 'surgical_menopause',   label: 'Surgical menopause'    },
+  { key: 'on_hrt',               label: 'On HRT'                },
+  { key: 'on_ocp',               label: 'On the pill (OCP)'     },
+  { key: 'never_menstruated',    label: 'Never menstruated'     },
+  { key: 'prefer_not_to_say',    label: 'Prefer not to say'     },
+]
+
+// Items 7–8: gating — shown only when menstrual_status is NOT in excluded set (R3).
+// Single computed boolean; referenced in both render sites (not inlined twice).
+const MENSTRUAL_GATE_EXCLUDED = new Set([
+  'prefer_not_to_say', 'post_menopause', 'surgical_menopause', 'never_menstruated',
+])
+
+// Item 8: flow heaviness labels for NamedFiveDot (1–5 → Light → Flooding)
+const FLOW_HEAVINESS_LABELS = ['Light', 'Moderate', 'Heavy', 'Very heavy', 'Flooding']
 
 // ─── Arrival emotion acknowledgements ─────────────────────────────────────────
 // B6: approved copy only. No praise, no therapy-speak.
@@ -686,6 +711,11 @@ function Section2({
   }
 
   if (branch === 'hormonal') {
+    // R3: single derived boolean — referenced in both items 7 and 8, not inlined twice
+    const showCycleQuestions = (
+      form.menstrual_status !== '' &&
+      !MENSTRUAL_GATE_EXCLUDED.has(form.menstrual_status)
+    )
     return (
       <div className="space-y-7">
         <SectionHeader section={2} name="Deeper dive" heading="Let's look at hormonal patterns more closely." subtitle="You only need to share what you're comfortable with." />
@@ -704,6 +734,60 @@ function Section2({
             onChange={v => persist('cycle_patterns', v, 2, { clinicalObjective: 'cycle_pattern', mappedSystems: ['hormonal'] })}
           />
         </div>
+
+        {/* Item 6 — Menstrual status (WordChipRow single-select, sensitivity-aware) */}
+        <div>
+          <p className="text-sm font-medium text-text-primary mb-2">
+            What best describes your current menstrual status?{' '}
+            <span className="text-text-muted font-normal">(optional)</span>
+          </p>
+          <WordChipRow
+            options={MENSTRUAL_STATUS_OPTIONS}
+            selected={form.menstrual_status}
+            onChange={v => persist('menstrual_status', v, 2, {
+              clinicalObjective: 'menstrual_status_capture',
+              mappedSystems: ['hormonal'],
+            })}
+          />
+        </div>
+
+        {/* Items 7 + 8 — gated by showCycleQuestions (R3: single derived boolean) */}
+        {showCycleQuestions && (
+          <div className="space-y-6" style={{ animation: 'fadeSlideIn 200ms ease-out' }}>
+            {/* Item 7 — Cycle length (NumberStepper 21–45 default 28) */}
+            <div>
+              <p className="text-sm font-medium text-text-primary mb-3">
+                What is your typical cycle length?
+              </p>
+              <NumberStepper
+                value={form.menstrual_cycle_length}
+                onChange={v => persist('menstrual_cycle_length', v, 2, {
+                  clinicalObjective: 'cycle_length_capture',
+                  mappedSystems: ['hormonal'],
+                })}
+                min={21}
+                max={45}
+                default={28}
+                unit="days"
+              />
+            </div>
+
+            {/* Item 8 — Flow heaviness (NamedFiveDot, labels: Light → Flooding) */}
+            <div>
+              <p className="text-sm font-medium text-text-primary mb-3">
+                How would you describe your typical flow?
+              </p>
+              <NamedFiveDot
+                value={form.menstrual_flow_heaviness}
+                onChange={v => persist('menstrual_flow_heaviness', v, 2, {
+                  clinicalObjective: 'menstrual_flow_capture',
+                  mappedSystems: ['hormonal'],
+                })}
+                labels={FLOW_HEAVINESS_LABELS}
+              />
+            </div>
+          </div>
+        )}
       </div>
     )
   }

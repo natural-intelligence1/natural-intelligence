@@ -141,4 +141,24 @@ export const BRANCHING_RULES: Rule[] = [
     exclusive: false,
   },
 
+  // ── Sprint 16.3 Tier 1 Commit 2 — Hormonal flag ───────────────────────────
+  // R1: flag_<domain>_<descriptor>. R8: type='flag' only. R9: engine untouched.
+  // Fires when menstrual_flow_heaviness reaches 5 (NamedFiveDot max = "Flooding").
+
+  {
+    id:       'flag_menstrual_flow_high',
+    when:     {
+      questionId: 'menstrual_flow_heaviness',
+      op:         'gte',
+      value:      5,
+    },
+    activates: {
+      type:   'flag',
+      target: 'flag_menstrual_flow_high',
+      reason: 'Very heavy or flooding menstrual flow reported — worth discussing with a practitioner',
+    },
+    priority:  40,
+    exclusive: false,
+  },
+
 ]

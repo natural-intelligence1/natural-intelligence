@@ -37,6 +37,11 @@ export interface FormState {
   energy_severity:           number | null
   // Sprint 16.3 Tier 1 — Section 2 energy addition (item 9)
   post_exertional_worsening: boolean | null
+  // Sprint 16.3 Tier 1 — Section 2 hormonal additions (items 6–8)
+  // R3: menstrual gating derived from menstrual_status; not stored separately.
+  menstrual_status:          string
+  menstrual_cycle_length:    number | null
+  menstrual_flow_heaviness:  number | null
   hormonal_symptoms:      string[]
   cycle_patterns:         string[]
   timeline_last_well:     string
