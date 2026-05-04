@@ -104,4 +104,41 @@ export const BRANCHING_RULES: Rule[] = [
     exclusive: false,
   },
 
+  // ── Sprint 16.3 Tier 1 flag rules ─────────────────────────────────────────
+  // R8: all Tier 1 rules activate type='flag' only. No section/sub-branch changes.
+  // R9: evaluateRules, normalizeAnswers, types.ts untouched.
+  // Naming convention: flag_<domain>_<descriptor> (R1).
+
+  {
+    id:       'flag_severity_high',
+    when:     {
+      questionId: 'concern_severity_baseline',
+      op:         'gte',
+      value:      8,
+    },
+    activates: {
+      type:   'flag',
+      target: 'flag_severity_high',
+      reason: 'High impact on daily life reported — worth discussing with a practitioner',
+    },
+    priority:  40,
+    exclusive: false,
+  },
+
+  {
+    id:       'flag_post_exertional_pattern',
+    when:     {
+      questionId: 'post_exertional_worsening',
+      op:         'eq',
+      value:      true,
+    },
+    activates: {
+      type:   'flag',
+      target: 'flag_post_exertional_pattern',
+      reason: 'Post-exertional worsening pattern reported — worth discussing with a practitioner',
+    },
+    priority:  40,
+    exclusive: false,
+  },
+
 ]

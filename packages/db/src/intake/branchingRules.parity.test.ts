@@ -138,3 +138,66 @@ describe('BRANCHING_RULES — section2 branch parity', () => {
   })
 
 })
+
+// ─── Sprint 16.3 Tier 1 flag rules ───────────────────────────────────────────
+// R8: all Tier 1 rules activate type='flag' only.
+// Tests: firing condition + boundary non-firing for each rule.
+
+describe('BRANCHING_RULES — Sprint 16.3 Tier 1 flags', () => {
+
+  function flags(answers: Record<string, unknown>): string[] {
+    return evaluateRules(answers, BRANCHING_RULES).flags
+  }
+
+  // ── flag_severity_high (concern_severity_baseline >= 8) ────────────────────
+
+  it('flag_severity_high fires at baseline = 8 (boundary)', () => {
+    expect(flags({ concern_severity_baseline: 8 })).toContain('flag_severity_high')
+  })
+
+  it('flag_severity_high fires at baseline = 10', () => {
+    expect(flags({ concern_severity_baseline: 10 })).toContain('flag_severity_high')
+  })
+
+  it('flag_severity_high does NOT fire at baseline = 7 (below boundary)', () => {
+    expect(flags({ concern_severity_baseline: 7 })).not.toContain('flag_severity_high')
+  })
+
+  it('flag_severity_high does NOT fire when concern_severity_baseline is null', () => {
+    expect(flags({ concern_severity_baseline: null })).not.toContain('flag_severity_high')
+  })
+
+  // ── flag_post_exertional_pattern (post_exertional_worsening === true) ──────
+
+  it('flag_post_exertional_pattern fires when post_exertional_worsening = true', () => {
+    expect(flags({ post_exertional_worsening: true })).toContain('flag_post_exertional_pattern')
+  })
+
+  it('flag_post_exertional_pattern does NOT fire when post_exertional_worsening = false', () => {
+    expect(flags({ post_exertional_worsening: false })).not.toContain('flag_post_exertional_pattern')
+  })
+
+  it('flag_post_exertional_pattern does NOT fire when post_exertional_worsening is null', () => {
+    expect(flags({ post_exertional_worsening: null })).not.toContain('flag_post_exertional_pattern')
+  })
+
+  // ── Additive behaviour: both flags can fire simultaneously ─────────────────
+
+  it('both flags fire together when both conditions are met', () => {
+    const result = flags({ concern_severity_baseline: 9, post_exertional_worsening: true })
+    expect(result).toContain('flag_severity_high')
+    expect(result).toContain('flag_post_exertional_pattern')
+  })
+
+  // ── Flags do not suppress section2 sub-branch competition ──────────────────
+
+  it('flag_severity_high fires alongside digestive sub-branch (exclusive = false)', () => {
+    const result = evaluateRules(
+      { primary_concerns: ['bloating'], concern_severity_baseline: 9 },
+      BRANCHING_RULES,
+    )
+    expect(result.flags).toContain('flag_severity_high')
+    expect((result.activeSubBranches['section2'] ?? [])[0]).toBe('digestive')
+  })
+
+})

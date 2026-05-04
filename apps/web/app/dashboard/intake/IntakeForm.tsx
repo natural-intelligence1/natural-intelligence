@@ -293,45 +293,65 @@ function initialState(e: Record<string, unknown> | null): FormState {
   const str = (k: string) => (e?.[k] as string | null) ?? ''
   const num = (k: string) => (e?.[k] as number | null) ?? null
   const bol = (k: string) => (e?.[k] as boolean | null) ?? null
+  // R4: FoodSymptomLink is never null — default to empty arrays
+  const fsl = (k: string): import('./types').FoodSymptomLink => {
+    const raw = e?.[k] as { presets?: string[]; custom?: string[] } | null
+    return {
+      presets: raw?.presets ?? [],
+      custom:  raw?.custom  ?? [],
+    }
+  }
   return {
-    arrival_emotion:      str('arrival_emotion'),
-    primary_concerns:     arr('primary_concerns'),
-    concern_duration:     str('concern_duration'),
-    symptom_pattern:      str('symptom_pattern'),
-    systems_reviewed:     arr('systems_reviewed'),
-    gi_bloating:          bol('gi_bloating') as boolean | null,
-    gi_timing:            [],
-    gi_severity:          null,
-    gi_stool_type:        null,
-    energy_low_times:     [],
-    energy_curve:         '',
-    energy_severity:      null,
-    hormonal_symptoms:    [],
-    cycle_patterns:       [],
-    timeline_last_well:   str('timeline_last_well'),
-    timeline_trigger:     str('timeline_trigger'),
-    sleep_hours:          num('sleep_hours'),
-    sleep_quality:        num('sleep_quality'),
-    stress_level:         num('stress_level'),
-    energy_level:         num('energy_level'),
-    exercise_frequency:   str('exercise_frequency'),
-    diet_description:     str('diet_description'),
-    diagnosed_conditions: arr('diagnosed_conditions'),
-    current_medications:  str('current_medications'),
-    current_supplements:  str('current_supplements'),
-    past_treatments:      str('past_treatments'),
-    practitioner_types:   arr('practitioner_types'),
-    surgeries_or_injuries:str('surgeries_or_injuries'),
-    family_history:       arr('family_history'),
-    psychosocial_impact:  str('psychosocial_impact'),
-    psychosocial_worry:   str('psychosocial_worry'),
-    psychosocial_supported: '',
-    health_goals:         arr('health_goals'),
-    timeline_expectation: str('timeline_expectation'),
-    biggest_barrier:      str('biggest_barrier'),
-    readiness_time:       str('readiness_time'),
-    readiness_budget:     str('readiness_budget'),
-    readiness_change:     str('readiness_change'),
+    arrival_emotion:           str('arrival_emotion'),
+    primary_concerns:          arr('primary_concerns'),
+    concern_duration:          str('concern_duration'),
+    symptom_pattern:           str('symptom_pattern'),
+    // Sprint 16.3 Tier 1 — Section 1
+    concern_severity_baseline: num('concern_severity_baseline'),
+    aggravating_factors:       str('aggravating_factors'),
+    relieving_factors:         str('relieving_factors'),
+    systems_reviewed:          arr('systems_reviewed'),
+    gi_bloating:               bol('gi_bloating') as boolean | null,
+    gi_timing:                 [],
+    gi_severity:               null,
+    gi_stool_type:             null,
+    // Sprint 16.3 Tier 1 — Section 2 digestive
+    food_symptom_link:         fsl('food_symptom_link'),
+    gi_stool_frequency:        null,
+    energy_low_times:          [],
+    energy_curve:              '',
+    energy_severity:           null,
+    // Sprint 16.3 Tier 1 — Section 2 energy
+    post_exertional_worsening: null,
+    hormonal_symptoms:         [],
+    cycle_patterns:            [],
+    timeline_last_well:        str('timeline_last_well'),
+    timeline_trigger:          str('timeline_trigger'),
+    sleep_hours:               num('sleep_hours'),
+    sleep_quality:             num('sleep_quality'),
+    stress_level:              num('stress_level'),
+    energy_level:              num('energy_level'),
+    exercise_frequency:        str('exercise_frequency'),
+    diet_description:          str('diet_description'),
+    // Sprint 16.3 Tier 1 — Section 4
+    caffeine_intake:           str('caffeine_intake'),
+    alcohol_intake:            str('alcohol_intake'),
+    diagnosed_conditions:      arr('diagnosed_conditions'),
+    current_medications:       str('current_medications'),
+    current_supplements:       str('current_supplements'),
+    past_treatments:           str('past_treatments'),
+    practitioner_types:        arr('practitioner_types'),
+    surgeries_or_injuries:     str('surgeries_or_injuries'),
+    family_history:            arr('family_history'),
+    psychosocial_impact:       str('psychosocial_impact'),
+    psychosocial_worry:        str('psychosocial_worry'),
+    psychosocial_supported:    '',
+    health_goals:              arr('health_goals'),
+    timeline_expectation:      str('timeline_expectation'),
+    biggest_barrier:           str('biggest_barrier'),
+    readiness_time:            str('readiness_time'),
+    readiness_budget:          str('readiness_budget'),
+    readiness_change:          str('readiness_change'),
   }
 }
 
@@ -352,6 +372,24 @@ function getSectionData(f: FormState, s: number, primarySystem: string): Record<
     default: return {}
   }
 }
+
+// ─── Sprint 16.3 Tier 1 constants ────────────────────────────────────────────
+
+// Item 4: food trigger presets (Section 2 digestive)
+const FOOD_TRIGGER_PRESETS = [
+  'Gluten / wheat', 'Dairy', 'Eggs', 'Onion or garlic',
+  'Legumes / beans', 'High-sugar foods', 'Spicy food',
+  'Fatty foods', 'Alcohol', 'Coffee / caffeine',
+]
+
+// Items 10–11: R6 enum options for caffeine + alcohol (Section 4)
+// Stored value = key ('none'|'low'|'moderate'|'high'). Labels are user-visible only.
+const INTAKE_LEVELS: { key: string; label: string }[] = [
+  { key: 'none',     label: 'None'     },
+  { key: 'low',      label: 'Low'      },
+  { key: 'moderate', label: 'Moderate' },
+  { key: 'high',     label: 'High'     },
+]
 
 // ─── Arrival emotion acknowledgements ─────────────────────────────────────────
 // B6: approved copy only. No praise, no therapy-speak.
@@ -495,6 +533,47 @@ function Section1({
           onChange={v => persist('symptom_pattern', v, 1, { clinicalObjective: 'symptom_pattern' })}
         />
       </div>
+
+      {/* Item 1 — Severity baseline (R2: independent of per-system severities) */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-3">
+          How much is this affecting your daily life right now?
+        </p>
+        <IntakeVisualScale
+          value={form.concern_severity_baseline}
+          onChange={v => persist('concern_severity_baseline', v, 1, { clinicalObjective: 'intake_severity_baseline' })}
+        />
+      </div>
+
+      {/* Item 2 — Aggravating factors (R7: persist on onBlur, not onChange) */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-2">
+          Is there anything that tends to make this worse?{' '}
+          <span className="text-text-muted font-normal">(optional)</span>
+        </p>
+        <WarmTextarea
+          value={form.aggravating_factors}
+          onChange={v => setForm(f => ({ ...f, aggravating_factors: v }))}
+          onBlur={v => persist('aggravating_factors', v, 1, { clinicalObjective: 'aggravating_factor_capture' })}
+          placeholder="e.g. After eating, when stressed, in the evenings…"
+          rows={3}
+        />
+      </div>
+
+      {/* Item 3 — Relieving factors (R7: persist on onBlur, not onChange) */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-2">
+          Is there anything that tends to help or ease it?{' '}
+          <span className="text-text-muted font-normal">(optional)</span>
+        </p>
+        <WarmTextarea
+          value={form.relieving_factors}
+          onChange={v => setForm(f => ({ ...f, relieving_factors: v }))}
+          onBlur={v => persist('relieving_factors', v, 1, { clinicalObjective: 'relieving_factor_capture' })}
+          placeholder="e.g. Rest, avoiding certain foods, heat…"
+          rows={3}
+        />
+      </div>
     </div>
   )
 }
@@ -557,6 +636,51 @@ function Section2({
             </div>
           </div>
         )}
+
+        {/* Item 4 — Food-symptom link (R4: FoodSymptomLink shape, never null) */}
+        <div>
+          <p className="text-sm font-medium text-text-primary mb-2">
+            Do any foods seem to trigger or worsen your symptoms?{' '}
+            <span className="text-text-muted font-normal">(optional)</span>
+          </p>
+          <p className="text-xs text-text-muted mb-3">Select any that apply, or add your own below.</p>
+          <BigChipCloud
+            options={FOOD_TRIGGER_PRESETS}
+            selected={form.food_symptom_link.presets}
+            onChange={v => persist('food_symptom_link', { ...form.food_symptom_link, presets: v }, 2, {
+              clinicalObjective: 'food_symptom_association_capture',
+              mappedSystems: ['gastrointestinal'],
+            })}
+          />
+          <div className="mt-3">
+            <TagInput
+              value={form.food_symptom_link.custom}
+              onChange={v => persist('food_symptom_link', { ...form.food_symptom_link, custom: v }, 2, {
+                clinicalObjective: 'food_symptom_association_capture',
+                mappedSystems: ['gastrointestinal'],
+              })}
+              placeholder="Add another trigger and press Enter"
+            />
+          </div>
+        </div>
+
+        {/* Item 5 — Stool frequency (R7: NumberStepper → persist onChange) */}
+        <div>
+          <p className="text-sm font-medium text-text-primary mb-3">
+            On average, how often do you have a bowel movement?
+          </p>
+          <NumberStepper
+            value={form.gi_stool_frequency}
+            onChange={v => persist('gi_stool_frequency', v, 2, {
+              clinicalObjective: 'bowel_frequency_capture',
+              mappedSystems: ['gastrointestinal'],
+            })}
+            min={0}
+            max={8}
+            default={1}
+            unit="times per day"
+          />
+        </div>
       </div>
     )
   }
@@ -609,6 +733,29 @@ function Section2({
             value={form.energy_severity}
             onChange={v => persist('energy_severity', v, 2, { clinicalObjective: 'severity_assessment', mappedSystems: ['metabolic'] })}
           />
+        </div>
+
+        {/* Item 9 — Post-exertional worsening (R5: exact prompt; R7: BooleanCards → onChange) */}
+        <div>
+          <p className="text-sm font-medium text-text-primary mb-3">
+            Do you feel noticeably worse the day after physical or mental exertion?
+          </p>
+          <BooleanCards
+            value={form.post_exertional_worsening}
+            onChange={v => persist('post_exertional_worsening', v, 2, {
+              clinicalObjective: 'post_exertional_pattern',
+              mappedSystems: ['metabolic'],
+            })}
+            yesLabel="Yes"
+            noLabel="Not really"
+            yesSub="Energy crashes or symptoms worsen"
+            noSub="I recover normally"
+          />
+          {form.post_exertional_worsening === true && (
+            <div className="mt-4" style={{ animation: 'fadeSlideIn 200ms ease-out' }}>
+              <AcknowledgementBanner text="This pattern is worth noting — it can point to specific physiological mechanisms worth exploring with a practitioner." />
+            </div>
+          )}
         </div>
       </div>
     )
@@ -760,6 +907,26 @@ function Section4({
           selected={form.diet_description ? [form.diet_description] : []}
           onChange={v => persist('diet_description', v[0] ?? '', 4, { clinicalObjective: 'dietary_pattern' })}
           multi={false}
+        />
+      </div>
+
+      {/* Item 10 — Caffeine intake (R6: enum 'none'|'low'|'moderate'|'high'; R7: WordChipRow → onChange) */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-3">How much caffeine do you typically have?</p>
+        <WordChipRow
+          options={INTAKE_LEVELS}
+          selected={form.caffeine_intake}
+          onChange={v => persist('caffeine_intake', v, 4, { clinicalObjective: 'caffeine_intake_capture' })}
+        />
+      </div>
+
+      {/* Item 11 — Alcohol intake (R6: same enum; R7: WordChipRow → onChange) */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-3">How much alcohol do you typically have?</p>
+        <WordChipRow
+          options={INTAKE_LEVELS}
+          selected={form.alcohol_intake}
+          onChange={v => persist('alcohol_intake', v, 4, { clinicalObjective: 'alcohol_intake_capture' })}
         />
       </div>
     </div>

@@ -2,21 +2,41 @@
 // Shared types used by IntakeForm and useIntakeAnswers hook.
 // Kept in a separate file to avoid circular imports.
 
+// ─── FoodSymptomLink ─────────────────────────────────────────────────────────
+// R4: answer shape for the food-symptom association question (Section 2 digestive).
+// Both arrays are required — never null. Empty arrays mean "none / not noticed."
+// presets: selected from the predefined chip list (stored in original case).
+// custom:  user-entered free-text items (trimmed, lowercased, deduped at entry).
+
+export interface FoodSymptomLink {
+  presets: string[]
+  custom:  string[]
+}
+
 // ─── FormState ────────────────────────────────────────────────────────────────
 
 export interface FormState {
-  arrival_emotion:        string
-  primary_concerns:       string[]
-  concern_duration:       string
-  symptom_pattern:        string
+  arrival_emotion:           string
+  primary_concerns:          string[]
+  concern_duration:          string
+  symptom_pattern:           string
+  // Sprint 16.3 Tier 1 — Section 1 additions (items 1–3)
+  concern_severity_baseline: number | null
+  aggravating_factors:       string
+  relieving_factors:         string
   systems_reviewed:       string[]
   gi_bloating:            boolean | null
   gi_timing:              string[]
   gi_severity:            number | null
   gi_stool_type:          number | null
-  energy_low_times:       string[]
-  energy_curve:           string
-  energy_severity:        number | null
+  // Sprint 16.3 Tier 1 — Section 2 digestive additions (items 4–5)
+  food_symptom_link:      FoodSymptomLink          // R4: never null; { presets:[], custom:[] } = no link
+  gi_stool_frequency:     number | null
+  energy_low_times:          string[]
+  energy_curve:              string
+  energy_severity:           number | null
+  // Sprint 16.3 Tier 1 — Section 2 energy addition (item 9)
+  post_exertional_worsening: boolean | null
   hormonal_symptoms:      string[]
   cycle_patterns:         string[]
   timeline_last_well:     string
@@ -27,6 +47,10 @@ export interface FormState {
   energy_level:           number | null
   exercise_frequency:     string
   diet_description:       string
+  // Sprint 16.3 Tier 1 — Section 4 additions (items 10–11)
+  // R6: stored as enum 'none'|'low'|'moderate'|'high'; '' = unanswered
+  caffeine_intake:        string
+  alcohol_intake:         string
   diagnosed_conditions:   string[]
   current_medications:    string
   current_supplements:    string
