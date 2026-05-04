@@ -8,6 +8,7 @@ import BristolStoolSelector from './components/BristolStoolSelector'
 import TimingSelector       from './components/TimingSelector'
 import EnergyCurveSelector  from './components/EnergyCurveSelector'
 import CyclePatternSelector from './components/CyclePatternSelector'
+import NumberStepper        from './components/NumberStepper'
 
 // ─── Journey nodes ────────────────────────────────────────────────────────────
 
@@ -102,12 +103,24 @@ function BigChipCloud({
 }
 
 // ─── Emoji card grid ──────────────────────────────────────────────────────────
+// B2: token-aligned selected/hover/default states.
+// B7: emoji wrapped in ni-muted-emoji / ni-muted-emoji-active for consistent
+//     desaturated register across all card grids.
+// className prop: overrides grid layout class when responsive behaviour is
+//   needed (e.g. arrival emotion grid — B5).
 
 interface EmojiOption { key: string; icon: string; label: string; sub?: string }
 
 function EmojiCardGrid({
-  options, selected, onChange, cols = 4, single = true,
-}: { options: EmojiOption[]; selected: string[]; onChange: (v: string[]) => void; cols?: number; single?: boolean }) {
+  options, selected, onChange, cols = 4, single = true, className,
+}: {
+  options:    EmojiOption[]
+  selected:   string[]
+  onChange:   (v: string[]) => void
+  cols?:      number
+  single?:    boolean
+  className?: string
+}) {
   function toggle(key: string) {
     if (single) {
       onChange(selected.includes(key) ? [] : [key])
@@ -121,54 +134,26 @@ function EmojiCardGrid({
     4: 'grid grid-cols-4 gap-2',
     5: 'flex flex-wrap gap-2',
   }
+  const wrapperClass = className ?? (gridClass[cols] ?? 'flex flex-wrap gap-2')
   return (
-    <div className={gridClass[cols] ?? 'flex flex-wrap gap-2'}>
+    <div className={wrapperClass}>
       {options.map(({ key, icon, label, sub }) => {
         const sel = selected.includes(key)
         return (
           <button key={key} type="button" onClick={() => toggle(key)}
-            className={`flex flex-col items-center gap-3 rounded-2xl border px-5 py-5 cursor-pointer transition-all text-center ${
-              sel ? 'bg-[#F8F1E4] border-[#B8935A] text-[#633806]' : 'bg-surface-raised border-border-default text-text-secondary hover:border-[#B8935A] hover:text-text-primary'
+            className={`flex flex-col items-center gap-3 rounded-lg border px-5 py-5 cursor-pointer transition-all text-center ${
+              sel
+                ? 'bg-brand-ultra border-brand-default text-text-brand shadow-sm'
+                : 'bg-surface-raised border-border-default text-text-primary hover:border-brand-default hover:bg-brand-ultra/40'
             }`}
           >
-            <span style={{ fontSize: 32, lineHeight: 1 }}>{icon}</span>
+            {/* B7: ni-muted-emoji / ni-muted-emoji-active on every emoji */}
+            <span className={sel ? 'ni-muted-emoji-active' : 'ni-muted-emoji'} style={{ fontSize: 32, lineHeight: 1 }} aria-hidden="true">{icon}</span>
             <span className="text-sm font-medium leading-tight">{label}</span>
-            {sub && <span className="text-[11px] text-text-muted leading-tight">{sub}</span>}
+            {sub && <span className="text-xs text-text-muted leading-tight">{sub}</span>}
           </button>
         )
       })}
-    </div>
-  )
-}
-
-// ─── Moon sleep selector ──────────────────────────────────────────────────────
-
-function MoonSelector({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
-  const hours = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-  const display = value ?? null
-  const note = value === null ? null
-    : value <= 5 ? 'Short sleep duration can significantly impact health and recovery.'
-    : value <= 6 ? 'Slightly below most adults\' optimal range.'
-    : value <= 9 ? 'Good sleep duration for most adults.'
-    : 'Long sleep can sometimes indicate fatigue or other factors worth exploring.'
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-2 flex-wrap">
-        {hours.map(h => {
-          const filled = display !== null && h <= display
-          return (
-            <button key={h} type="button" onClick={() => onChange(h)}
-              className="text-2xl transition-all"
-              style={{ opacity: filled ? 1 : 0.25, filter: filled ? 'sepia(80%) saturate(200%) hue-rotate(5deg)' : 'none' }}
-              aria-label={`${h} hours`}
-            >🌙</button>
-          )
-        })}
-      </div>
-      {display !== null && (
-        <p className="font-mono text-2xl font-light text-[#633806]">{display} hours</p>
-      )}
-      {note && <p className="text-sm text-text-secondary leading-relaxed">{note}</p>}
     </div>
   )
 }
@@ -400,26 +385,28 @@ function getSectionData(f: FormState, s: number): Record<string, unknown> {
 }
 
 // ─── Arrival emotion acknowledgements ─────────────────────────────────────────
+// B6: approved copy only. No praise, no therapy-speak.
 
 function arrivalAck(emotion: string): string {
   switch (emotion) {
-    case 'frustrated': return 'Thank you for being here despite the frustration. That feeling makes complete sense.'
-    case 'worried':    return 'It takes courage to look into this. You\'re in the right place.'
-    case 'hopeful':    return 'That energy is exactly right for this. Let\'s make the most of it.'
-    case 'curious':    return 'Curiosity is the best starting point. Let\'s explore this together.'
-    case 'exhausted':  return 'I know arriving here when you\'re exhausted takes real effort. Thank you for coming.'
-    default:           return 'Thank you for being here. Let\'s explore this together, at your pace.'
+    case 'frustrated': return 'Thank you — that helps us understand where you are right now. We\'ll take this step by step.'
+    case 'worried':    return 'We\'ll take this step by step. If anything feels uncertain, choose the closest option — you can refine it later.'
+    case 'hopeful':    return 'Thank you — that helps us understand where to begin. We\'ll take this step by step.'
+    case 'curious':    return 'Thank you — that helps us understand the pattern more clearly.'
+    case 'exhausted':  return 'We\'ll take this step by step. There\'s no need to rush — take as much time as you need.'
+    default:           return 'We\'ll take this step by step.'
   }
 }
 
 // ─── Section 0 — Arrival ──────────────────────────────────────────────────────
+// B5: sentence labels — value enums (keys) unchanged.
 
 const ARRIVAL_EMOTIONS: EmojiOption[] = [
-  { key: 'hopeful',    icon: '😌', label: 'Hopeful'    },
-  { key: 'frustrated', icon: '😤', label: 'Frustrated'  },
-  { key: 'worried',    icon: '😟', label: 'Worried'     },
-  { key: 'curious',    icon: '🤔', label: 'Curious'     },
-  { key: 'exhausted',  icon: '😞', label: 'Exhausted'   },
+  { key: 'hopeful',    icon: '😌', label: "I'm looking for clarity and progress" },
+  { key: 'frustrated', icon: '😤', label: "I feel stuck and want answers"         },
+  { key: 'worried',    icon: '😟', label: "I'm concerned about what's happening"  },
+  { key: 'curious',    icon: '🤔', label: "I want to understand my patterns"      },
+  { key: 'exhausted',  icon: '😞', label: "I feel drained and need support"       },
 ]
 
 function Section0({ form, setForm }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>> }) {
@@ -443,12 +430,15 @@ function Section0({ form, setForm }: { form: FormState; setForm: React.Dispatch<
         <p className="text-[11px] uppercase tracking-[0.14em] text-[#B8935A] font-medium mb-4">
           How are you feeling arriving here today?
         </p>
+        {/* B5: responsive grid — single at xs, 2-col at sm, 5-col at md+.
+              min-h-32 (8rem / 128px) is the closest token-aligned spacing to 130px. */}
         <EmojiCardGrid
           options={ARRIVAL_EMOTIONS}
           selected={form.arrival_emotion ? [form.arrival_emotion] : []}
           onChange={v => setForm(f => ({ ...f, arrival_emotion: v[0] ?? '' }))}
           cols={5}
           single={true}
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 [&>button]:min-h-32"
         />
       </div>
     </div>
@@ -471,12 +461,38 @@ const DURATION_EMOJIS: EmojiOption[] = [
   { key: 'most_my_life', icon: '∞',  label: 'Most of my life'},
 ]
 
-const PATTERN_EMOJIS: EmojiOption[] = [
-  { key: 'always',     icon: '📍', label: 'Always there'      },
-  { key: 'comes_goes', icon: '〰', label: 'Comes and goes'    },
-  { key: 'worsening',  icon: '📉', label: 'Getting worse'     },
-  { key: 'improving',  icon: '📈', label: 'Slowly improving'  },
+// B3: word-only chip data — ambiguous graph emoji (📈 📉 〰 📍) removed.
+// Plain sentence labels carry the meaning without directional glyphs.
+const PATTERN_WORDS: { key: string; label: string }[] = [
+  { key: 'always',     label: 'Constant — always there'    },
+  { key: 'comes_goes', label: 'Comes and goes in waves'    },
+  { key: 'improving',  label: 'Slowly improving'           },
+  { key: 'worsening',  label: 'Gradually worsening'        },
 ]
+
+// Word-only chip row — no icons, no glyphs. Token-aligned card styling.
+function WordChipRow({
+  options, selected, onChange,
+}: { options: { key: string; label: string }[]; selected: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map(({ key, label }) => {
+        const sel = selected === key
+        return (
+          <button key={key} type="button" onClick={() => onChange(sel ? '' : key)}
+            className={`px-4 py-2.5 rounded-lg border text-sm transition-all cursor-pointer ${
+              sel
+                ? 'bg-brand-ultra border-brand-default text-text-brand shadow-sm font-medium'
+                : 'bg-surface-raised border-border-default text-text-primary hover:border-brand-default hover:bg-brand-ultra/40'
+            }`}
+          >
+            {label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 function Section1({ form, setForm }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>> }) {
   return (
@@ -500,11 +516,10 @@ function Section1({ form, setForm }: { form: FormState; setForm: React.Dispatch<
       </div>
       <div>
         <p className="text-sm font-medium text-text-primary mb-3">How does it tend to show up?</p>
-        <EmojiCardGrid
-          options={PATTERN_EMOJIS}
-          selected={form.symptom_pattern ? [form.symptom_pattern] : []}
-          onChange={v => setForm(f => ({ ...f, symptom_pattern: v[0] ?? '' }))}
-          cols={4}
+        <WordChipRow
+          options={PATTERN_WORDS}
+          selected={form.symptom_pattern}
+          onChange={v => setForm(f => ({ ...f, symptom_pattern: v }))}
         />
       </div>
     </div>
@@ -664,7 +679,7 @@ function Section3({ form, setForm }: { form: FormState; setForm: React.Dispatch<
   return (
     <div className="space-y-7">
       <SectionHeader section={3} name="Timeline" heading="When did things change?" subtitle="Sometimes understanding when is as revealing as what." />
-      <AcknowledgementBanner text="Sometimes understanding when things changed is as important as what changed. Take your time with this — it can feel heavy to look back." />
+      <AcknowledgementBanner text="Some details may take you back through your health history. Take your time." />
       <div>
         <p className="text-sm font-medium text-text-primary mb-3">When did you last feel genuinely well?</p>
         <EmojiCardGrid
@@ -707,12 +722,17 @@ function Section4({ form, setForm }: { form: FormState; setForm: React.Dispatch<
   return (
     <div className="space-y-8">
       <SectionHeader section={4} name="Daily life" heading="How you live day to day." subtitle="Small details here can reveal big patterns." />
-      <AcknowledgementBanner text="You're doing really well. This is exactly the kind of information that makes a real difference." />
+      <AcknowledgementBanner text="This information helps build a fuller picture of what may be influencing your health." />
       <div>
         <p className="text-sm font-medium text-text-primary mb-3">How much sleep do you get?</p>
-        <MoonSelector
+        {/* B4: NumberStepper replaces MoonSelector — [−] 7 hours [+] */}
+        <NumberStepper
           value={form.sleep_hours}
           onChange={v => setForm(f => ({ ...f, sleep_hours: v }))}
+          min={0}
+          max={12}
+          default={7}
+          unit="hours"
         />
       </div>
       <div>
@@ -787,7 +807,7 @@ function Section5({ form, setForm }: { form: FormState; setForm: React.Dispatch<
   return (
     <div className="space-y-7">
       <SectionHeader section={5} name="Medical" heading="Your health background." subtitle="Share only what you feel comfortable with — everything here is optional." />
-      <AcknowledgementBanner text="Now some background — share only what you feel comfortable with. Everything here is entirely optional and completely private." />
+      <AcknowledgementBanner text="If anything feels uncertain, choose the closest option — you can refine it later." />
       <div>
         <p className="text-sm font-medium text-text-primary mb-2">Any existing diagnoses or conditions?</p>
         <TagInput
@@ -898,7 +918,7 @@ function Section7({ form, setForm }: { form: FormState; setForm: React.Dispatch<
   return (
     <div className="space-y-7">
       <SectionHeader section={7} name="Goals" heading="What does getting well look like for you?" subtitle="Let's finish by looking forward." />
-      <AcknowledgementBanner text="You've been incredibly open — thank you. Let's finish by looking forward." />
+      <AcknowledgementBanner text="Thank you — that helps us understand the pattern more clearly. We'll take this step by step." />
       <div>
         <p className="text-sm font-medium text-text-primary mb-3">What do you most want to achieve?</p>
         <BigChipCloud options={GOAL_OPTIONS} selected={form.health_goals} onChange={v => setForm(f => ({ ...f, health_goals: v }))} />

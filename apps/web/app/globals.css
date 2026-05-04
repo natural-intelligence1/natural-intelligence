@@ -81,3 +81,21 @@
     transform: scale(1.02) rotate(-90deg);
   }
 }
+
+/* ── Intake form: muted emoji treatment ──────────────────────────────────────
+   Applied to every emoji rendered in the intake and follow-up forms.
+   ni-muted-emoji: unselected state — desaturated and dimmed.
+   ni-muted-emoji-active: selected state — gently restored.
+   No bounce, no scale. Calm, restrained register throughout.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.ni-muted-emoji {
+  filter: grayscale(0.85) saturate(0.55);
+  opacity: 0.72;
+  transition: filter 0.2s, opacity 0.2s;
+}
+
+.ni-muted-emoji-active {
+  filter: grayscale(0.35) saturate(0.75);
+  opacity: 0.9;
+}
