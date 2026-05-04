@@ -65,6 +65,59 @@ export type Database = {
           },
         ]
       }
+      ai_summaries: {
+        Row: {
+          id: string
+          member_id: string
+          summary_type: string
+          content: string
+          content_short: string | null
+          source_intake_id: string | null
+          model_used: string | null
+          confidence: string | null
+          is_current: boolean | null
+          member_rating: number | null
+          generated_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          member_id: string
+          summary_type: string
+          content: string
+          content_short?: string | null
+          source_intake_id?: string | null
+          model_used?: string | null
+          confidence?: string | null
+          is_current?: boolean | null
+          member_rating?: number | null
+          generated_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          member_id?: string
+          summary_type?: string
+          content?: string
+          content_short?: string | null
+          source_intake_id?: string | null
+          model_used?: string | null
+          confidence?: string | null
+          is_current?: boolean | null
+          member_rating?: number | null
+          generated_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_summaries_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -609,6 +662,110 @@ export type Database = {
           zone_5_max?: number | null
         }
         Relationships: []
+      }
+      intake_responses: {
+        Row: {
+          id: string
+          member_id: string
+          completed_sections: number | null
+          is_complete: boolean | null
+          chief_complaints: string[] | null
+          complaint_duration: string | null
+          complaint_severity: number | null
+          existing_conditions: string[] | null
+          current_medications: string | null
+          current_supplements: string | null
+          previous_practitioners: string[] | null
+          previous_treatments: string | null
+          diet_type: string | null
+          exercise_frequency: string | null
+          sleep_hours: number | null
+          stress_level: number | null
+          alcohol_frequency: string | null
+          smoking_status: string | null
+          energy_level: number | null
+          mood_level: number | null
+          digestion_level: number | null
+          cognitive_level: number | null
+          family_history: string | null
+          health_goals: string[] | null
+          additional_notes: string | null
+          consent_to_ai_analysis: boolean | null
+          consent_given_at: string | null
+          updated_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          member_id: string
+          completed_sections?: number | null
+          is_complete?: boolean | null
+          chief_complaints?: string[] | null
+          complaint_duration?: string | null
+          complaint_severity?: number | null
+          existing_conditions?: string[] | null
+          current_medications?: string | null
+          current_supplements?: string | null
+          previous_practitioners?: string[] | null
+          previous_treatments?: string | null
+          diet_type?: string | null
+          exercise_frequency?: string | null
+          sleep_hours?: number | null
+          stress_level?: number | null
+          alcohol_frequency?: string | null
+          smoking_status?: string | null
+          energy_level?: number | null
+          mood_level?: number | null
+          digestion_level?: number | null
+          cognitive_level?: number | null
+          family_history?: string | null
+          health_goals?: string[] | null
+          additional_notes?: string | null
+          consent_to_ai_analysis?: boolean | null
+          consent_given_at?: string | null
+          updated_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          member_id?: string
+          completed_sections?: number | null
+          is_complete?: boolean | null
+          chief_complaints?: string[] | null
+          complaint_duration?: string | null
+          complaint_severity?: number | null
+          existing_conditions?: string[] | null
+          current_medications?: string | null
+          current_supplements?: string | null
+          previous_practitioners?: string[] | null
+          previous_treatments?: string | null
+          diet_type?: string | null
+          exercise_frequency?: string | null
+          sleep_hours?: number | null
+          stress_level?: number | null
+          alcohol_frequency?: string | null
+          smoking_status?: string | null
+          energy_level?: number | null
+          mood_level?: number | null
+          digestion_level?: number | null
+          cognitive_level?: number | null
+          family_history?: string | null
+          health_goals?: string[] | null
+          additional_notes?: string | null
+          consent_to_ai_analysis?: boolean | null
+          consent_given_at?: string | null
+          updated_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_responses_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lab_reports: {
         Row: {

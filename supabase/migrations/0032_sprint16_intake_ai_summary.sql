@@ -1,0 +1,28 @@
+-- Sprint 16 — record-only migration (tables already applied to live DB via MCP)
+--
+-- Two new tables created during Sprint 16 (Clinical Intake + AI Health Synopsis):
+--
+-- 1. intake_responses
+--    Stores member health intake form data across 6 sections.
+--    Fields: chief_complaints (text[]), complaint_duration, complaint_severity,
+--    existing_conditions (text[]), current_medications, current_supplements,
+--    previous_practitioners (text[]), previous_treatments,
+--    diet_type, exercise_frequency, sleep_hours, stress_level,
+--    alcohol_frequency, smoking_status,
+--    energy_level, mood_level, digestion_level, cognitive_level,
+--    family_history, health_goals (text[]), additional_notes,
+--    consent_to_ai_analysis (bool), consent_given_at (timestamptz),
+--    completed_sections (int), is_complete (bool),
+--    member_id (uuid FK → profiles.id), created_at, updated_at.
+--    RLS: members can read/write their own rows only.
+--
+-- 2. ai_summaries
+--    Stores AI-generated health synopsis records.
+--    Fields: member_id (uuid FK → profiles.id), summary_type (text),
+--    content (text), content_short (text), source_intake_id (uuid),
+--    model_used (text), confidence (text), is_current (bool),
+--    member_rating (int 1–5), generated_at (timestamptz), created_at.
+--    Only one row per member per summary_type may have is_current = true.
+--    RLS: members can read their own rows; inserts/updates via service_role only.
+--
+-- No further action required — this migration is a no-op if run against the live DB.

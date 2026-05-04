@@ -47,6 +47,24 @@ export default async function DashboardPage() {
   const adminClient = createAdminClient()
   const today = new Date().toISOString().split('T')[0]
 
+  // Health synopsis + intake status
+  const [{ data: intakeRow }, { data: synopsisRow }] = await Promise.all([
+    adminClient
+      .from('intake_responses')
+      .select('id, completed_sections, is_complete')
+      .eq('member_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    adminClient
+      .from('ai_summaries')
+      .select('id, content_short, confidence, generated_at')
+      .eq('member_id', user.id)
+      .eq('summary_type', 'health_synopsis')
+      .eq('is_current', true)
+      .maybeSingle(),
+  ])
+
   const { data: activeProtocol } = await adminClient
     .from('member_protocols')
     .select('id, name, started_at, template_id, protocol_templates(duration_weeks)')
@@ -118,6 +136,71 @@ export default async function DashboardPage() {
             </h1>
             <p className="text-sm text-text-muted">{user.email}</p>
           </div>
+
+          {/* ── Health synopsis card ─────────────────────────────────────────── */}
+          {synopsisRow ? (
+            // Sub-state 3: Synopsis ready
+            <section className="rounded-xl border border-[#D4B07A] bg-[#F8F1E4] p-6 mb-8">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div>
+                  <p className="text-xs font-semibold text-[#633806] uppercase tracking-wider mb-1">Health synopsis</p>
+                  <p className="text-sm text-[#633806] leading-relaxed line-clamp-3">
+                    {synopsisRow.content_short ?? 'Your personalised health overview is ready.'}
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/dashboard/synopsis"
+                className="inline-block text-sm font-medium text-[#633806] hover:underline"
+              >
+                Read your full synopsis →
+              </Link>
+            </section>
+          ) : intakeRow?.is_complete ? (
+            // Sub-state 2: Intake complete, synopsis generating
+            <section className="rounded-xl border border-[#D4B07A] bg-[#F8F1E4] p-6 mb-8">
+              <p className="text-xs font-semibold text-[#633806] uppercase tracking-wider mb-1">Health synopsis</p>
+              <p className="text-sm text-[#633806] leading-relaxed mb-3">
+                Your intake is complete. Claude is generating your personalised health overview…
+              </p>
+              <Link
+                href="/dashboard/synopsis"
+                className="inline-block text-sm font-medium text-[#633806] hover:underline"
+              >
+                View progress →
+              </Link>
+            </section>
+          ) : (
+            // Sub-state 1: No intake yet (or in progress)
+            <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div>
+                  <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">Health synopsis</p>
+                  <h3 className="text-sm font-semibold text-text-primary mb-1">Get your personalised health overview</h3>
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    Complete a 5-minute health intake and Claude will synthesise your symptoms, labs, and root causes into a clear health picture.
+                  </p>
+                </div>
+              </div>
+              {intakeRow && !intakeRow.is_complete && (
+                <div className="mb-3">
+                  <div className="h-1.5 w-full rounded-full bg-surface-muted overflow-hidden mb-1">
+                    <div
+                      className="h-full rounded-full bg-brand-default transition-all"
+                      style={{ width: `${Math.round(((intakeRow.completed_sections ?? 0) / 6) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-text-muted">{intakeRow.completed_sections ?? 0}/6 sections complete</p>
+                </div>
+              )}
+              <Link
+                href="/dashboard/intake"
+                className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
+              >
+                {intakeRow ? 'Continue intake →' : 'Start health intake →'}
+              </Link>
+            </section>
+          )}
 
           {/* ── Getting started card (shown until first action taken) ──────── */}
           {!application &&

@@ -11,10 +11,12 @@ interface NavLink {
 }
 
 const memberLinks: NavLink[] = [
-  { label: 'Overview',     href: '/dashboard',             exact: true  },
-  { label: 'My workshops', href: '/dashboard/workshops'                  },
-  { label: 'My requests',  href: '/dashboard/requests'                   },
-  { label: 'BioHub',       href: '/dashboard/biohub'                    },
+  { label: 'Overview',      href: '/dashboard',             exact: true  },
+  { label: 'Health intake', href: '/dashboard/intake'                    },
+  { label: 'My synopsis',   href: '/dashboard/synopsis'                  },
+  { label: 'My workshops',  href: '/dashboard/workshops'                  },
+  { label: 'My requests',   href: '/dashboard/requests'                   },
+  { label: 'BioHub',        href: '/dashboard/biohub'                    },
   { label: 'RootFinder',   href: '/dashboard/rootfinder'                 },
   { label: 'DailyPath',    href: '/dashboard/dailypath'                  },
   { label: 'Trajectory',   href: '/dashboard/trajectory'                 },
