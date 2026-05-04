@@ -212,6 +212,54 @@ describe('C4.1 — C3 persistence smoke test', () => {
     console.log(`[smoke] Step 7 ✅ new session created after completion: ${session2Id}`)
   })
 
+  // ── Step 7b: Hydration round-trip — mirrors useIntakeAnswers hydration ────────
+  // Smoke step 10 equivalent: write answers, then re-read + patch FormState the
+  // same way the hook does. Verifies intake_answers → FormState reconstruction.
+
+  it('Step 7b: Hydration round-trip — query reads back all 5 answers and builds patch', async () => {
+    // session1Id is now completed, but answers are still present (status only
+    // marks intake completion; rows are never deleted until afterAll cleanup).
+    const { data, error } = await admin
+      .from('intake_answers')
+      .select('question_id, answer, section_id')
+      .eq('session_id', session1Id)
+
+    expect(error).toBeNull()
+    expect(data).not.toBeNull()
+
+    // We wrote 5 rows; step 4 upserted __smoke_arrival_emotion__ from 'hopeful'
+    // to 'curious' — still 5 rows total.
+    expect(data!.length).toBe(5)
+
+    // Build FormState patch the same way useIntakeAnswers hydration does
+    const knownQuestionIds = new Set([
+      '__smoke_arrival_emotion__', '__smoke_primary_concerns__',
+      '__smoke_concern_duration__', '__smoke_sleep_hours__', '__smoke_gi_severity__',
+    ])
+
+    const patch: Record<string, unknown> = {}
+    let maxSection = 0
+
+    for (const row of data!) {
+      if (!knownQuestionIds.has(row.question_id)) continue
+      patch[row.question_id] = row.answer
+      const sn = parseInt(String(row.section_id).replace(/\D/g, ''), 10)
+      if (!isNaN(sn) && sn > maxSection) maxSection = sn
+    }
+
+    // Verify patch contains the upserted value (curious, not original hopeful)
+    expect(patch['__smoke_arrival_emotion__']).toBe('curious')
+    expect(patch['__smoke_primary_concerns__']).toEqual(['fatigue', 'bloating'])
+    expect(patch['__smoke_concern_duration__']).toBe('months')
+    expect(patch['__smoke_sleep_hours__']).toBe(7)
+    expect(patch['__smoke_gi_severity__']).toBe(6)
+
+    // maxSection should be 4 (__smoke_sleep_hours__ section_number=4 → section_id='section_4')
+    expect(maxSection).toBe(4)
+
+    console.log(`[smoke] Step 7b ✅ hydration patch correct: ${Object.keys(patch).length} keys, maxSection=${maxSection}`)
+  })
+
   // ── Step 8: cleanup is handled in afterAll ──────────────────────────────────
 
   it('Step 8: afterAll cleanup will delete all test rows', () => {
