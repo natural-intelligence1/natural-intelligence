@@ -1,7 +1,7 @@
 /**
- * Sprint 16.2 C2 Smoke Tests
- * Verified against BRANCHING_RULES seed data.
- * This file is ephemeral — results logged in C2 report, then file removed.
+ * Sprint 16.2 C2/C3 Smoke Tests — BRANCHING_RULES scenarios
+ * Updated in C3.0: fixed urinary target (subBranch systems/urinary)
+ *                  and added 'tum' to digestive needle list.
  */
 import { describe, it, expect } from 'vitest'
 import { evaluateRules } from './evaluateRules'
@@ -42,16 +42,18 @@ describe('C2 Smoke Tests — BRANCHING_RULES', () => {
     expect(result.flags).toContain('red_flag_severity')
   })
 
-  it('D: urinary + tum pain → section2/digestive + systems_urinary section', () => {
+  it('D: urinary + tum pain → section2/digestive + activeSubBranches.systems=[urinary]', () => {
     const result = evaluateRules(
       { primary_concerns: ['urinary issues and tum pain'] },
       BRANCHING_RULES,
     )
-    // 'tum pain' does not contain any digestive needle — but let's check
-    // 'urinary' → sec_urinary fires → systems_urinary in activeSections
-    expect(result.activeSections).toContain('systems_urinary')
-    // 'tum' doesn't match any digestive seed needle, so digestive should NOT fire
-    expect(result.activeSubBranches['section2'] ?? []).not.toContain('digestive')
+    // 'tum' is now in the digestive needle list → section2/digestive fires
+    expect(result.activeSubBranches['section2']).toContain('digestive')
+    // 'urinary' → sb_urinary fires → subBranch systems/urinary
+    // (C3.0 fix: was 'section' type targeting 'systems_urinary'; now subBranch 'systems/urinary')
+    expect(result.activeSubBranches['systems']).toContain('urinary')
+    // Not in activeSections any more
+    expect(result.activeSections).toEqual([])
   })
 
   it('E: empty answers → fully empty result, no errors', () => {

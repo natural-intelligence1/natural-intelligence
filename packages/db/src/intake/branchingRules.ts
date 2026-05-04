@@ -20,7 +20,10 @@ export const BRANCHING_RULES: Rule[] = [
     when:     {
       questionId: 'primary_concerns',
       op:         'contains',
-      value:      ['bloat', 'digest', 'gut', 'bowel', 'constipat', 'diarrh', 'reflux', 'heartburn', 'colon'],
+      value:      [
+        'bloat', 'digest', 'gut', 'bowel', 'constipat', 'diarrh',
+        'reflux', 'heartburn', 'colon', 'stomach', 'tum', 'nausea', 'abdomen',
+      ],
     },
     activates: { type: 'subBranch', target: 'section2/digestive', reason: 'Digestive concern detected' },
     priority:  40,
@@ -55,13 +58,15 @@ export const BRANCHING_RULES: Rule[] = [
   // Exclusive = false: sections fire independently, multiple can activate.
 
   {
-    id:       'sec_urinary',
+    id:       'sb_urinary',
     when:     {
       questionId: 'primary_concerns',
       op:         'contains',
       value:      ['urin', 'bladder', 'kidney'],
     },
-    activates: { type: 'section', target: 'systems_urinary', reason: 'Urinary concern detected' },
+    // type: subBranch so it lands in activeSubBranches['systems'] = ['urinary']
+    // NOT type: section — was incorrectly 'systems_urinary' flat string before
+    activates: { type: 'subBranch', target: 'systems/urinary', reason: 'Urinary concern detected' },
     priority:  10,
     exclusive: false,
   },

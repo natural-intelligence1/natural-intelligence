@@ -1,7 +1,7 @@
 // ─── packages/db/src/intake/index.ts ──────────────────────────────────────────
-// Barrel export for the UI branching engine.
-// Import from '@natural-intelligence/db/intake' or from this barrel.
+// Barrel export for the intake engine (UI branching + storage layer).
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 export type {
   AnswerMap,
   ActivationType,
@@ -13,6 +13,15 @@ export type {
   RuleTraceEntry,
 } from './types'
 
+export type { SaveIntakeAnswerInput, IntakeAnswerRow }  from './saveIntakeAnswer'
+export type { IntakeSessionRow }                        from './getOrCreateIntakeSession'
+
+// ── Engine ────────────────────────────────────────────────────────────────────
 export { normalizeAnswers } from './normalizeAnswers'
 export { evaluateRules }   from './evaluateRules'
 export { BRANCHING_RULES } from './branchingRules'
+
+// ── Storage ───────────────────────────────────────────────────────────────────
+export { saveIntakeAnswer }          from './saveIntakeAnswer'
+export { getOrCreateIntakeSession }  from './getOrCreateIntakeSession'
+export { sectionIdFromNumber, sectionNumberFromId } from './sectionCoercion'
