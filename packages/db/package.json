@@ -10,6 +10,7 @@
   },
   "scripts": {
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@types/node": "^20",
     "typescript": "^5",
-    "supabase": "^2"
+    "supabase": "^2",
+    "vitest": "^2"
   }
 }
