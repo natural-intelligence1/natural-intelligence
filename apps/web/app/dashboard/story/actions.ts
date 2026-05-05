@@ -1,0 +1,344 @@
+'use server'
+
+import Anthropic                                         from '@anthropic-ai/sdk'
+import { revalidatePath }                                from 'next/cache'
+import { createAdminClient }                             from '@natural-intelligence/db'
+import { getOrCreateClientCase, createReasoningTrace }  from '@natural-intelligence/db'
+import type { TraceEntry }                              from '@natural-intelligence/db'
+
+// ─── generateBodyStory ────────────────────────────────────────────────────────
+// Reads the member's intake answers, calls Claude, writes a full reasoning trace
+// (practitioner entries + client_explanation entries), sets status=client_visible.
+//
+// Safe to call multiple times — idempotent at the client_case level.
+// Calling again will create a new trace (revision history preserved).
+
+export async function generateBodyStory(memberId: string): Promise<{
+  status: 'success' | 'insufficient_data' | 'error'
+}> {
+  const adminClient = createAdminClient()
+
+  try {
+    // ── 1. Load intake answers ────────────────────────────────────────────────
+    const [{ data: answers }, { data: intake }, { data: profile }] = await Promise.all([
+      adminClient
+        .from('intake_answers')
+        .select('question_id, answer, mapped_systems')
+        .eq('member_id', memberId)
+        .order('answered_at', { ascending: true }),
+      adminClient
+        .from('intake_responses')
+        .select('primary_concerns, primary_system, is_complete')
+        .eq('member_id', memberId)
+        .eq('is_complete', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      adminClient
+        .from('profiles')
+        .select('full_name')
+        .eq('id', memberId)
+        .single(),
+    ])
+
+    if (!answers || answers.length === 0) {
+      return { status: 'insufficient_data' }
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY not configured')
+    }
+
+    // ── 2. Build prompt from answers ──────────────────────────────────────────
+    const answerMap: Record<string, unknown> = {}
+    for (const row of answers) {
+      answerMap[row.question_id] = row.answer
+    }
+
+    const userPrompt = buildStoryPrompt(answerMap, intake as Record<string, unknown> | null)
+
+    // ── 3. Call Claude ────────────────────────────────────────────────────────
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+    const message = await anthropic.messages.create({
+      model:      'claude-sonnet-4-6',
+      max_tokens: 4096,
+      system:     SYSTEM_PROMPT,
+      messages:   [{ role: 'user', content: userPrompt }],
+    })
+
+    const raw = message.content[0]?.type === 'text' ? message.content[0].text : ''
+    if (!raw) throw new Error('Claude returned empty content')
+
+    // ── 4. Parse structured response ──────────────────────────────────────────
+    const parsed = parseClaudeResponse(raw)
+
+    // ── 5. Create / retrieve client case ─────────────────────────────────────
+    const primaryConcern = Array.isArray(answerMap['primary_concerns'])
+      ? (answerMap['primary_concerns'] as string[])[0]
+      : (answerMap['primary_concerns'] as string | undefined)
+
+    const caseId = await getOrCreateClientCase(adminClient, memberId, {
+      primaryConcern: primaryConcern ?? (intake as any)?.primary_concerns?.[0],
+    })
+
+    // ── 6. Build trace entries ────────────────────────────────────────────────
+    const entries: TraceEntry[] = [
+      // Practitioner-visible reasoning
+      ...parsed.observations.map((obs, i): TraceEntry => ({
+        agent_name:  'case_historian',
+        entry_type:  'observation',
+        content:     obs,
+        system_area: parsed.systems[i % parsed.systems.length] ?? null,
+        visibility:  'practitioner',
+        priority:    i + 1,
+      })),
+      ...parsed.hypotheses.map((h, i): TraceEntry => ({
+        agent_name:     'root_cause',
+        entry_type:     'hypothesis',
+        content:        h.statement,
+        system_area:    h.system,
+        hypothesis_key: h.key,
+        confidence:     h.confidence,
+        visibility:     'practitioner',
+        priority:       i + 1,
+      })),
+      ...parsed.evidence.map((e): TraceEntry => ({
+        agent_name:   'root_cause',
+        entry_type:   'evidence_for',
+        content:      e,
+        visibility:   'practitioner',
+      })),
+      {
+        agent_name:  'root_cause',
+        entry_type:  'weighting',
+        content:     `Primary systems involved: ${parsed.systems.join(', ')}. Leading hypothesis: ${parsed.hypotheses[0]?.key ?? 'general_dysregulation'}.`,
+        visibility:  'practitioner',
+      },
+      {
+        agent_name:  'protocol_builder',
+        entry_type:  'decision',
+        content:     parsed.decision,
+        visibility:  'practitioner',
+      },
+
+      // Client-visible narrative
+      {
+        agent_name:  'protocol_builder',
+        entry_type:  'client_explanation',
+        system_area: 'systems_involved',
+        content:     JSON.stringify(parsed.systems),
+        visibility:  'client',
+      },
+      {
+        agent_name:  'protocol_builder',
+        entry_type:  'client_explanation',
+        system_area: 'body_story',
+        content:     parsed.body_story,
+        visibility:  'client',
+      },
+      {
+        agent_name:  'protocol_builder',
+        entry_type:  'client_explanation',
+        system_area: 'future_self',
+        content:     parsed.future_self,
+        visibility:  'client',
+      },
+    ]
+
+    // ── 7. Write trace to DB ──────────────────────────────────────────────────
+    await createReasoningTrace(adminClient, {
+      caseId,
+      traceType:   'intake_analysis',
+      generatedBy: 'ai',
+      summary:     `Systems: ${parsed.systems.join(', ')}. ${parsed.hypotheses[0]?.statement ?? ''}`,
+      entries,
+    })
+
+    revalidatePath('/dashboard/story')
+    revalidatePath('/dashboard')
+
+    return { status: 'success' }
+
+  } catch (err) {
+    console.error('[generateBodyStory] error:', err)
+    return { status: 'error' }
+  }
+}
+
+// ─── System prompt ────────────────────────────────────────────────────────────
+
+const SYSTEM_PROMPT = `You are a clinical reasoning engine for Natural Intelligence, a UK integrative health platform.
+
+Your task: analyse a member's health intake and generate a structured Clinical Reasoning Trace.
+
+Return ONLY valid JSON — no markdown, no explanation, no preamble. The JSON must match this exact structure:
+
+{
+  "systems": ["system1", "system2"],
+  "observations": ["observation 1", "observation 2", "observation 3"],
+  "hypotheses": [
+    {
+      "key": "hypothesis_key",
+      "statement": "The hypothesis statement",
+      "system": "system_area",
+      "confidence": 0.75
+    }
+  ],
+  "evidence": ["evidence point 1", "evidence point 2"],
+  "decision": "The clinical decision statement explaining what to address and why.",
+  "body_story": "FULL My Body's Story narrative — see format below",
+  "future_self": "FULL Your Future Self narrative — see format below"
+}
+
+SYSTEMS must be 1–2 from: digestion, energy, hormonal, cognitive, immune, nervous_system, metabolic, sleep
+
+BODY_STORY format (follow strictly, plain prose):
+Your symptoms are not random — they appear to be connected.
+
+The pattern we see centres around [1-2 systems].
+
+From [their history], it looks like [mechanism explanation — cause → effect].
+
+This can lead to:
+- [symptom 1]
+- [symptom 2]
+- [symptom 3]
+
+[Behavioural context — food/lifestyle observation].
+
+This doesn't point to a single issue — it points to a system that needs support and rebalancing.
+
+This pattern is more common than it seems — and it's something we can work with.
+
+FUTURE_SELF format (follow strictly, plain prose):
+If we follow this path step by step, here's what we would expect to change over time.
+
+In the first few weeks:
+- [change 1]
+- [change 2]
+- [change 3]
+
+After 4–8 weeks:
+- [change 1]
+- [change 2]
+- [change 3]
+
+Over the following months:
+- [change 1]
+- [change 2]
+- [change 3]
+
+This is not about quick fixes.
+
+It's about giving your body the conditions it needs to stabilise and recover.
+
+We'll adjust the plan as your body responds — so this path stays aligned with you.
+
+TONE RULES:
+- Calm, precise, non-alarmist
+- Intelligent but human
+- No diagnosis language ("you have", "you suffer from", "diagnosed")
+- No certainty language ("will definitely", "guaranteed")
+- No percentages or confidence scores in client text
+- No alarming medical speculation
+- Hopeful but grounded for future_self section`
+
+// ─── Prompt builder ───────────────────────────────────────────────────────────
+
+function buildStoryPrompt(
+  answers: Record<string, unknown>,
+  intake:  Record<string, unknown> | null,
+): string {
+  const lines: string[] = ['=== MEMBER INTAKE ANSWERS ===', '']
+
+  const field = (key: string, label: string) => {
+    const val = answers[key] ?? intake?.[key]
+    if (val === null || val === undefined || val === '') return
+    lines.push(`${label}: ${Array.isArray(val) ? val.join(', ') : String(val)}`)
+  }
+
+  field('arrival_emotion',          'Arrival emotion')
+  field('primary_concerns',         'Primary concerns')
+  field('concern_severity_baseline','Severity impact on daily life (0–10)')
+  field('symptom_onset',            'When symptoms started')
+  field('timeline_last_well',       'Last time felt well')
+  field('timeline_trigger',         'Possible trigger event')
+  field('timeline_trigger_type',    'Trigger type')
+  field('diagnosed_conditions',     'Diagnosed conditions')
+  field('past_treatments',          'Past treatments tried')
+  field('current_medications',      'Current medications')
+  field('current_supplements',      'Current supplements')
+  field('family_history',           'Family history')
+  field('aggravating_factors',      'What makes it worse')
+  field('relieving_factors',        'What makes it better')
+  field('post_exertional_worsening','Symptoms worsen after physical/mental exertion')
+  field('gi_stool_frequency',       'Bowel movements per day')
+  field('food_symptom_link',        'Food-symptom connections')
+  field('diet_description',         'Diet description')
+  field('exercise_frequency',       'Exercise frequency')
+  field('sleep_hours',              'Average sleep hours')
+  field('sleep_quality',            'Sleep quality')
+  field('stress_level',             'Stress level (1–10)')
+  field('caffeine_intake',          'Caffeine intake')
+  field('alcohol_intake',           'Alcohol intake')
+  field('menstrual_status',         'Menstrual status')
+  field('menstrual_cycle_length',   'Menstrual cycle length (days)')
+  field('menstrual_flow_heaviness', 'Menstrual flow heaviness (1–5)')
+  field('psychosocial_worry',       'Main worry/stress')
+  field('psychosocial_impact',      'Emotional/social impact')
+  field('working_with_practitioners','Currently working with practitioners')
+  field('practitioner_types',       'Practitioner types seen')
+  field('health_goals',             'Health goals')
+  field('readiness_change',         'Readiness to change (1–5)')
+  field('timeline_expectation',     'Timeline expectation')
+
+  lines.push('')
+  lines.push('Generate the Clinical Reasoning Trace JSON for this member.')
+
+  return lines.join('\n')
+}
+
+// ─── Response parser ──────────────────────────────────────────────────────────
+
+interface ClaudeStoryResponse {
+  systems:      string[]
+  observations: string[]
+  hypotheses:   Array<{ key: string; statement: string; system: string; confidence: number }>
+  evidence:     string[]
+  decision:     string
+  body_story:   string
+  future_self:  string
+}
+
+function parseClaudeResponse(raw: string): ClaudeStoryResponse {
+  // Strip markdown code fences if present
+  const cleaned = raw
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim()
+
+  let parsed: ClaudeStoryResponse
+
+  try {
+    parsed = JSON.parse(cleaned)
+  } catch {
+    throw new Error(`Claude response was not valid JSON: ${cleaned.slice(0, 200)}`)
+  }
+
+  // Validate required fields
+  if (!parsed.body_story || !parsed.future_self) {
+    throw new Error('Claude response missing body_story or future_self')
+  }
+
+  return {
+    systems:      Array.isArray(parsed.systems)      ? parsed.systems      : [],
+    observations: Array.isArray(parsed.observations) ? parsed.observations : [],
+    hypotheses:   Array.isArray(parsed.hypotheses)   ? parsed.hypotheses   : [],
+    evidence:     Array.isArray(parsed.evidence)     ? parsed.evidence     : [],
+    decision:     parsed.decision     ?? '',
+    body_story:   parsed.body_story,
+    future_self:  parsed.future_self,
+  }
+}

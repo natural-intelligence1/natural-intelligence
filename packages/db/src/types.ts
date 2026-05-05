@@ -52,7 +52,7 @@ export type Database = {
           {
             foreignKeyName: "adherence_streaks_member_id_fkey"
             columns: ["member_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -67,46 +67,61 @@ export type Database = {
       }
       ai_summaries: {
         Row: {
-          id: string
-          member_id: string
-          summary_type: string
-          content: string
-          content_short: string | null
-          source_intake_id: string | null
-          model_used: string | null
-          confidence: string | null
-          is_current: boolean | null
-          member_rating: number | null
-          generated_at: string | null
-          created_at: string | null
+          confidence:        string | null
+          content:           string
+          content_short:     string | null
+          created_at:        string | null
+          expires_at:        string | null
+          generated_at:      string | null
+          id:                string
+          is_current:        boolean | null
+          member_feedback:   string | null
+          member_id:         string
+          member_rating:     number | null
+          model_used:        string | null
+          prompt_version:    number | null
+          source_intake_id:  string | null
+          source_report_ids: string[] | null
+          source_session_ids:string[] | null
+          summary_type:      string
         }
         Insert: {
-          id?: string
-          member_id: string
-          summary_type: string
-          content: string
-          content_short?: string | null
-          source_intake_id?: string | null
-          model_used?: string | null
-          confidence?: string | null
-          is_current?: boolean | null
-          member_rating?: number | null
-          generated_at?: string | null
-          created_at?: string | null
+          confidence?:        string | null
+          content:            string
+          content_short?:     string | null
+          created_at?:        string | null
+          expires_at?:        string | null
+          generated_at?:      string | null
+          id?:                string
+          is_current?:        boolean | null
+          member_feedback?:   string | null
+          member_id:          string
+          member_rating?:     number | null
+          model_used?:        string | null
+          prompt_version?:    number | null
+          source_intake_id?:  string | null
+          source_report_ids?: string[] | null
+          source_session_ids?:string[] | null
+          summary_type:       string
         }
         Update: {
-          id?: string
-          member_id?: string
-          summary_type?: string
-          content?: string
-          content_short?: string | null
-          source_intake_id?: string | null
-          model_used?: string | null
-          confidence?: string | null
-          is_current?: boolean | null
-          member_rating?: number | null
-          generated_at?: string | null
-          created_at?: string | null
+          confidence?:        string | null
+          content?:           string
+          content_short?:     string | null
+          created_at?:        string | null
+          expires_at?:        string | null
+          generated_at?:      string | null
+          id?:                string
+          is_current?:        boolean | null
+          member_feedback?:   string | null
+          member_id?:         string
+          member_rating?:     number | null
+          model_used?:        string | null
+          prompt_version?:    number | null
+          source_intake_id?:  string | null
+          source_report_ids?: string[] | null
+          source_session_ids?:string[] | null
+          summary_type?:      string
         }
         Relationships: [
           {
@@ -116,40 +131,47 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_summaries_source_intake_id_fkey"
+            columns: ["source_intake_id"]
+            isOneToOne: false
+            referencedRelation: "intake_responses"
+            referencedColumns: ["id"]
+          },
         ]
       }
       audit_logs: {
         Row: {
-          action: string
-          actor_id: string | null
-          actor_role: string | null
-          created_at: string | null
-          id: string
-          ip_address: string | null
-          metadata: Json | null
-          resource_id: string | null
+          action:        string
+          actor_id:      string | null
+          actor_role:    string | null
+          created_at:    string | null
+          id:            string
+          ip_address:    string | null
+          metadata:      Json | null
+          resource_id:   string | null
           resource_type: string
         }
         Insert: {
-          action: string
-          actor_id?: string | null
-          actor_role?: string | null
-          created_at?: string | null
-          id?: string
-          ip_address?: string | null
-          metadata?: Json | null
-          resource_id?: string | null
-          resource_type: string
+          action:         string
+          actor_id?:      string | null
+          actor_role?:    string | null
+          created_at?:    string | null
+          id?:            string
+          ip_address?:    string | null
+          metadata?:      Json | null
+          resource_id?:   string | null
+          resource_type:  string
         }
         Update: {
-          action?: string
-          actor_id?: string | null
-          actor_role?: string | null
-          created_at?: string | null
-          id?: string
-          ip_address?: string | null
-          metadata?: Json | null
-          resource_id?: string | null
+          action?:        string
+          actor_id?:      string | null
+          actor_role?:    string | null
+          created_at?:    string | null
+          id?:            string
+          ip_address?:    string | null
+          metadata?:      Json | null
+          resource_id?:   string | null
           resource_type?: string
         }
         Relationships: [
@@ -164,64 +186,64 @@ export type Database = {
       }
       biomarker_results: {
         Row: {
-          created_at: string | null
-          functional_zone: number | null
-          gp_interpretation: string | null
-          gp_range_high: number | null
-          gp_range_low: number | null
-          id: string
-          marker_key: string | null
-          marker_name: string
-          member_id: string
-          ni_interpretation: string | null
-          ni_optimal_high: number | null
-          ni_optimal_low: number | null
-          ni_range_high: number | null
-          ni_range_low: number | null
-          raw_value: string | null
-          report_id: string
-          unit: string | null
-          value: number | null
+          created_at:         string | null
+          functional_zone:    number | null
+          gp_interpretation:  string | null
+          gp_range_high:      number | null
+          gp_range_low:       number | null
+          id:                 string
+          marker_key:         string | null
+          marker_name:        string
+          member_id:          string
+          ni_interpretation:  string | null
+          ni_optimal_high:    number | null
+          ni_optimal_low:     number | null
+          ni_range_high:      number | null
+          ni_range_low:       number | null
+          raw_value:          string | null
+          report_id:          string
+          unit:               string | null
+          value:              number | null
         }
         Insert: {
-          created_at?: string | null
-          functional_zone?: number | null
-          gp_interpretation?: string | null
-          gp_range_high?: number | null
-          gp_range_low?: number | null
-          id?: string
-          marker_key?: string | null
-          marker_name: string
-          member_id: string
-          ni_interpretation?: string | null
-          ni_optimal_high?: number | null
-          ni_optimal_low?: number | null
-          ni_range_high?: number | null
-          ni_range_low?: number | null
-          raw_value?: string | null
-          report_id: string
-          unit?: string | null
-          value?: number | null
+          created_at?:         string | null
+          functional_zone?:    number | null
+          gp_interpretation?:  string | null
+          gp_range_high?:      number | null
+          gp_range_low?:       number | null
+          id?:                 string
+          marker_key?:         string | null
+          marker_name:         string
+          member_id:           string
+          ni_interpretation?:  string | null
+          ni_optimal_high?:    number | null
+          ni_optimal_low?:     number | null
+          ni_range_high?:      number | null
+          ni_range_low?:       number | null
+          raw_value?:          string | null
+          report_id:           string
+          unit?:               string | null
+          value?:              number | null
         }
         Update: {
-          created_at?: string | null
-          functional_zone?: number | null
-          gp_interpretation?: string | null
-          gp_range_high?: number | null
-          gp_range_low?: number | null
-          id?: string
-          marker_key?: string | null
-          marker_name?: string
-          member_id?: string
-          ni_interpretation?: string | null
-          ni_optimal_high?: number | null
-          ni_optimal_low?: number | null
-          ni_range_high?: number | null
-          ni_range_low?: number | null
-          raw_value?: string | null
-          report_id?: string
-          unit?: string | null
-          value?: number | null
+          created_at?:         string | null
+          functional_zone?:    number | null
+          gp_interpretation?:  string | null
+          gp_range_high?:      number | null
+          gp_range_low?:       number | null
+          id?:                 string
+          marker_key?:         string | null
+          marker_name?:        string
+          member_id?:          string
+          ni_interpretation?:  string | null
+          ni_optimal_high?:    number | null
+          ni_optimal_low?:     number | null
+          ni_range_high?:      number | null
+          ni_range_low?:       number | null
+          raw_value?:          string | null
+          report_id?:          string
+          unit?:               string | null
+          value?:              number | null
         }
         Relationships: [
           {
@@ -285,34 +307,122 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "biomarker_trajectory_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "lab_reports"
+            referencedColumns: ["id"]
+          },
         ]
       }
+      // ── Sprint 17: CRT ──────────────────────────────────────────────────────
+      case_events: {
+        Row: {
+          case_id:       string
+          created_at:    string
+          event_payload: Json
+          event_type:    string
+          id:            string
+          source_id:     string | null
+          source_table:  string | null
+        }
+        Insert: {
+          case_id:        string
+          created_at?:    string
+          event_payload?: Json
+          event_type:     string
+          id?:            string
+          source_id?:     string | null
+          source_table?:  string | null
+        }
+        Update: {
+          case_id?:       string
+          created_at?:    string
+          event_payload?: Json
+          event_type?:    string
+          id?:            string
+          source_id?:     string | null
+          source_table?:  string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_cases: {
+        Row: {
+          case_complexity_score: number
+          client_id:             string
+          created_at:            string
+          escalation_required:   boolean
+          id:                    string
+          primary_concern:       string | null
+          status:                string
+          updated_at:            string
+        }
+        Insert: {
+          case_complexity_score?: number
+          client_id:              string
+          created_at?:            string
+          escalation_required?:   boolean
+          id?:                    string
+          primary_concern?:       string | null
+          status?:                string
+          updated_at?:            string
+        }
+        Update: {
+          case_complexity_score?: number
+          client_id?:             string
+          created_at?:            string
+          escalation_required?:   boolean
+          id?:                    string
+          primary_concern?:       string | null
+          status?:                string
+          updated_at?:            string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_cases_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // ── end CRT tables (continued below) ────────────────────────────────────
       comments: {
         Row: {
-          author_id: string
-          body: string
+          author_id:  string
+          body:       string
           created_at: string | null
-          id: string
-          parent_id: string | null
-          post_id: string
+          id:         string
+          parent_id:  string | null
+          post_id:    string
           updated_at: string | null
         }
         Insert: {
-          author_id: string
-          body: string
+          author_id:   string
+          body:        string
           created_at?: string | null
-          id?: string
-          parent_id?: string | null
-          post_id: string
+          id?:         string
+          parent_id?:  string | null
+          post_id:     string
           updated_at?: string | null
         }
         Update: {
-          author_id?: string
-          body?: string
+          author_id?:  string
+          body?:       string
           created_at?: string | null
-          id?: string
-          parent_id?: string | null
-          post_id?: string
+          id?:         string
+          parent_id?:  string | null
+          post_id?:    string
           updated_at?: string | null
         }
         Relationships: [
@@ -341,34 +451,34 @@ export type Database = {
       }
       consent_records: {
         Row: {
-          consent_type: string
-          consented: boolean
-          consented_at: string | null
-          created_at: string | null
-          email: string | null
-          id: string
-          ip_address: string | null
-          profile_id: string | null
+          consent_type:  string
+          consented:     boolean
+          consented_at:  string | null
+          created_at:    string | null
+          email:         string | null
+          id:            string
+          ip_address:    string | null
+          profile_id:    string | null
         }
         Insert: {
-          consent_type: string
-          consented?: boolean
-          consented_at?: string | null
-          created_at?: string | null
-          email?: string | null
-          id?: string
-          ip_address?: string | null
-          profile_id?: string | null
+          consent_type:   string
+          consented?:     boolean
+          consented_at?:  string | null
+          created_at?:    string | null
+          email?:         string | null
+          id?:            string
+          ip_address?:    string | null
+          profile_id?:    string | null
         }
         Update: {
-          consent_type?: string
-          consented?: boolean
-          consented_at?: string | null
-          created_at?: string | null
-          email?: string | null
-          id?: string
-          ip_address?: string | null
-          profile_id?: string | null
+          consent_type?:  string
+          consented?:     boolean
+          consented_at?:  string | null
+          created_at?:    string | null
+          email?:         string | null
+          id?:            string
+          ip_address?:    string | null
+          profile_id?:    string | null
         }
         Relationships: [
           {
@@ -383,15 +493,15 @@ export type Database = {
       conversation_participants: {
         Row: {
           conversation_id: string
-          profile_id: string
+          profile_id:      string
         }
         Insert: {
           conversation_id: string
-          profile_id: string
+          profile_id:      string
         }
         Update: {
           conversation_id?: string
-          profile_id?: string
+          profile_id?:      string
         }
         Relationships: [
           {
@@ -413,66 +523,68 @@ export type Database = {
       conversations: {
         Row: {
           created_at: string | null
-          id: string
+          id:         string
         }
         Insert: {
           created_at?: string | null
-          id?: string
+          id?:         string
         }
         Update: {
           created_at?: string | null
-          id?: string
+          id?:         string
         }
         Relationships: []
       }
       daily_adherence: {
         Row: {
-          completed:    boolean
+          completed:    boolean | null
           completed_at: string | null
           created_at:   string | null
+          dose:         string | null
           id:           string
-          item_id:      string
           item_name:    string
+          item_type:    string
           log_date:     string
           member_id:    string
+          notes:        string | null
           protocol_id:  string
           skip_reason:  string | null
-          skipped:      boolean
+          skipped:      boolean | null
+          timing:       string | null
         }
         Insert: {
-          completed?:    boolean
+          completed?:    boolean | null
           completed_at?: string | null
           created_at?:   string | null
+          dose?:         string | null
           id?:           string
-          item_id:       string
           item_name:     string
-          log_date:      string
+          item_type:     string
+          log_date?:     string
           member_id:     string
+          notes?:        string | null
           protocol_id:   string
           skip_reason?:  string | null
-          skipped?:      boolean
+          skipped?:      boolean | null
+          timing?:       string | null
         }
         Update: {
-          completed?:    boolean
+          completed?:    boolean | null
           completed_at?: string | null
           created_at?:   string | null
+          dose?:         string | null
           id?:           string
-          item_id?:      string
           item_name?:    string
+          item_type?:    string
           log_date?:     string
           member_id?:    string
+          notes?:        string | null
           protocol_id?:  string
           skip_reason?:  string | null
-          skipped?:      boolean
+          skipped?:      boolean | null
+          timing?:       string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "daily_adherence_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "protocol_items"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "daily_adherence_member_id_fkey"
             columns: ["member_id"]
@@ -491,24 +603,24 @@ export type Database = {
       }
       event_registrations: {
         Row: {
-          attended: boolean | null
-          event_id: string
-          id: string
-          member_id: string
+          attended:      boolean | null
+          event_id:      string
+          id:            string
+          member_id:     string
           registered_at: string | null
         }
         Insert: {
-          attended?: boolean | null
-          event_id: string
-          id?: string
-          member_id: string
+          attended?:      boolean | null
+          event_id:       string
+          id?:            string
+          member_id:      string
           registered_at?: string | null
         }
         Update: {
-          attended?: boolean | null
-          event_id?: string
-          id?: string
-          member_id?: string
+          attended?:      boolean | null
+          event_id?:      string
+          id?:            string
+          member_id?:     string
           registered_at?: string | null
         }
         Relationships: [
@@ -530,55 +642,55 @@ export type Database = {
       }
       events: {
         Row: {
-          created_at: string | null
-          description: string | null
-          ends_at: string
-          event_type: string
-          hosted_by: string | null
-          id: string
-          is_online: boolean | null
-          location: string | null
-          max_capacity: number | null
-          meeting_url: string | null
+          created_at:      string | null
+          description:     string | null
+          ends_at:         string
+          event_type:      string
+          hosted_by:       string | null
+          id:              string
+          is_online:       boolean | null
+          location:        string | null
+          max_capacity:    number | null
+          meeting_url:     string | null
           practitioner_id: string | null
-          starts_at: string
-          status: string
-          title: string
-          updated_at: string | null
+          starts_at:       string
+          status:          string
+          title:           string
+          updated_at:      string | null
         }
         Insert: {
-          created_at?: string | null
-          description?: string | null
-          ends_at: string
-          event_type?: string
-          hosted_by?: string | null
-          id?: string
-          is_online?: boolean | null
-          location?: string | null
-          max_capacity?: number | null
-          meeting_url?: string | null
+          created_at?:      string | null
+          description?:     string | null
+          ends_at:          string
+          event_type?:      string
+          hosted_by?:       string | null
+          id?:              string
+          is_online?:       boolean | null
+          location?:        string | null
+          max_capacity?:    number | null
+          meeting_url?:     string | null
           practitioner_id?: string | null
-          starts_at: string
-          status?: string
-          title: string
-          updated_at?: string | null
+          starts_at:        string
+          status?:          string
+          title:            string
+          updated_at?:      string | null
         }
         Update: {
-          created_at?: string | null
-          description?: string | null
-          ends_at?: string
-          event_type?: string
-          hosted_by?: string | null
-          id?: string
-          is_online?: boolean | null
-          location?: string | null
-          max_capacity?: number | null
-          meeting_url?: string | null
+          created_at?:      string | null
+          description?:     string | null
+          ends_at?:         string
+          event_type?:      string
+          hosted_by?:       string | null
+          id?:              string
+          is_online?:       boolean | null
+          location?:        string | null
+          max_capacity?:    number | null
+          meeting_url?:     string | null
           practitioner_id?: string | null
-          starts_at?: string
-          status?: string
-          title?: string
-          updated_at?: string | null
+          starts_at?:       string
+          status?:          string
+          title?:           string
+          updated_at?:      string | null
         }
         Relationships: [
           {
@@ -599,163 +711,364 @@ export type Database = {
       }
       functional_ranges: {
         Row: {
-          created_at: string | null
+          created_at:    string | null
           gp_range_high: number | null
-          gp_range_low: number | null
-          id: string
-          marker_key: string
-          marker_name: string
+          gp_range_low:  number | null
+          id:            string
+          marker_key:    string
+          marker_name:   string
           ni_optimal_high: number | null
-          ni_optimal_low: number | null
-          ni_range_high: number | null
-          ni_range_low: number | null
-          notes: string | null
-          unit: string | null
-          updated_at: string | null
-          zone_1_max: number | null
-          zone_2_max: number | null
-          zone_3_max: number | null
-          zone_4_max: number | null
-          zone_4_min: number | null
-          zone_5_max: number | null
+          ni_optimal_low:  number | null
+          ni_range_high:   number | null
+          ni_range_low:    number | null
+          notes:           string | null
+          unit:            string | null
+          updated_at:      string | null
+          zone_1_max:      number | null
+          zone_2_max:      number | null
+          zone_3_max:      number | null
+          zone_4_max:      number | null
+          zone_4_min:      number | null
+          zone_5_max:      number | null
         }
         Insert: {
-          created_at?: string | null
+          created_at?:    string | null
           gp_range_high?: number | null
-          gp_range_low?: number | null
-          id?: string
-          marker_key: string
-          marker_name: string
+          gp_range_low?:  number | null
+          id?:            string
+          marker_key:     string
+          marker_name:    string
           ni_optimal_high?: number | null
-          ni_optimal_low?: number | null
-          ni_range_high?: number | null
-          ni_range_low?: number | null
-          notes?: string | null
-          unit?: string | null
-          updated_at?: string | null
-          zone_1_max?: number | null
-          zone_2_max?: number | null
-          zone_3_max?: number | null
-          zone_4_max?: number | null
-          zone_4_min?: number | null
-          zone_5_max?: number | null
+          ni_optimal_low?:  number | null
+          ni_range_high?:   number | null
+          ni_range_low?:    number | null
+          notes?:           string | null
+          unit?:            string | null
+          updated_at?:      string | null
+          zone_1_max?:      number | null
+          zone_2_max?:      number | null
+          zone_3_max?:      number | null
+          zone_4_max?:      number | null
+          zone_4_min?:      number | null
+          zone_5_max?:      number | null
         }
         Update: {
-          created_at?: string | null
+          created_at?:    string | null
           gp_range_high?: number | null
-          gp_range_low?: number | null
-          id?: string
-          marker_key?: string
-          marker_name?: string
+          gp_range_low?:  number | null
+          id?:            string
+          marker_key?:    string
+          marker_name?:   string
           ni_optimal_high?: number | null
-          ni_optimal_low?: number | null
-          ni_range_high?: number | null
-          ni_range_low?: number | null
-          notes?: string | null
-          unit?: string | null
-          updated_at?: string | null
-          zone_1_max?: number | null
-          zone_2_max?: number | null
-          zone_3_max?: number | null
-          zone_4_max?: number | null
-          zone_4_min?: number | null
-          zone_5_max?: number | null
+          ni_optimal_low?:  number | null
+          ni_range_high?:   number | null
+          ni_range_low?:    number | null
+          notes?:           string | null
+          unit?:            string | null
+          updated_at?:      string | null
+          zone_1_max?:      number | null
+          zone_2_max?:      number | null
+          zone_3_max?:      number | null
+          zone_4_max?:      number | null
+          zone_4_min?:      number | null
+          zone_5_max?:      number | null
         }
         Relationships: []
       }
-      intake_responses: {
+      intake_answers: {
         Row: {
-          id: string
-          member_id: string
-          completed_sections: number | null
-          is_complete: boolean | null
-          chief_complaints: string[] | null
-          complaint_duration: string | null
-          complaint_severity: number | null
-          existing_conditions: string[] | null
-          current_medications: string | null
-          current_supplements: string | null
-          previous_practitioners: string[] | null
-          previous_treatments: string | null
-          diet_type: string | null
-          exercise_frequency: string | null
-          sleep_hours: number | null
-          stress_level: number | null
-          alcohol_frequency: string | null
-          smoking_status: string | null
-          energy_level: number | null
-          mood_level: number | null
-          digestion_level: number | null
-          cognitive_level: number | null
-          family_history: string | null
-          health_goals: string[] | null
-          additional_notes: string | null
-          consent_to_ai_analysis: boolean | null
-          consent_given_at: string | null
-          updated_at: string | null
-          created_at: string | null
+          answer:             Json
+          answered_at:        string | null
+          clinical_objective: string | null
+          id:                 string
+          mapped_hypotheses:  string[] | null
+          mapped_systems:     string[] | null
+          member_id:          string
+          question_id:        string
+          section_id:         string
+          session_id:         string
+          updated_at:         string
         }
         Insert: {
-          id?: string
-          member_id: string
-          completed_sections?: number | null
-          is_complete?: boolean | null
-          chief_complaints?: string[] | null
-          complaint_duration?: string | null
-          complaint_severity?: number | null
-          existing_conditions?: string[] | null
-          current_medications?: string | null
-          current_supplements?: string | null
-          previous_practitioners?: string[] | null
-          previous_treatments?: string | null
-          diet_type?: string | null
-          exercise_frequency?: string | null
-          sleep_hours?: number | null
-          stress_level?: number | null
-          alcohol_frequency?: string | null
-          smoking_status?: string | null
-          energy_level?: number | null
-          mood_level?: number | null
-          digestion_level?: number | null
-          cognitive_level?: number | null
-          family_history?: string | null
-          health_goals?: string[] | null
-          additional_notes?: string | null
-          consent_to_ai_analysis?: boolean | null
-          consent_given_at?: string | null
-          updated_at?: string | null
-          created_at?: string | null
+          answer:              Json
+          answered_at?:        string | null
+          clinical_objective?: string | null
+          id?:                 string
+          mapped_hypotheses?:  string[] | null
+          mapped_systems?:     string[] | null
+          member_id:           string
+          question_id:         string
+          section_id:          string
+          session_id:          string
+          updated_at?:         string
         }
         Update: {
-          id?: string
-          member_id?: string
-          completed_sections?: number | null
-          is_complete?: boolean | null
-          chief_complaints?: string[] | null
-          complaint_duration?: string | null
-          complaint_severity?: number | null
-          existing_conditions?: string[] | null
-          current_medications?: string | null
-          current_supplements?: string | null
-          previous_practitioners?: string[] | null
-          previous_treatments?: string | null
-          diet_type?: string | null
-          exercise_frequency?: string | null
-          sleep_hours?: number | null
-          stress_level?: number | null
-          alcohol_frequency?: string | null
-          smoking_status?: string | null
-          energy_level?: number | null
-          mood_level?: number | null
-          digestion_level?: number | null
-          cognitive_level?: number | null
-          family_history?: string | null
-          health_goals?: string[] | null
-          additional_notes?: string | null
-          consent_to_ai_analysis?: boolean | null
-          consent_given_at?: string | null
-          updated_at?: string | null
-          created_at?: string | null
+          answer?:             Json
+          answered_at?:        string | null
+          clinical_objective?: string | null
+          id?:                 string
+          mapped_hypotheses?:  string[] | null
+          mapped_systems?:     string[] | null
+          member_id?:          string
+          question_id?:        string
+          section_id?:         string
+          session_id?:         string
+          updated_at?:         string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_answers_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_answers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "intake_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_flags: {
+        Row: {
+          acknowledged:       boolean | null
+          created_at:         string | null
+          flag_type:          string
+          id:                 string
+          member_id:          string
+          message:            string
+          question_id:        string | null
+          recommended_action: string
+          session_id:         string
+          severity:           string
+          trigger_answer:     Json | null
+        }
+        Insert: {
+          acknowledged?:       boolean | null
+          created_at?:         string | null
+          flag_type:           string
+          id?:                 string
+          member_id:           string
+          message:             string
+          question_id?:        string | null
+          recommended_action:  string
+          session_id:          string
+          severity:            string
+          trigger_answer?:     Json | null
+        }
+        Update: {
+          acknowledged?:       boolean | null
+          created_at?:         string | null
+          flag_type?:          string
+          id?:                 string
+          member_id?:          string
+          message?:            string
+          question_id?:        string | null
+          recommended_action?: string
+          session_id?:         string
+          severity?:           string
+          trigger_answer?:     Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_flags_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_flags_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "intake_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_hypothesis_scores: {
+        Row: {
+          evidence:       Json | null
+          hypothesis_key: string
+          id:             string
+          member_id:      string
+          score:          number
+          session_id:     string
+          updated_at:     string | null
+        }
+        Insert: {
+          evidence?:       Json | null
+          hypothesis_key:  string
+          id?:             string
+          member_id:       string
+          score?:          number
+          session_id:      string
+          updated_at?:     string | null
+        }
+        Update: {
+          evidence?:       Json | null
+          hypothesis_key?: string
+          id?:             string
+          member_id?:      string
+          score?:          number
+          session_id?:     string
+          updated_at?:     string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_hypothesis_scores_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_hypothesis_scores_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "intake_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_responses: {
+        Row: {
+          arrival_emotion:         string | null
+          biggest_barrier:         string | null
+          completed_sections:      number | null
+          concern_duration:        string | null
+          consent_given_at:        string | null
+          consent_to_ai_analysis:  boolean | null
+          created_at:              string | null
+          current_medications:     string | null
+          current_supplements:     string | null
+          diagnosed_conditions:    string[] | null
+          diet_description:        string | null
+          energy_level:            number | null
+          exercise_frequency:      string | null
+          family_history:          string[] | null
+          health_goals:            string[] | null
+          heard_about_ni:          string | null
+          id:                      string
+          is_complete:             boolean | null
+          member_id:               string
+          past_treatments:         string | null
+          practitioner_types:      string[] | null
+          primary_concerns:        string[] | null
+          primary_system:          string | null
+          psychosocial_impact:     string | null
+          psychosocial_supported:  boolean | null
+          psychosocial_worry:      string | null
+          readiness_budget:        string | null
+          readiness_change:        string | null
+          readiness_time:          string | null
+          sleep_hours:             number | null
+          sleep_quality:           number | null
+          stress_level:            number | null
+          surgeries_or_injuries:   string | null
+          symptom_onset:           string | null
+          symptom_pattern:         string | null
+          systems_reviewed:        string[] | null
+          timeline_expectation:    string | null
+          timeline_last_well:      string | null
+          timeline_trigger:        string | null
+          timeline_trigger_type:   string | null
+          updated_at:              string | null
+          version:                 number | null
+          working_with_practitioners: boolean | null
+        }
+        Insert: {
+          arrival_emotion?:          string | null
+          biggest_barrier?:          string | null
+          completed_sections?:       number | null
+          concern_duration?:         string | null
+          consent_given_at?:         string | null
+          consent_to_ai_analysis?:   boolean | null
+          created_at?:               string | null
+          current_medications?:      string | null
+          current_supplements?:      string | null
+          diagnosed_conditions?:     string[] | null
+          diet_description?:         string | null
+          energy_level?:             number | null
+          exercise_frequency?:       string | null
+          family_history?:           string[] | null
+          health_goals?:             string[] | null
+          heard_about_ni?:           string | null
+          id?:                       string
+          is_complete?:              boolean | null
+          member_id:                 string
+          past_treatments?:          string | null
+          practitioner_types?:       string[] | null
+          primary_concerns?:         string[] | null
+          primary_system?:           string | null
+          psychosocial_impact?:      string | null
+          psychosocial_supported?:   boolean | null
+          psychosocial_worry?:       string | null
+          readiness_budget?:         string | null
+          readiness_change?:         string | null
+          readiness_time?:           string | null
+          sleep_hours?:              number | null
+          sleep_quality?:            number | null
+          stress_level?:             number | null
+          surgeries_or_injuries?:    string | null
+          symptom_onset?:            string | null
+          symptom_pattern?:          string | null
+          systems_reviewed?:         string[] | null
+          timeline_expectation?:     string | null
+          timeline_last_well?:       string | null
+          timeline_trigger?:         string | null
+          timeline_trigger_type?:    string | null
+          updated_at?:               string | null
+          version?:                  number | null
+          working_with_practitioners?: boolean | null
+        }
+        Update: {
+          arrival_emotion?:          string | null
+          biggest_barrier?:          string | null
+          completed_sections?:       number | null
+          concern_duration?:         string | null
+          consent_given_at?:         string | null
+          consent_to_ai_analysis?:   boolean | null
+          created_at?:               string | null
+          current_medications?:      string | null
+          current_supplements?:      string | null
+          diagnosed_conditions?:     string[] | null
+          diet_description?:         string | null
+          energy_level?:             number | null
+          exercise_frequency?:       string | null
+          family_history?:           string[] | null
+          health_goals?:             string[] | null
+          heard_about_ni?:           string | null
+          id?:                       string
+          is_complete?:              boolean | null
+          member_id?:                string
+          past_treatments?:          string | null
+          practitioner_types?:       string[] | null
+          primary_concerns?:         string[] | null
+          primary_system?:           string | null
+          psychosocial_impact?:      string | null
+          psychosocial_supported?:   boolean | null
+          psychosocial_worry?:       string | null
+          readiness_budget?:         string | null
+          readiness_change?:         string | null
+          readiness_time?:           string | null
+          sleep_hours?:              number | null
+          sleep_quality?:            number | null
+          stress_level?:             number | null
+          surgeries_or_injuries?:    string | null
+          symptom_onset?:            string | null
+          symptom_pattern?:          string | null
+          systems_reviewed?:         string[] | null
+          timeline_expectation?:     string | null
+          timeline_last_well?:       string | null
+          timeline_trigger?:         string | null
+          timeline_trigger_type?:    string | null
+          updated_at?:               string | null
+          version?:                  number | null
+          working_with_practitioners?: boolean | null
         }
         Relationships: [
           {
@@ -767,47 +1080,166 @@ export type Database = {
           },
         ]
       }
+      intake_sessions: {
+        Row: {
+          answered_question_ids: string[] | null
+          arrival_emotion:       string | null
+          completed_at:          string | null
+          completion_percentage: number | null
+          created_at:            string | null
+          current_section:       string | null
+          id:                    string
+          member_id:             string
+          primary_system:        string | null
+          red_flag_count:        number | null
+          started_at:            string | null
+          status:                string
+          updated_at:            string | null
+          visible_question_ids:  string[] | null
+        }
+        Insert: {
+          answered_question_ids?: string[] | null
+          arrival_emotion?:       string | null
+          completed_at?:          string | null
+          completion_percentage?: number | null
+          created_at?:            string | null
+          current_section?:       string | null
+          id?:                    string
+          member_id:              string
+          primary_system?:        string | null
+          red_flag_count?:        number | null
+          started_at?:            string | null
+          status?:                string
+          updated_at?:            string | null
+          visible_question_ids?:  string[] | null
+        }
+        Update: {
+          answered_question_ids?: string[] | null
+          arrival_emotion?:       string | null
+          completed_at?:          string | null
+          completion_percentage?: number | null
+          created_at?:            string | null
+          current_section?:       string | null
+          id?:                    string
+          member_id?:             string
+          primary_system?:        string | null
+          red_flag_count?:        number | null
+          started_at?:            string | null
+          status?:                string
+          updated_at?:            string | null
+          visible_question_ids?:  string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_sessions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intake_symptom_details: {
+        Row: {
+          associated_symptoms: string[] | null
+          created_at:          string | null
+          frequency:           string | null
+          id:                  string
+          intake_id:           string
+          member_id:           string
+          notes:               string | null
+          severity:            number | null
+          symptom_category:    string | null
+          symptom_name:        string
+          timing:              string[] | null
+          triggers:            string[] | null
+        }
+        Insert: {
+          associated_symptoms?: string[] | null
+          created_at?:          string | null
+          frequency?:           string | null
+          id?:                  string
+          intake_id:            string
+          member_id:            string
+          notes?:               string | null
+          severity?:            number | null
+          symptom_category?:    string | null
+          symptom_name:         string
+          timing?:              string[] | null
+          triggers?:            string[] | null
+        }
+        Update: {
+          associated_symptoms?: string[] | null
+          created_at?:          string | null
+          frequency?:           string | null
+          id?:                  string
+          intake_id?:           string
+          member_id?:           string
+          notes?:               string | null
+          severity?:            number | null
+          symptom_category?:    string | null
+          symptom_name?:        string
+          timing?:              string[] | null
+          triggers?:            string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intake_symptom_details_intake_id_fkey"
+            columns: ["intake_id"]
+            isOneToOne: false
+            referencedRelation: "intake_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_symptom_details_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_reports: {
         Row: {
-          created_at: string | null
-          file_name: string
-          file_path: string
-          file_size: number | null
-          id: string
-          lab_name: string | null
-          member_id: string
-          parse_error: string | null
-          parsed_at: string | null
-          report_date: string | null
-          updated_at: string | null
+          created_at:    string | null
+          file_name:     string
+          file_path:     string
+          file_size:     number | null
+          id:            string
+          lab_name:      string | null
+          member_id:     string
+          parse_error:   string | null
+          parsed_at:     string | null
+          report_date:   string | null
+          updated_at:    string | null
           upload_status: string
         }
         Insert: {
-          created_at?: string | null
-          file_name: string
-          file_path: string
-          file_size?: number | null
-          id?: string
-          lab_name?: string | null
-          member_id: string
-          parse_error?: string | null
-          parsed_at?: string | null
-          report_date?: string | null
-          updated_at?: string | null
+          created_at?:    string | null
+          file_name:      string
+          file_path:      string
+          file_size?:     number | null
+          id?:            string
+          lab_name?:      string | null
+          member_id:      string
+          parse_error?:   string | null
+          parsed_at?:     string | null
+          report_date?:   string | null
+          updated_at?:    string | null
           upload_status?: string
         }
         Update: {
-          created_at?: string | null
-          file_name?: string
-          file_path?: string
-          file_size?: number | null
-          id?: string
-          lab_name?: string | null
-          member_id?: string
-          parse_error?: string | null
-          parsed_at?: string | null
-          report_date?: string | null
-          updated_at?: string | null
+          created_at?:    string | null
+          file_name?:     string
+          file_path?:     string
+          file_size?:     number | null
+          id?:            string
+          lab_name?:      string | null
+          member_id?:     string
+          parse_error?:   string | null
+          parsed_at?:     string | null
+          report_date?:   string | null
+          updated_at?:    string | null
           upload_status?: string
         }
         Relationships: [
@@ -834,7 +1266,7 @@ export type Database = {
           sleep_rating:     number | null
         }
         Insert: {
-          checkin_date:      string
+          checkin_date?:     string
           created_at?:       string | null
           digestion_rating?: number | null
           energy_rating?:    number | null
@@ -876,7 +1308,7 @@ export type Database = {
           description:    string | null
           id:             string
           member_id:      string
-          status:         string
+          status:         string | null
           target_date:    string | null
           target_unit:    string | null
           target_value:   number | null
@@ -891,7 +1323,7 @@ export type Database = {
           description?:    string | null
           id?:             string
           member_id:       string
-          status?:         string
+          status?:         string | null
           target_date?:    string | null
           target_unit?:    string | null
           target_value?:   number | null
@@ -906,7 +1338,7 @@ export type Database = {
           description?:    string | null
           id?:             string
           member_id?:      string
-          status?:         string
+          status?:         string | null
           target_date?:    string | null
           target_unit?:    string | null
           target_value?:   number | null
@@ -923,35 +1355,102 @@ export type Database = {
           },
         ]
       }
+      member_protocols: {
+        Row: {
+          assigned_by:          string | null
+          created_at:           string | null
+          ends_at:              string | null
+          id:                   string
+          member_id:            string
+          name:                 string
+          notes:                string | null
+          rootfinder_session_id:string | null
+          started_at:           string
+          status:               string
+          template_id:          string | null
+          updated_at:           string | null
+        }
+        Insert: {
+          assigned_by?:          string | null
+          created_at?:           string | null
+          ends_at?:              string | null
+          id?:                   string
+          member_id:             string
+          name:                  string
+          notes?:                string | null
+          rootfinder_session_id?:string | null
+          started_at?:           string
+          status?:               string
+          template_id?:          string | null
+          updated_at?:           string | null
+        }
+        Update: {
+          assigned_by?:          string | null
+          created_at?:           string | null
+          ends_at?:              string | null
+          id?:                   string
+          member_id?:            string
+          name?:                 string
+          notes?:                string | null
+          rootfinder_session_id?:string | null
+          started_at?:           string
+          status?:               string
+          template_id?:          string | null
+          updated_at?:           string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_protocols_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_protocols_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_protocols_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "protocol_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_symptom_logs: {
         Row: {
-          duration: string | null
-          id: string
-          logged_at: string | null
-          member_id: string
-          notes: string | null
+          duration:   string | null
+          id:         string
+          logged_at:  string | null
+          member_id:  string
+          notes:      string | null
           session_id: string | null
-          severity: number | null
+          severity:   number | null
           symptom_id: string
         }
         Insert: {
-          duration?: string | null
-          id?: string
-          logged_at?: string | null
-          member_id: string
-          notes?: string | null
+          duration?:   string | null
+          id?:         string
+          logged_at?:  string | null
+          member_id:   string
+          notes?:      string | null
           session_id?: string | null
-          severity?: number | null
-          symptom_id: string
+          severity?:   number | null
+          symptom_id:  string
         }
         Update: {
-          duration?: string | null
-          id?: string
-          logged_at?: string | null
-          member_id?: string
-          notes?: string | null
+          duration?:   string | null
+          id?:         string
+          logged_at?:  string | null
+          member_id?:  string
+          notes?:      string | null
           session_id?: string | null
-          severity?: number | null
+          severity?:   number | null
           symptom_id?: string
         }
         Relationships: [
@@ -971,81 +1470,33 @@ export type Database = {
           },
         ]
       }
-      member_protocols: {
-        Row: {
-          created_at:  string | null
-          id:          string
-          member_id:   string
-          name:        string
-          paused_at:   string | null
-          started_at:  string
-          status:      string
-          template_id: string
-        }
-        Insert: {
-          created_at?:  string | null
-          id?:          string
-          member_id:    string
-          name:         string
-          paused_at?:   string | null
-          started_at:   string
-          status?:      string
-          template_id:  string
-        }
-        Update: {
-          created_at?:  string | null
-          id?:          string
-          member_id?:   string
-          name?:        string
-          paused_at?:   string | null
-          started_at?:  string
-          status?:      string
-          template_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "member_protocols_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "member_protocols_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "protocol_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       messages: {
         Row: {
-          body: string
+          body:            string
           conversation_id: string
-          created_at: string | null
+          created_at:      string | null
           filtered_reason: string | null
-          id: string
-          sender_id: string
-          status: Database["public"]["Enums"]["message_status"]
+          id:              string
+          sender_id:       string
+          status:          Database["public"]["Enums"]["message_status"]
         }
         Insert: {
-          body: string
-          conversation_id: string
-          created_at?: string | null
+          body:             string
+          conversation_id:  string
+          created_at?:      string | null
           filtered_reason?: string | null
-          id?: string
-          sender_id: string
-          status?: Database["public"]["Enums"]["message_status"]
+          id?:              string
+          sender_id:        string
+          status?:          Database["public"]["Enums"]["message_status"]
         }
         Update: {
-          body?: string
+          body?:            string
           conversation_id?: string
-          created_at?: string | null
+          created_at?:      string | null
           filtered_reason?: string | null
-          id?: string
-          sender_id?: string
-          status?: Database["public"]["Enums"]["message_status"]
+          id?:              string
+          sender_id?:       string
+          status?:          Database["public"]["Enums"]["message_status"]
         }
         Relationships: [
           {
@@ -1067,20 +1518,20 @@ export type Database = {
       post_likes: {
         Row: {
           created_at: string | null
-          id: string
-          post_id: string
+          id:         string
+          post_id:    string
           profile_id: string
         }
         Insert: {
           created_at?: string | null
-          id?: string
-          post_id: string
-          profile_id: string
+          id?:         string
+          post_id:     string
+          profile_id:  string
         }
         Update: {
           created_at?: string | null
-          id?: string
-          post_id?: string
+          id?:         string
+          post_id?:    string
           profile_id?: string
         }
         Relationships: [
@@ -1102,43 +1553,43 @@ export type Database = {
       }
       posts: {
         Row: {
-          author_id: string
-          body: string
-          created_at: string | null
-          id: string
-          image_urls: string[] | null
-          like_count: number
-          post_type: string
+          author_id:    string
+          body:         string
+          created_at:   string | null
+          id:           string
+          image_urls:   string[] | null
+          like_count:   number
+          post_type:    string
           published_at: string | null
-          status: Database["public"]["Enums"]["content_status"]
-          title: string | null
-          updated_at: string | null
+          status:       Database["public"]["Enums"]["content_status"]
+          title:        string | null
+          updated_at:   string | null
         }
         Insert: {
-          author_id: string
-          body: string
-          created_at?: string | null
-          id?: string
-          image_urls?: string[] | null
-          like_count?: number
-          post_type?: string
-          published_at?: string | null
-          status?: Database["public"]["Enums"]["content_status"]
-          title?: string | null
-          updated_at?: string | null
+          author_id:    string
+          body:         string
+          created_at?:  string | null
+          id?:          string
+          image_urls?:  string[] | null
+          like_count?:  number
+          post_type?:   string
+          published_at?:string | null
+          status?:      Database["public"]["Enums"]["content_status"]
+          title?:       string | null
+          updated_at?:  string | null
         }
         Update: {
-          author_id?: string
-          body?: string
-          created_at?: string | null
-          id?: string
-          image_urls?: string[] | null
-          like_count?: number
-          post_type?: string
-          published_at?: string | null
-          status?: Database["public"]["Enums"]["content_status"]
-          title?: string | null
-          updated_at?: string | null
+          author_id?:   string
+          body?:        string
+          created_at?:  string | null
+          id?:          string
+          image_urls?:  string[] | null
+          like_count?:  number
+          post_type?:   string
+          published_at?:string | null
+          status?:      Database["public"]["Enums"]["content_status"]
+          title?:       string | null
+          updated_at?:  string | null
         }
         Relationships: [
           {
@@ -1150,202 +1601,114 @@ export type Database = {
           },
         ]
       }
-      protocol_items: {
-        Row: {
-          created_at:     string | null
-          dose:           string | null
-          duration_weeks: number | null
-          id:             string
-          item_type:      string
-          name:           string
-          notes:          string | null
-          sort_order:     number
-          template_id:    string
-          timing:         string | null
-        }
-        Insert: {
-          created_at?:     string | null
-          dose?:           string | null
-          duration_weeks?: number | null
-          id?:             string
-          item_type?:      string
-          name:            string
-          notes?:          string | null
-          sort_order?:     number
-          template_id:     string
-          timing?:         string | null
-        }
-        Update: {
-          created_at?:     string | null
-          dose?:           string | null
-          duration_weeks?: number | null
-          id?:             string
-          item_type?:      string
-          name?:           string
-          notes?:          string | null
-          sort_order?:     number
-          template_id?:    string
-          timing?:         string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "protocol_items_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "protocol_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      protocol_templates: {
-        Row: {
-          created_at:     string | null
-          description:    string | null
-          duration_weeks: number
-          id:             string
-          name:           string
-          root_cause_id:  string | null
-          root_cause_key: string | null
-          status:         string
-        }
-        Insert: {
-          created_at?:     string | null
-          description?:    string | null
-          duration_weeks?: number
-          id?:             string
-          name:            string
-          root_cause_id?:  string | null
-          root_cause_key?: string | null
-          status?:         string
-        }
-        Update: {
-          created_at?:     string | null
-          description?:    string | null
-          duration_weeks?: number
-          id?:             string
-          name?:           string
-          root_cause_id?:  string | null
-          root_cause_key?: string | null
-          status?:         string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "protocol_templates_root_cause_id_fkey"
-            columns: ["root_cause_id"]
-            isOneToOne: false
-            referencedRelation: "root_causes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       practitioner_applications: {
         Row: {
-          accepts_referrals: boolean
-          area_tags: string[] | null
-          bio: string | null
-          city: string | null
-          client_types: string[] | null
-          collaboration_types: string[] | null
-          consent_text: string | null
-          consent_version: string
-          country: string | null
-          created_at: string | null
-          credentials: string | null
-          currently_seeing_clients: boolean | null
-          delivery_mode: string | null
-          email: string
-          experience_range: string | null
-          full_name: string
-          id: string
-          is_test_data: boolean
-          linkedin_url: string | null
-          modalities: string | null
-          motivation: string | null
-          open_to_collaboration: boolean
-          phone: string | null
-          primary_professions: string[] | null
-          profile_id: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          reviewer_notes: string | null
-          specialties: string[] | null
-          status: string
-          submitted_at: string | null
-          updated_at: string | null
-          website_url: string | null
-          years_experience: number | null
+          accepts_referrals:       boolean
+          area_tags:               string[] | null
+          bio:                     string | null
+          city:                    string | null
+          client_types:            string[] | null
+          collaboration_types:     string[] | null
+          consent_text:            string | null
+          consent_version:         string
+          country:                 string | null
+          created_at:              string | null
+          credentials:             string | null
+          currently_seeing_clients:boolean | null
+          delivery_mode:           string | null
+          email:                   string
+          experience_range:        string | null
+          full_name:               string
+          id:                      string
+          is_test_data:            boolean
+          linkedin_url:            string | null
+          modalities:              string | null
+          motivation:              string | null
+          open_to_collaboration:   boolean
+          phone:                   string | null
+          primary_professions:     string[] | null
+          profile_id:              string | null
+          reviewed_at:             string | null
+          reviewed_by:             string | null
+          reviewer_notes:          string | null
+          specialties:             string[] | null
+          status:                  string
+          submitted_at:            string | null
+          updated_at:              string | null
+          website_url:             string | null
+          years_experience:        number | null
         }
         Insert: {
-          accepts_referrals?: boolean
-          area_tags?: string[] | null
-          bio?: string | null
-          city?: string | null
-          client_types?: string[] | null
-          collaboration_types?: string[] | null
-          consent_text?: string | null
-          consent_version?: string
-          country?: string | null
-          created_at?: string | null
-          credentials?: string | null
-          currently_seeing_clients?: boolean | null
-          delivery_mode?: string | null
-          email: string
-          experience_range?: string | null
-          full_name: string
-          id?: string
-          is_test_data?: boolean
-          linkedin_url?: string | null
-          modalities?: string | null
-          motivation?: string | null
-          open_to_collaboration?: boolean
-          phone?: string | null
-          primary_professions?: string[] | null
-          profile_id?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          reviewer_notes?: string | null
-          specialties?: string[] | null
-          status?: string
-          submitted_at?: string | null
-          updated_at?: string | null
-          website_url?: string | null
-          years_experience?: number | null
+          accepts_referrals?:       boolean
+          area_tags?:               string[] | null
+          bio?:                     string | null
+          city?:                    string | null
+          client_types?:            string[] | null
+          collaboration_types?:     string[] | null
+          consent_text?:            string | null
+          consent_version?:         string
+          country?:                 string | null
+          created_at?:              string | null
+          credentials?:             string | null
+          currently_seeing_clients?:boolean | null
+          delivery_mode?:           string | null
+          email:                    string
+          experience_range?:        string | null
+          full_name:                string
+          id?:                      string
+          is_test_data?:            boolean
+          linkedin_url?:            string | null
+          modalities?:              string | null
+          motivation?:              string | null
+          open_to_collaboration?:   boolean
+          phone?:                   string | null
+          primary_professions?:     string[] | null
+          profile_id?:              string | null
+          reviewed_at?:             string | null
+          reviewed_by?:             string | null
+          reviewer_notes?:          string | null
+          specialties?:             string[] | null
+          status?:                  string
+          submitted_at?:            string | null
+          updated_at?:              string | null
+          website_url?:             string | null
+          years_experience?:        number | null
         }
         Update: {
-          accepts_referrals?: boolean
-          area_tags?: string[] | null
-          bio?: string | null
-          city?: string | null
-          client_types?: string[] | null
-          collaboration_types?: string[] | null
-          consent_text?: string | null
-          consent_version?: string
-          country?: string | null
-          created_at?: string | null
-          credentials?: string | null
-          currently_seeing_clients?: boolean | null
-          delivery_mode?: string | null
-          email?: string
-          experience_range?: string | null
-          full_name?: string
-          id?: string
-          is_test_data?: boolean
-          linkedin_url?: string | null
-          modalities?: string | null
-          motivation?: string | null
-          open_to_collaboration?: boolean
-          phone?: string | null
-          primary_professions?: string[] | null
-          profile_id?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          reviewer_notes?: string | null
-          specialties?: string[] | null
-          status?: string
-          submitted_at?: string | null
-          updated_at?: string | null
-          website_url?: string | null
-          years_experience?: number | null
+          accepts_referrals?:       boolean
+          area_tags?:               string[] | null
+          bio?:                     string | null
+          city?:                    string | null
+          client_types?:            string[] | null
+          collaboration_types?:     string[] | null
+          consent_text?:            string | null
+          consent_version?:         string
+          country?:                 string | null
+          created_at?:              string | null
+          credentials?:             string | null
+          currently_seeing_clients?:boolean | null
+          delivery_mode?:           string | null
+          email?:                   string
+          experience_range?:        string | null
+          full_name?:               string
+          id?:                      string
+          is_test_data?:            boolean
+          linkedin_url?:            string | null
+          modalities?:              string | null
+          motivation?:              string | null
+          open_to_collaboration?:   boolean
+          phone?:                   string | null
+          primary_professions?:     string[] | null
+          profile_id?:              string | null
+          reviewed_at?:             string | null
+          reviewed_by?:             string | null
+          reviewer_notes?:          string | null
+          specialties?:             string[] | null
+          status?:                  string
+          submitted_at?:            string | null
+          updated_at?:              string | null
+          website_url?:             string | null
+          years_experience?:        number | null
         }
         Relationships: [
           {
@@ -1366,133 +1729,133 @@ export type Database = {
       }
       practitioners: {
         Row: {
-          accepted_at: string | null
-          accepts_referrals: boolean
-          activated_at: string | null
-          area_tags: string[] | null
-          bio: string | null
-          city: string | null
-          client_types: string[] | null
-          collaboration_types: string[] | null
-          country: string | null
-          created_at: string | null
-          credentials: string[] | null
+          accepted_at:              string | null
+          accepts_referrals:        boolean
+          activated_at:             string | null
+          area_tags:                string[] | null
+          bio:                      string | null
+          city:                     string | null
+          client_types:             string[] | null
+          collaboration_types:      string[] | null
+          country:                  string | null
+          created_at:               string | null
+          credentials:              string[] | null
           currently_seeing_clients: boolean | null
-          delivery_mode: string | null
-          display_order: number
-          experience_range: string | null
-          id: string
-          instagram_url: string | null
-          is_active: boolean
-          is_directory_ready: boolean
-          is_test_data: boolean
-          lifecycle_status: string
-          linkedin_url: string | null
-          location: string | null
-          modalities: string | null
-          open_to_collaboration: boolean
-          other_social_urls: string | null
-          paused_at: string | null
-          paused_reason: string | null
-          practice_name: string | null
-          practitioner_tier: string
-          primary_professions: string[] | null
+          delivery_mode:            string | null
+          display_order:            number
+          experience_range:         string | null
+          id:                       string
+          instagram_url:            string | null
+          is_active:                boolean
+          is_directory_ready:       boolean
+          is_test_data:             boolean
+          lifecycle_status:         string
+          linkedin_url:             string | null
+          location:                 string | null
+          modalities:               string | null
+          open_to_collaboration:    boolean
+          other_social_urls:        string | null
+          paused_at:                string | null
+          paused_reason:            string | null
+          practice_name:            string | null
+          practitioner_tier:        string
+          primary_professions:      string[] | null
           profile_completeness_pct: number
-          profile_id: string
-          referral_contact_method: string | null
-          support_needs: string | null
-          tagline: string | null
-          trust_level: Database["public"]["Enums"]["trust_level"]
-          updated_at: string | null
-          vetted_by: string | null
-          website_url: string | null
-          years_experience: number | null
+          profile_id:               string
+          referral_contact_method:  string | null
+          support_needs:            string | null
+          tagline:                  string | null
+          trust_level:              Database["public"]["Enums"]["trust_level"]
+          updated_at:               string | null
+          vetted_by:                string | null
+          website_url:              string | null
+          years_experience:         number | null
         }
         Insert: {
-          accepted_at?: string | null
-          accepts_referrals?: boolean
-          activated_at?: string | null
-          area_tags?: string[] | null
-          bio?: string | null
-          city?: string | null
-          client_types?: string[] | null
-          collaboration_types?: string[] | null
-          country?: string | null
-          created_at?: string | null
-          credentials?: string[] | null
+          accepted_at?:              string | null
+          accepts_referrals?:        boolean
+          activated_at?:             string | null
+          area_tags?:                string[] | null
+          bio?:                      string | null
+          city?:                     string | null
+          client_types?:             string[] | null
+          collaboration_types?:      string[] | null
+          country?:                  string | null
+          created_at?:               string | null
+          credentials?:              string[] | null
           currently_seeing_clients?: boolean | null
-          delivery_mode?: string | null
-          display_order?: number
-          experience_range?: string | null
-          id?: string
-          instagram_url?: string | null
-          is_active?: boolean
-          is_directory_ready?: boolean
-          is_test_data?: boolean
-          lifecycle_status?: string
-          linkedin_url?: string | null
-          location?: string | null
-          modalities?: string | null
-          open_to_collaboration?: boolean
-          other_social_urls?: string | null
-          paused_at?: string | null
-          paused_reason?: string | null
-          practice_name?: string | null
-          practitioner_tier?: string
-          primary_professions?: string[] | null
+          delivery_mode?:            string | null
+          display_order?:            number
+          experience_range?:         string | null
+          id?:                       string
+          instagram_url?:            string | null
+          is_active?:                boolean
+          is_directory_ready?:       boolean
+          is_test_data?:             boolean
+          lifecycle_status?:         string
+          linkedin_url?:             string | null
+          location?:                 string | null
+          modalities?:               string | null
+          open_to_collaboration?:    boolean
+          other_social_urls?:        string | null
+          paused_at?:                string | null
+          paused_reason?:            string | null
+          practice_name?:            string | null
+          practitioner_tier?:        string
+          primary_professions?:      string[] | null
           profile_completeness_pct?: number
-          profile_id: string
-          referral_contact_method?: string | null
-          support_needs?: string | null
-          tagline?: string | null
-          trust_level?: Database["public"]["Enums"]["trust_level"]
-          updated_at?: string | null
-          vetted_by?: string | null
-          website_url?: string | null
-          years_experience?: number | null
+          profile_id:                string
+          referral_contact_method?:  string | null
+          support_needs?:            string | null
+          tagline?:                  string | null
+          trust_level?:              Database["public"]["Enums"]["trust_level"]
+          updated_at?:               string | null
+          vetted_by?:                string | null
+          website_url?:              string | null
+          years_experience?:         number | null
         }
         Update: {
-          accepted_at?: string | null
-          accepts_referrals?: boolean
-          activated_at?: string | null
-          area_tags?: string[] | null
-          bio?: string | null
-          city?: string | null
-          client_types?: string[] | null
-          collaboration_types?: string[] | null
-          country?: string | null
-          created_at?: string | null
-          credentials?: string[] | null
+          accepted_at?:              string | null
+          accepts_referrals?:        boolean
+          activated_at?:             string | null
+          area_tags?:                string[] | null
+          bio?:                      string | null
+          city?:                     string | null
+          client_types?:             string[] | null
+          collaboration_types?:      string[] | null
+          country?:                  string | null
+          created_at?:               string | null
+          credentials?:              string[] | null
           currently_seeing_clients?: boolean | null
-          delivery_mode?: string | null
-          display_order?: number
-          experience_range?: string | null
-          id?: string
-          instagram_url?: string | null
-          is_active?: boolean
-          is_directory_ready?: boolean
-          is_test_data?: boolean
-          lifecycle_status?: string
-          linkedin_url?: string | null
-          location?: string | null
-          modalities?: string | null
-          open_to_collaboration?: boolean
-          other_social_urls?: string | null
-          paused_at?: string | null
-          paused_reason?: string | null
-          practice_name?: string | null
-          practitioner_tier?: string
-          primary_professions?: string[] | null
+          delivery_mode?:            string | null
+          display_order?:            number
+          experience_range?:         string | null
+          id?:                       string
+          instagram_url?:            string | null
+          is_active?:                boolean
+          is_directory_ready?:       boolean
+          is_test_data?:             boolean
+          lifecycle_status?:         string
+          linkedin_url?:             string | null
+          location?:                 string | null
+          modalities?:               string | null
+          open_to_collaboration?:    boolean
+          other_social_urls?:        string | null
+          paused_at?:                string | null
+          paused_reason?:            string | null
+          practice_name?:            string | null
+          practitioner_tier?:        string
+          primary_professions?:      string[] | null
           profile_completeness_pct?: number
-          profile_id?: string
-          referral_contact_method?: string | null
-          support_needs?: string | null
-          tagline?: string | null
-          trust_level?: Database["public"]["Enums"]["trust_level"]
-          updated_at?: string | null
-          vetted_by?: string | null
-          website_url?: string | null
-          years_experience?: number | null
+          profile_id?:               string
+          referral_contact_method?:  string | null
+          support_needs?:            string | null
+          tagline?:                  string | null
+          trust_level?:              Database["public"]["Enums"]["trust_level"]
+          updated_at?:               string | null
+          vetted_by?:                string | null
+          website_url?:              string | null
+          years_experience?:         number | null
         }
         Relationships: [
           {
@@ -1513,85 +1876,279 @@ export type Database = {
       }
       profiles: {
         Row: {
-          avatar_url: string | null
-          bio: string | null
-          created_at: string | null
-          full_name: string | null
-          heard_about: string | null
-          id: string
-          is_test_data: boolean
+          avatar_url:              string | null
+          bio:                     string | null
+          created_at:              string | null
+          full_name:               string | null
+          heard_about:             string | null
+          id:                      string
+          is_test_data:            boolean
           onboarding_completed_at: string | null
-          onboarding_intent: string | null
-          role: Database["public"]["Enums"]["user_role"]
-          updated_at: string | null
+          onboarding_intent:       string | null
+          role:                    Database["public"]["Enums"]["user_role"]
+          updated_at:              string | null
         }
         Insert: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          heard_about?: string | null
-          id: string
-          is_test_data?: boolean
+          avatar_url?:              string | null
+          bio?:                     string | null
+          created_at?:              string | null
+          full_name?:               string | null
+          heard_about?:             string | null
+          id:                       string
+          is_test_data?:            boolean
           onboarding_completed_at?: string | null
-          onboarding_intent?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          updated_at?: string | null
+          onboarding_intent?:       string | null
+          role?:                    Database["public"]["Enums"]["user_role"]
+          updated_at?:              string | null
         }
         Update: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string | null
-          full_name?: string | null
-          heard_about?: string | null
-          id?: string
-          is_test_data?: boolean
+          avatar_url?:              string | null
+          bio?:                     string | null
+          created_at?:              string | null
+          full_name?:               string | null
+          heard_about?:             string | null
+          id?:                      string
+          is_test_data?:            boolean
           onboarding_completed_at?: string | null
-          onboarding_intent?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          updated_at?: string | null
+          onboarding_intent?:       string | null
+          role?:                    Database["public"]["Enums"]["user_role"]
+          updated_at?:              string | null
         }
         Relationships: []
       }
-      resources: {
+      protocol_items: {
         Row: {
-          author_id: string | null
-          body: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          published_at: string | null
-          resource_type: string
-          status: Database["public"]["Enums"]["content_status"]
-          title: string
-          topic_tags: string[] | null
-          updated_at: string | null
+          created_at:     string | null
+          display_order:  number | null
+          dose:           string | null
+          duration_weeks: number | null
+          id:             string
+          item_type:      string
+          name:           string
+          notes:          string | null
+          template_id:    string
+          timing:         string | null
         }
         Insert: {
-          author_id?: string | null
-          body?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          published_at?: string | null
-          resource_type?: string
-          status?: Database["public"]["Enums"]["content_status"]
-          title: string
-          topic_tags?: string[] | null
-          updated_at?: string | null
+          created_at?:     string | null
+          display_order?:  number | null
+          dose?:           string | null
+          duration_weeks?: number | null
+          id?:             string
+          item_type:       string
+          name:            string
+          notes?:          string | null
+          template_id:     string
+          timing?:         string | null
         }
         Update: {
-          author_id?: string | null
-          body?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
+          created_at?:     string | null
+          display_order?:  number | null
+          dose?:           string | null
+          duration_weeks?: number | null
+          id?:             string
+          item_type?:      string
+          name?:           string
+          notes?:          string | null
+          template_id?:    string
+          timing?:         string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "protocol_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      protocol_templates: {
+        Row: {
+          created_at:     string | null
+          created_by:     string | null
+          description:    string | null
+          id:             string
+          is_published:   boolean | null
+          name:           string
+          root_cause_key: string | null
+          updated_at:     string | null
+        }
+        Insert: {
+          created_at?:     string | null
+          created_by?:     string | null
+          description?:    string | null
+          id?:             string
+          is_published?:   boolean | null
+          name:            string
+          root_cause_key?: string | null
+          updated_at?:     string | null
+        }
+        Update: {
+          created_at?:     string | null
+          created_by?:     string | null
+          description?:    string | null
+          id?:             string
+          is_published?:   boolean | null
+          name?:           string
+          root_cause_key?: string | null
+          updated_at?:     string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // ── Sprint 17: CRT (continued) ──────────────────────────────────────────
+      reasoning_trace_entries: {
+        Row: {
+          agent_name:       string
+          case_id:          string
+          confidence:       number | null
+          content:          string
+          created_at:       string
+          entry_type:       string
+          evidence_payload: Json
+          hypothesis_key:   string | null
+          id:               string
+          priority:         number | null
+          system_area:      string | null
+          trace_id:         string
+          visibility:       string
+        }
+        Insert: {
+          agent_name:        string
+          case_id:           string
+          confidence?:       number | null
+          content:           string
+          created_at?:       string
+          entry_type:        string
+          evidence_payload?: Json
+          hypothesis_key?:   string | null
+          id?:               string
+          priority?:         number | null
+          system_area?:      string | null
+          trace_id:          string
+          visibility?:       string
+        }
+        Update: {
+          agent_name?:       string
+          case_id?:          string
+          confidence?:       number | null
+          content?:          string
+          created_at?:       string
+          entry_type?:       string
+          evidence_payload?: Json
+          hypothesis_key?:   string | null
+          id?:               string
+          priority?:         number | null
+          system_area?:      string | null
+          trace_id?:         string
+          visibility?:       string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reasoning_trace_entries_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reasoning_trace_entries_trace_id_fkey"
+            columns: ["trace_id"]
+            isOneToOne: false
+            referencedRelation: "reasoning_traces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reasoning_traces: {
+        Row: {
+          case_id:      string
+          created_at:   string
+          generated_by: string
+          id:           string
+          status:       string
+          summary:      string | null
+          trace_type:   string
+          updated_at:   string
+        }
+        Insert: {
+          case_id:       string
+          created_at?:   string
+          generated_by?: string
+          id?:           string
+          status?:       string
+          summary?:      string | null
+          trace_type:    string
+          updated_at?:   string
+        }
+        Update: {
+          case_id?:      string
+          created_at?:   string
+          generated_by?: string
+          id?:           string
+          status?:       string
+          summary?:      string | null
+          trace_type?:   string
+          updated_at?:   string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reasoning_traces_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // ── end CRT tables ───────────────────────────────────────────────────────
+      resources: {
+        Row: {
+          author_id:    string | null
+          body:         string | null
+          created_at:   string | null
+          description:  string | null
+          id:           string
+          published_at: string | null
+          resource_type:string
+          status:       Database["public"]["Enums"]["content_status"]
+          title:        string
+          topic_tags:   string[] | null
+          updated_at:   string | null
+        }
+        Insert: {
+          author_id?:    string | null
+          body?:         string | null
+          created_at?:   string | null
+          description?:  string | null
+          id?:           string
           published_at?: string | null
-          resource_type?: string
-          status?: Database["public"]["Enums"]["content_status"]
-          title?: string
-          topic_tags?: string[] | null
-          updated_at?: string | null
+          resource_type?:string
+          status?:       Database["public"]["Enums"]["content_status"]
+          title:         string
+          topic_tags?:   string[] | null
+          updated_at?:   string | null
+        }
+        Update: {
+          author_id?:    string | null
+          body?:         string | null
+          created_at?:   string | null
+          description?:  string | null
+          id?:           string
+          published_at?: string | null
+          resource_type?:string
+          status?:       Database["public"]["Enums"]["content_status"]
+          title?:        string
+          topic_tags?:   string[] | null
+          updated_at?:   string | null
         }
         Relationships: [
           {
@@ -1605,70 +2162,70 @@ export type Database = {
       }
       root_causes: {
         Row: {
-          colour: string | null
-          created_at: string | null
-          description: string | null
-          id: string
-          key: string
-          name: string
-          sphere_position_phi: number | null
-          sphere_position_theta: number | null
+          colour:                  string | null
+          created_at:              string | null
+          description:             string | null
+          id:                      string
+          key:                     string
+          name:                    string
+          sphere_position_phi:     number | null
+          sphere_position_theta:   number | null
         }
         Insert: {
-          colour?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          key: string
-          name: string
-          sphere_position_phi?: number | null
-          sphere_position_theta?: number | null
+          colour?:                  string | null
+          created_at?:              string | null
+          description?:             string | null
+          id?:                      string
+          key:                      string
+          name:                     string
+          sphere_position_phi?:     number | null
+          sphere_position_theta?:   number | null
         }
         Update: {
-          colour?: string | null
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          key?: string
-          name?: string
-          sphere_position_phi?: number | null
-          sphere_position_theta?: number | null
+          colour?:                  string | null
+          created_at?:              string | null
+          description?:             string | null
+          id?:                      string
+          key?:                     string
+          name?:                    string
+          sphere_position_phi?:     number | null
+          sphere_position_theta?:   number | null
         }
         Relationships: []
       }
       rootfinder_results: {
         Row: {
           confidence_score: number
-          created_at: string | null
-          id: string
-          member_id: string
-          rank: number
-          root_cause_id: string
-          session_id: string
-          symptom_count: number
-          weighted_score: number
+          created_at:       string | null
+          id:               string
+          member_id:        string
+          rank:             number
+          root_cause_id:    string
+          session_id:       string
+          symptom_count:    number
+          weighted_score:   number
         }
         Insert: {
           confidence_score: number
-          created_at?: string | null
-          id?: string
-          member_id: string
-          rank: number
-          root_cause_id: string
-          session_id: string
-          symptom_count: number
-          weighted_score: number
+          created_at?:      string | null
+          id?:              string
+          member_id:        string
+          rank:             number
+          root_cause_id:    string
+          session_id:       string
+          symptom_count:    number
+          weighted_score:   number
         }
         Update: {
           confidence_score?: number
-          created_at?: string | null
-          id?: string
-          member_id?: string
-          rank?: number
-          root_cause_id?: string
-          session_id?: string
-          symptom_count?: number
-          weighted_score?: number
+          created_at?:       string | null
+          id?:               string
+          member_id?:        string
+          rank?:             number
+          root_cause_id?:    string
+          session_id?:       string
+          symptom_count?:    number
+          weighted_score?:   number
         }
         Relationships: [
           {
@@ -1689,40 +2246,40 @@ export type Database = {
       }
       subscriptions: {
         Row: {
-          care_plan_id: string | null
-          created_at: string | null
-          current_period_end: string | null
-          current_period_start: string | null
-          id: string
-          status: Database["public"]["Enums"]["subscription_status"]
-          stripe_customer_id: string | null
-          stripe_subscription_id: string | null
-          updated_at: string | null
-          user_id: string
+          care_plan_id:          string | null
+          created_at:            string | null
+          current_period_end:    string | null
+          current_period_start:  string | null
+          id:                    string
+          status:                Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id:    string | null
+          stripe_subscription_id:string | null
+          updated_at:            string | null
+          user_id:               string
         }
         Insert: {
-          care_plan_id?: string | null
-          created_at?: string | null
-          current_period_end?: string | null
-          current_period_start?: string | null
-          id?: string
-          status?: Database["public"]["Enums"]["subscription_status"]
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          updated_at?: string | null
-          user_id: string
+          care_plan_id?:          string | null
+          created_at?:            string | null
+          current_period_end?:    string | null
+          current_period_start?:  string | null
+          id?:                    string
+          status?:                Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?:    string | null
+          stripe_subscription_id?:string | null
+          updated_at?:            string | null
+          user_id:                string
         }
         Update: {
-          care_plan_id?: string | null
-          created_at?: string | null
-          current_period_end?: string | null
-          current_period_start?: string | null
-          id?: string
-          status?: Database["public"]["Enums"]["subscription_status"]
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
-          updated_at?: string | null
-          user_id?: string
+          care_plan_id?:          string | null
+          created_at?:            string | null
+          current_period_end?:    string | null
+          current_period_start?:  string | null
+          id?:                    string
+          status?:                Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?:    string | null
+          stripe_subscription_id?:string | null
+          updated_at?:            string | null
+          user_id?:               string
         }
         Relationships: [
           {
@@ -1736,52 +2293,52 @@ export type Database = {
       }
       support_requests: {
         Row: {
-          admin_notes: string | null
-          assigned_to: string | null
-          description: string
-          email: string
-          full_name: string
-          id: string
+          admin_notes:  string | null
+          assigned_to:  string | null
+          description:  string
+          email:        string
+          full_name:    string
+          id:           string
           is_test_data: boolean
-          member_id: string | null
-          phone: string | null
+          member_id:    string | null
+          phone:        string | null
           request_type: string
-          status: string
+          status:       string
           submitted_at: string | null
-          updated_at: string | null
-          urgency: string | null
+          updated_at:   string | null
+          urgency:      string | null
         }
         Insert: {
-          admin_notes?: string | null
-          assigned_to?: string | null
-          description: string
-          email: string
-          full_name: string
-          id?: string
+          admin_notes?:  string | null
+          assigned_to?:  string | null
+          description:   string
+          email:         string
+          full_name:     string
+          id?:           string
           is_test_data?: boolean
-          member_id?: string | null
-          phone?: string | null
+          member_id?:    string | null
+          phone?:        string | null
           request_type?: string
-          status?: string
+          status?:       string
           submitted_at?: string | null
-          updated_at?: string | null
-          urgency?: string | null
+          updated_at?:   string | null
+          urgency?:      string | null
         }
         Update: {
-          admin_notes?: string | null
-          assigned_to?: string | null
-          description?: string
-          email?: string
-          full_name?: string
-          id?: string
+          admin_notes?:  string | null
+          assigned_to?:  string | null
+          description?:  string
+          email?:        string
+          full_name?:    string
+          id?:           string
           is_test_data?: boolean
-          member_id?: string | null
-          phone?: string | null
+          member_id?:    string | null
+          phone?:        string | null
           request_type?: string
-          status?: string
+          status?:       string
           submitted_at?: string | null
-          updated_at?: string | null
-          urgency?: string | null
+          updated_at?:   string | null
+          urgency?:      string | null
         }
         Relationships: [
           {
@@ -1802,22 +2359,22 @@ export type Database = {
       }
       symptom_root_mappings: {
         Row: {
-          id: string
+          id:            string
           root_cause_id: string
-          symptom_id: string
-          weight: number
+          symptom_id:    string
+          weight:        number
         }
         Insert: {
-          id?: string
-          root_cause_id: string
-          symptom_id: string
-          weight?: number
+          id?:            string
+          root_cause_id:  string
+          symptom_id:     string
+          weight?:        number
         }
         Update: {
-          id?: string
+          id?:            string
           root_cause_id?: string
-          symptom_id?: string
-          weight?: number
+          symptom_id?:    string
+          weight?:        number
         }
         Relationships: [
           {
@@ -1838,28 +2395,28 @@ export type Database = {
       }
       symptoms: {
         Row: {
-          category: string | null
-          created_at: string | null
+          category:    string | null
+          created_at:  string | null
           description: string | null
-          id: string
-          key: string
-          name: string
+          id:          string
+          key:         string
+          name:        string
         }
         Insert: {
-          category?: string | null
-          created_at?: string | null
+          category?:    string | null
+          created_at?:  string | null
           description?: string | null
-          id?: string
-          key: string
-          name: string
+          id?:          string
+          key:          string
+          name:         string
         }
         Update: {
-          category?: string | null
-          created_at?: string | null
+          category?:    string | null
+          created_at?:  string | null
           description?: string | null
-          id?: string
-          key?: string
-          name?: string
+          id?:          string
+          key?:         string
+          name?:        string
         }
         Relationships: []
       }
@@ -1890,7 +2447,7 @@ export type Database = {
           notes?:           string | null
           overall_score?:   number | null
           physical_score?:  number | null
-          score_date:       string
+          score_date?:      string
         }
         Update: {
           adherence_pct?:   number | null
@@ -1920,34 +2477,34 @@ export type Database = {
     Views: {
       member_support_requests: {
         Row: {
-          description: string | null
-          id: string | null
-          member_id: string | null
+          description:  string | null
+          id:           string | null
+          member_id:    string | null
           request_type: string | null
-          status: string | null
+          status:       string | null
           submitted_at: string | null
-          updated_at: string | null
-          urgency: string | null
+          updated_at:   string | null
+          urgency:      string | null
         }
         Insert: {
-          description?: string | null
-          id?: string | null
-          member_id?: string | null
+          description?:  string | null
+          id?:           string | null
+          member_id?:    string | null
           request_type?: string | null
-          status?: string | null
+          status?:       string | null
           submitted_at?: string | null
-          updated_at?: string | null
-          urgency?: string | null
+          updated_at?:   string | null
+          urgency?:      string | null
         }
         Update: {
-          description?: string | null
-          id?: string | null
-          member_id?: string | null
+          description?:  string | null
+          id?:           string | null
+          member_id?:    string | null
           request_type?: string | null
-          status?: string | null
+          status?:       string | null
           submitted_at?: string | null
-          updated_at?: string | null
-          urgency?: string | null
+          updated_at?:   string | null
+          urgency?:      string | null
         }
         Relationships: [
           {
@@ -1969,16 +2526,16 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
-      is_admin: { Args: never; Returns: boolean }
+      is_admin:        { Args: never; Returns: boolean }
       is_practitioner: { Args: never; Returns: boolean }
     }
     Enums: {
-      content_status: "draft" | "published" | "archived"
-      intake_status: "pending" | "reviewing" | "assigned" | "active" | "closed"
-      message_status: "sent" | "delivered" | "read" | "filtered"
+      content_status:      "draft" | "published" | "archived"
+      intake_status:       "pending" | "reviewing" | "assigned" | "active" | "closed"
+      message_status:      "sent" | "delivered" | "read" | "filtered"
       subscription_status: "inactive" | "active" | "cancelled" | "past_due"
-      trust_level: "vetted" | "unvetted"
-      user_role: "user" | "practitioner" | "admin" | "member"
+      trust_level:         "vetted" | "unvetted"
+      user_role:           "user" | "practitioner" | "admin" | "member"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2106,12 +2663,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      content_status: ["draft", "published", "archived"],
-      intake_status: ["pending", "reviewing", "assigned", "active", "closed"],
-      message_status: ["sent", "delivered", "read", "filtered"],
+      content_status:      ["draft", "published", "archived"],
+      intake_status:       ["pending", "reviewing", "assigned", "active", "closed"],
+      message_status:      ["sent", "delivered", "read", "filtered"],
       subscription_status: ["inactive", "active", "cancelled", "past_due"],
-      trust_level: ["vetted", "unvetted"],
-      user_role: ["user", "practitioner", "admin", "member"],
+      trust_level:         ["vetted", "unvetted"],
+      user_role:           ["user", "practitioner", "admin", "member"],
     },
   },
 } as const

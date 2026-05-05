@@ -1,7 +1,8 @@
 'use server'
 
 import { createServerSupabaseClient } from '@natural-intelligence/db'
-import { generateHealthSynopsis } from '../synopsis/actions'
+import { generateHealthSynopsis }    from '../synopsis/actions'
+import { generateBodyStory }         from '../story/actions'
 
 // ─── saveIntakeSection ────────────────────────────────────────────────────────
 // Upsert a partial section's data into intake_responses.
@@ -80,5 +81,10 @@ export async function completeIntake(consentData: {
   // Fire-and-forget: synopsis page shows generating state with meta refresh
   generateHealthSynopsis(user.id).catch((err) => {
     console.error('[completeIntake] synopsis generation failed:', err)
+  })
+
+  // Fire-and-forget: CRT body story generation (Sprint 17/18)
+  generateBodyStory(user.id).catch((err) => {
+    console.error('[completeIntake] body story generation failed:', err)
   })
 }

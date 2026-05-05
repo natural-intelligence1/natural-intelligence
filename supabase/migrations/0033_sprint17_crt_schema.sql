@@ -1,0 +1,38 @@
+-- Sprint 17 — record-only migration (tables applied to live DB via MCP)
+--
+-- Four new tables for the Clinical Reasoning Trace (CRT) system:
+--
+-- 1. client_cases
+--    One active case per client. Tracks primary concern, complexity score,
+--    and escalation status.
+--    Fields: id, client_id (FK → profiles), status ('active'|'paused'|'closed'),
+--    primary_concern, case_complexity_score, escalation_required,
+--    created_at, updated_at.
+--    RLS: members read own rows; service_role unrestricted.
+--
+-- 2. case_events
+--    Append-only log of all CCR inputs (intake answers, lab uploads, etc.).
+--    Fields: id, case_id (FK → client_cases), event_type, source_table,
+--    source_id, event_payload (jsonb), created_at.
+--    RLS: members read events from own cases; service_role unrestricted.
+--
+-- 3. reasoning_traces
+--    One per major reasoning cycle (intake_analysis, lab_analysis, etc.).
+--    Fields: id, case_id (FK → client_cases), trace_type, status
+--    ('draft'|'ready_for_review'|'reviewed'|'client_visible'),
+--    summary (full narrative text), generated_by ('ai'|'practitioner'|'hybrid'),
+--    created_at, updated_at.
+--    RLS: members read only client_visible traces on own cases; service_role unrestricted.
+--
+-- 4. reasoning_trace_entries
+--    Individual agent writes. Append-only — never overwrite.
+--    Fields: id, trace_id (FK → reasoning_traces), case_id (FK → client_cases),
+--    agent_name, entry_type, system_area, hypothesis_key, content,
+--    evidence_payload (jsonb), confidence (0–1), priority, visibility
+--    ('internal'|'practitioner'|'client'), created_at.
+--    RLS: members read visibility='client' entries on client_visible traces; service_role unrestricted.
+--
+-- Indexes: client_id, case_id, trace_id, visibility, entry_type.
+-- Triggers: set_updated_at on client_cases and reasoning_traces.
+--
+-- No further action required — this migration is a no-op if run against the live DB.

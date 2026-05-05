@@ -7,3 +7,6 @@ export type { Database } from './types'
 // UI branching engine (Sprint 16.2 Phase C2)
 // Parallel to clinicalScoringRules — different pipeline, different concern.
 export * from './intake'
+
+// Clinical Reasoning Trace (Sprint 17)
+export * from './crt'
