@@ -1,9 +1,9 @@
 # G.1.2 — Practitioner Identity, Work & Lifecycle: Design Proposal
 
-**Status:** Proposed — awaiting approval before any code or migration  
-**Date:** 2026-05-05  
+**Status:** Approved — addendum incorporated 2026-05-06; proceeding to G.1.3 implementation  
+**Date:** 2026-05-05 (addendum: 2026-05-06)  
 **Author:** Claude (G.1.2 sprint)  
-**Scope:** `practitioners` rebuild, `case_practitioner_work` creation, `client_cases.status` extension, RLS extensions, middleware gate, runbook
+**Scope:** `practitioners` rebuild, `case_practitioner_work` creation, `client_practitioner_links` creation, `client_cases.status` extension, RLS extensions, middleware gate, directory privacy view, runbook
 
 ---
 
@@ -291,17 +291,16 @@ ALTER TABLE practitioners ENABLE ROW LEVEL SECURITY;
 CREATE POLICY practitioner_self_select ON practitioners
   FOR SELECT USING (id = auth.uid());
 
--- Public directory: active + directory-ready rows only
--- (preserves existing behaviour)
-CREATE POLICY practitioners_public_directory ON practitioners
-  FOR SELECT USING (status = 'active' AND is_directory_ready = true);
-
 -- Service role: unrestricted (admin app writes via service_role)
 CREATE POLICY practitioners_service_all ON practitioners
   FOR ALL USING (auth.role() = 'service_role');
 
 -- No INSERT/UPDATE policies for regular users in v1.
 -- All lifecycle mutations happen via admin app (service_role).
+
+-- NOTE: Public directory access is NOT granted via a policy on this table.
+-- Anon reads go through the practitioners_directory VIEW (see Section 4b below).
+-- The practitioners table itself is not directly accessible to anon.
 ```
 
 ### DB helper function
@@ -316,6 +315,88 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$
   )
 $$;
 ```
+
+---
+
+## 4b. Directory Privacy — `practitioners_directory` View (Addendum: Refinement 2)
+
+### Requirement
+
+Anon reads must not expose contact-detail or operational columns. The `practitioners` table contains sensitive columns (`website_url`, `linkedin_url`, audit fields, `status`, etc.) that must never be accessible to unauthenticated queries.
+
+### Implementation: View-based approach (option b)
+
+A `practitioners_directory` view selects only safe columns. Anon reads go through the view. Direct table reads remain authenticated-only (no anon policy on the table itself).
+
+This approach is preferred over column-level GRANTs because the view makes the public surface explicit and discoverable. Future columns added to `practitioners` default private unless explicitly added to the view.
+
+### Public-safe column set
+
+```
+display_name, bio, credentials_summary, specialisations,
+modalities, years_experience, experience_range, delivery_mode,
+city, country, primary_professions, area_tags, client_types,
+practice_name, tagline, practitioner_tier, accepts_referrals,
+currently_seeing_clients, profile_completeness_pct, is_directory_ready
+```
+
+### DDL
+
+```sql
+CREATE OR REPLACE VIEW practitioners_directory AS
+SELECT
+  id,
+  display_name,
+  bio,
+  credentials_summary,
+  specialisations,
+  modalities,
+  years_experience,
+  experience_range,
+  delivery_mode,
+  city,
+  country,
+  primary_professions,
+  area_tags,
+  client_types,
+  practice_name,
+  tagline,
+  practitioner_tier,
+  accepts_referrals,
+  currently_seeing_clients,
+  profile_completeness_pct,
+  is_directory_ready
+FROM practitioners
+WHERE status = 'active'
+  AND is_directory_ready = true;
+
+-- Views in Supabase inherit the caller's RLS context.
+-- Anon can read this view because practitioners_service_all and
+-- practitioner_self_select use USING clauses that anon does not satisfy,
+-- but the view's WHERE clause acts as a row filter.
+-- We grant SELECT on the view to anon explicitly:
+GRANT SELECT ON practitioners_directory TO anon;
+```
+
+### Private columns (explicitly excluded)
+
+```
+website_url, linkedin_url, instagram_url, other_social_urls
+referral_contact_method, support_needs
+verified_by, verified_at, suspended_by, suspended_at, suspension_reason
+archived_by, archived_at, archive_reason
+status, is_active
+collaboration_types, open_to_collaboration
+display_order, is_test_data, created_at, updated_at
+```
+
+### Migration placement
+
+The view is created in **Migration 0034** immediately after the `practitioners` table DDL and RLS policies. It is part of the practitioners rebuild.
+
+### Test
+
+An anon-key query against `practitioners_directory` must return rows (for active, directory-ready practitioners) but must not include any private column. A query that explicitly selects `website_url` or `status` from the view must return a column-not-found error or empty result.
 
 ---
 
@@ -453,6 +534,185 @@ CREATE POLICY work_practitioner_update ON case_practitioner_work
 CREATE POLICY work_service_all ON case_practitioner_work
   FOR ALL USING (auth.role() = 'service_role');
 ```
+
+---
+
+## 5b. Schema: `client_practitioner_links` Table (Addendum)
+
+### Three-table principle
+
+```
+client_practitioner_links  durable relationship context
+                            (who is connected, why, how protected)
+case_practitioner_work     task-level operational work
+                            (who did what, when, on which case)
+case_events                longitudinal audit / output memory
+                            (what happened, in what order)
+```
+
+These three tables are complementary and non-overlapping. A practitioner may have a durable link to a client (relationship) without currently having any active work item (task). Work items are created against cases, not against links. Links persist across cases.
+
+### DDL
+
+```sql
+-- ──────────────────────────────────────────────────────────────────────────────
+-- client_practitioner_links
+-- Durable relationship-context table. Distinct from case_practitioner_work.
+--
+-- A link records the nature and protection level of a client-practitioner
+-- connection. Work happens against cases (case_practitioner_work);
+-- relationships persist across cases (this table).
+--
+-- Lifecycle: created → (active) → ended_at + end_reason
+-- Active rows: ended_at IS NULL
+--
+-- v1: control_level is informational. Admin honours it manually via
+-- runbook. Notification-on-change automation is deferred to a
+-- later sprint.
+-- ──────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE client_practitioner_links (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- ── Core references ────────────────────────────────────────────────────────
+  client_id          uuid NOT NULL REFERENCES auth.users(id)
+                       ON DELETE CASCADE,
+  practitioner_id    uuid NOT NULL REFERENCES practitioners(id)
+                       ON DELETE RESTRICT,
+
+  -- ── Relationship classification ───────────────────────────────────────────
+  connection_type    text NOT NULL CHECK (connection_type IN (
+                       'brought_by_practitioner',
+                       'assigned_by_admin',
+                       'chosen_by_client',
+                       'added_by_system'
+                     )),
+
+  role               text NOT NULL CHECK (role IN (
+                       'lead',
+                       'specialist',
+                       'reviewer',
+                       'temporary'
+                     )),
+
+  control_level      text NOT NULL CHECK (control_level IN (
+                       'keep',
+                       'flexible',
+                       'one_off'
+                     )),
+
+  -- ── Provenance ────────────────────────────────────────────────────────────
+  created_by         uuid REFERENCES auth.users(id),
+                     -- NULL when creation_actor = 'system'
+  creation_actor     text NOT NULL CHECK (creation_actor IN (
+                       'admin',
+                       'practitioner',
+                       'system'
+                     )),
+
+  -- ── Lifecycle ─────────────────────────────────────────────────────────────
+  -- ended_at IS NULL → link is active.
+  ended_at           timestamptz,
+  end_reason         text,
+                     -- conventional values: 'declined', 'escalated',
+                     -- 'admin_action', 'client_request',
+                     -- 'practitioner_archived' (free text permitted)
+
+  -- ── Optional context ──────────────────────────────────────────────────────
+  notes              text,
+                     -- internal admin/system notes; not client-visible
+
+  -- ── Timestamps ─────────────────────────────────────────────────────────────
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  updated_at         timestamptz NOT NULL DEFAULT now()
+);
+```
+
+### Indexes
+
+```sql
+-- Practitioner's client list (active links only)
+CREATE INDEX idx_cpl_practitioner_active
+  ON client_practitioner_links(practitioner_id)
+  WHERE ended_at IS NULL;
+
+-- Client's care team (active links only)
+CREATE INDEX idx_cpl_client_active
+  ON client_practitioner_links(client_id)
+  WHERE ended_at IS NULL;
+
+-- One active link per (client, practitioner) pair
+CREATE UNIQUE INDEX idx_cpl_one_active_per_pair
+  ON client_practitioner_links(client_id, practitioner_id)
+  WHERE ended_at IS NULL;
+
+-- One active 'lead' practitioner per client
+CREATE UNIQUE INDEX idx_cpl_one_active_lead
+  ON client_practitioner_links(client_id)
+  WHERE ended_at IS NULL AND role = 'lead';
+```
+
+### Trigger
+
+```sql
+CREATE TRIGGER client_practitioner_links_updated_at
+  BEFORE UPDATE ON client_practitioner_links
+  FOR EACH ROW EXECUTE FUNCTION handle_updated_at();
+```
+
+### RLS
+
+```sql
+ALTER TABLE client_practitioner_links ENABLE ROW LEVEL SECURITY;
+
+-- Practitioner sees their own ACTIVE client links only.
+-- Ended links are accessible only via service_role (admin audit).
+CREATE POLICY cpl_practitioner_select_active ON client_practitioner_links
+  FOR SELECT
+  USING (
+    practitioner_id = auth.uid()
+    AND ended_at IS NULL
+  );
+
+-- Service role: unrestricted (admin operations + historical audit)
+CREATE POLICY cpl_service_all ON client_practitioner_links
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- NO direct client-side SELECT policy. Clients access their team
+-- only through the helper function getClientTeam() which projects
+-- safe columns (no connection_type, no control_level, no notes,
+-- no audit fields).
+```
+
+The `ended_at IS NULL` clause on the practitioner policy is deliberate. Practitioners see their current clients in their own queries; historical audit (who they used to see, why links ended) is an admin-only concern accessed via service_role.
+
+### Helper module additions
+
+Add to `packages/db/src/practitioners/`:
+
+```
+createClientPractitionerLink.ts   — admin/system creates a link
+endClientPractitionerLink.ts      — admin ends a link with reason
+listClientLinksForPractitioner.ts — practitioner's active client list
+getClientTeam.ts                  — client-safe view of team
+```
+
+Co-located `*.test.ts` files for each.
+
+`getClientTeam.ts` projects ONLY:
+
+```
+practitioner_id, display_name, bio, credentials_summary,
+specialisations, modalities, role, created_at
+```
+
+Explicitly excluded: `connection_type`, `control_level`, `created_by`, `creation_actor`, `end_reason`, `notes`, `ended_at`.
+
+The function fetches via service_role (bypassing the no-client-RLS policy) but is invoked from a server action that authenticates the caller is the `client_id` being queried.
+
+### Invitation flow deferral (Refinement 3)
+
+Practitioner-led client signup with `referring_practitioner_id` is NOT in G.1.2. `client_practitioner_links` is the schema substrate for that future invitation flow — specifically the `connection_type = 'brought_by_practitioner'` value and the `created_by` provenance field. The flow itself is built in a dedicated follow-up sprint after G.1.2 lands cleanly.
 
 ---
 
@@ -689,6 +949,11 @@ DECLARE
   v_work_type text;
   v_event_id  uuid;
 BEGIN
+  -- Validate decision value (Addendum: Refinement 1)
+  IF p_decision NOT IN ('approved', 'needs_revision', 'escalated') THEN
+    RAISE EXCEPTION 'Invalid decision value: %', p_decision;
+  END IF;
+
   -- Verify caller owns this work item and it is in a completable state
   SELECT case_id, work_type INTO v_case_id, v_work_type
   FROM case_practitioner_work
@@ -736,9 +1001,11 @@ $$;
 
 ```typescript
 // apps/care/app/cases/[caseId]/work/actions.ts
+import type { WorkDecision } from '@natural-intelligence/db/practitioners'
+
 export async function completeWorkItem(
   workId: string,
-  output: { decision: string; notes: string; recommendation: string }
+  output: { decision: WorkDecision; notes: string; recommendation: string }
 ) {
   const supabase = createServerClient(...)       // practitioner's anon-key session
 
@@ -771,21 +1038,38 @@ export async function completeWorkItem(
 
 ```
 packages/db/src/practitioners/
-  index.ts                    — barrel export
-  types.ts                    — domain types (PractitionerStatus, WorkType, etc.)
-  getPractitioner.ts          — fetch own practitioner row by user id
+  index.ts                          — barrel export
+  types.ts                          — domain types (PractitionerStatus, WorkType,
+                                      WorkDecision, etc.)
+  getPractitioner.ts                — fetch own practitioner row by user id
   getPractitioner.test.ts
-  listAssignedWork.ts         — open work items for a practitioner
+  listAssignedWork.ts               — open work items for a practitioner
   listAssignedWork.test.ts
-  listAssignedCases.ts        — cases a practitioner has active work on
+  listAssignedCases.ts              — cases a practitioner has active work on
   listAssignedCases.test.ts
-  assignWork.ts               — create a case_practitioner_work row (admin)
+  assignWork.ts                     — create a case_practitioner_work row (admin)
   assignWork.test.ts
-  completeWorkItem.ts         — RPC wrapper for the atomic completion function
+  completeWorkItem.ts               — RPC wrapper for the atomic completion function
   completeWorkItem.test.ts
-  updatePractitionerStatus.ts — admin: lifecycle transitions with audit fields
+  updatePractitionerStatus.ts       — admin: lifecycle transitions with audit fields
   updatePractitionerStatus.test.ts
+  createClientPractitionerLink.ts   — admin/system creates a link
+  createClientPractitionerLink.test.ts
+  endClientPractitionerLink.ts      — admin ends a link with reason
+  endClientPractitionerLink.test.ts
+  listClientLinksForPractitioner.ts — practitioner's active client list
+  listClientLinksForPractitioner.test.ts
+  getClientTeam.ts                  — client-safe view of care team (service_role fetch)
+  getClientTeam.test.ts
 ```
+
+**`WorkDecision` type** (defined in `types.ts`, exported via `index.ts`):
+
+```typescript
+export type WorkDecision = 'approved' | 'needs_revision' | 'escalated'
+```
+
+The `completeWorkItem` helper accepts `WorkDecision`, not `string`. The RPC function validates the same set server-side (defence in depth).
 
 ### `packages/db/package.json` — subpath export to add
 
@@ -902,17 +1186,46 @@ SET
 WHERE id = '<practitioner-auth-uuid>';
 ```
 
+### Runbook addition: creating a client-practitioner link (Addendum)
+
+A new section will be added to `docs/runbooks/onboard-practitioner.md`:
+
+**"Creating a client-practitioner link"** — documents the SQL for each `connection_type` and the operational meaning of each `control_level`. Includes an explicit note that `control_level = 'keep'` represents a protected relationship the admin must honour manually until automation lands. Sample SQL:
+
+```sql
+-- Assign a lead practitioner to a client
+INSERT INTO client_practitioner_links (
+  client_id, practitioner_id,
+  connection_type, role, control_level,
+  created_by, creation_actor
+)
+VALUES (
+  '<client-auth-uuid>',
+  '<practitioner-id>',
+  'assigned_by_admin',     -- connection_type
+  'lead',                  -- role
+  'keep',                  -- control_level: admin must not reassign without reason
+  '<admin-auth-uuid>',     -- created_by
+  'admin'
+);
+```
+
+`control_level` operational meanings:
+- `keep` — protected relationship; admin must not reassign or end without documented reason
+- `flexible` — relationship can be changed to another practitioner at operational discretion
+- `one_off` — temporary engagement; link expected to end after specific case work completes
+
 ---
 
 ## 13. Migration Plan
 
-Each migration file contains actual DDL — no comment-only files. Fresh `supabase db reset` must recreate the full schema. Four migration files; one concern per file.
+Each migration file contains actual DDL — no comment-only files. Fresh `supabase db reset` must recreate the full schema. Five migration files (0034–0038); one concern per file.
 
 ### Sequence
 
 **Migration 0034 — `0034_g1_practitioners_rebuild.sql`**
 
-Rebuild the practitioners table with the new schema. Migrate existing 5 rows. Drop the old table.
+Rebuild the practitioners table with the new schema. Migrate existing 5 rows. Drop the old table. Create the directory view.
 
 Steps:
 1. Create `practitioners_v1` as a backup copy
@@ -920,8 +1233,8 @@ Steps:
 3. Drop old `practitioners` table
 4. Create new `practitioners` table (full DDL from Section 4)
 5. Create `is_active_practitioner()` function
-6. Create triggers
-7. Enable RLS and create policies
+6. Create triggers (`updated_at`, `sync_is_active`, `practitioner_completeness_trigger`)
+7. Enable RLS and create policies (`practitioner_self_select`, `practitioners_service_all`)
 8. Migrate rows from `practitioners_v1`:
    - Map `profile_id` → `id`
    - Map `lifecycle_status` values:
@@ -934,6 +1247,7 @@ Steps:
    - Copy all profile columns directly
 9. Verify row count matches before dropping backup
 10. Drop `practitioners_v1`
+11. Create `practitioners_directory` view (Section 4b) with `GRANT SELECT TO anon`
 
 **Migration 0035 — `0035_g1_case_practitioner_work.sql`**
 
@@ -944,7 +1258,7 @@ Steps:
 2. Create indexes (including partial unique index)
 3. Create trigger
 4. Enable RLS and create policies
-5. Create `complete_practitioner_work()` Postgres function (Section 10)
+5. Create `complete_practitioner_work()` Postgres function (Section 10) — includes `p_decision` validation against `('approved', 'needs_revision', 'escalated')`
 
 **Migration 0036 — `0036_g1_client_cases_status.sql`**
 
@@ -964,6 +1278,17 @@ Steps:
 2. Add `case_events_practitioner_select` to `case_events`
 3. Add `reasoning_traces_practitioner_select` to `reasoning_traces`
 4. Add `reasoning_trace_entries_practitioner_select` to `reasoning_trace_entries`
+
+**Migration 0038 — `0038_g1_client_practitioner_links.sql`** (Addendum)
+
+Create `client_practitioner_links`. All DDL from Section 5b.
+
+Steps:
+1. Add three-table principle as header comment block
+2. Create table
+3. Create indexes (including two partial unique indexes)
+4. Create trigger (`updated_at`)
+5. Enable RLS and create policies (`cpl_practitioner_select_active`, `cpl_service_all`)
 
 ### Migration file naming note
 
@@ -1032,6 +1357,30 @@ These are integration tests against the middleware function (or an equivalent ut
 | Completion rejected for already-completed work | Work already has status = 'completed' | Function raises exception |
 | Partial failure impossible | Simulate case_events INSERT failure (invalid data) | Transaction rolls back; work status unchanged |
 | Duplicate `case_events` on retry | Retry after transient error | Idempotency must be documented; the RPC function should be designed so retries are safe (check for existing `output_event_id` before inserting) |
+| Invalid decision rejected by RPC | Call with `p_decision = 'invalid_value'` | Function raises exception; no rows modified |
+| Valid decisions accepted | Call with each of `'approved'`, `'needs_revision'`, `'escalated'` | All three succeed |
+
+### `client_practitioner_links` tests (Addendum)
+
+| Test | Setup | Assert |
+|---|---|---|
+| Practitioner sees own active links | Two practitioners, two clients each | Each sees only own active links |
+| Practitioner does NOT see own ended links | Practitioner has one active and one ended link | Query returns one row, not two |
+| Client cannot read links table directly | Authenticated as client (no RLS policy) | Query returns empty |
+| Client team helper projects safe columns only | Active link for client | Returned object excludes `connection_type`, `control_level`, `notes`, `created_by`, `creation_actor`, `end_reason`, `ended_at` |
+| One active link per pair enforced | Insert two active links for same (client, practitioner) | Second INSERT fails on unique index `idx_cpl_one_active_per_pair` |
+| One active lead per client enforced | Insert second `lead` link for same client | Second INSERT fails on unique index `idx_cpl_one_active_lead` |
+| Inactive link does not count toward uniqueness | First link `ended_at` set, insert new active link for same pair | Succeeds |
+
+### Directory privacy tests (Addendum: Refinement 2)
+
+| Test | Setup | Assert |
+|---|---|---|
+| Anon reads directory view, gets only safe columns | Active, directory-ready practitioner | Query against `practitioners_directory` returns row; columns are the safe set only |
+| Anon cannot read private columns from view | Anon query explicitly selecting `website_url` | Column not found or column not returned |
+| Anon cannot query practitioners table directly | Anon with no matching RLS policy | Query returns empty (no anon policy on the table) |
+| Inactive practitioner excluded from directory | Practitioner with `status = 'suspended'` | Not returned by `practitioners_directory` view |
+| Non-directory-ready practitioner excluded | Active practitioner with `is_directory_ready = false` | Not returned by view |
 
 ---
 
@@ -1044,3 +1393,7 @@ These are integration tests against the middleware function (or an equivalent ut
 | Middleware vs. layout role check | Middleware does the DB check (Constraint 5). Admin app's layout-only pattern is not adopted for care app — care app is the context where suspension must take effect immediately. |
 | FK to `auth.users` vs `profiles` | Audit fields reference `auth.users(id)` per Constraint 2. Profile columns reference `profiles.id`. Both are the same UUID value; the distinction is semantic correctness for audit trail (auth user) vs. profile display (profile row). |
 | `is_admin()` function pattern | Extended by adding `is_active_practitioner()` using the identical pattern. Consistent with existing DB-side function convention. |
+| Directory privacy approach | View-based (`practitioners_directory`) over column-level GRANTs. View makes public surface explicit; future columns default private unless added to the view. |
+| `WorkDecision` constraint location | Validated both in TypeScript type (`WorkDecision` union) and in the Postgres RPC function. Defence in depth: the DB rejects invalid values even if the application bypasses the type. |
+| `case_practitioner_work` vs `client_practitioner_links` | Distinct tables for distinct concerns. Work is task-scoped (created against a case, completed, audited). Links are relationship-scoped (persist across cases, ended when the relationship changes). Never merge these. |
+| Invitation flow deferral | `client_practitioner_links` provides the schema substrate (`brought_by_practitioner` connection_type, `created_by` provenance). The signup flow itself is deferred to a follow-up sprint to keep G.1.2 scope contained. |
