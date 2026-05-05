@@ -2,6 +2,8 @@
 // Domain types for the Clinical Reasoning Trace system.
 // These mirror the DB check constraints — keep in sync with the migration.
 
+import type { Json } from '../types'
+
 export type CaseStatus = 'active' | 'paused' | 'closed'
 
 export type EventType =
@@ -55,7 +57,7 @@ export interface TraceEntry {
   content:          string
   system_area?:     string
   hypothesis_key?:  string
-  evidence_payload?: Record<string, unknown>
+  evidence_payload?: Record<string, Json>
   confidence?:      number
   priority?:        number
   visibility:       Visibility

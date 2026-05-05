@@ -6,7 +6,7 @@ import { getClientStory }           from '@natural-intelligence/db'
 import { generateBodyStory }        from './actions'
 
 export const metadata: Metadata = {
-  title: 'My Body's Story',
+  title: "My Body’s Story",
   description: 'A personalised explanation of your body as a system — and a credible path forward.',
 }
 

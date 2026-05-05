@@ -32,7 +32,7 @@ async function _computeVitalityScore(
 
   const rows = adherenceRows ?? []
   const adherencePct = rows.length > 0
-    ? Math.round((rows.filter((r: { completed: boolean; skipped: boolean }) => r.completed || r.skipped).length / rows.length) * 100)
+    ? Math.round((rows.filter((r) => r.completed === true || r.skipped === true).length / rows.length) * 100)
     : 0
 
   const overallScore = Math.round(

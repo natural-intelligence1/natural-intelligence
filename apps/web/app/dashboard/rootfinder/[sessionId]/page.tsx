@@ -83,7 +83,7 @@ export default async function RootFinderResultsPage({ params }: PageProps) {
     .from('protocol_templates')
     .select('id, name, description')
     .eq('root_cause_key', primary.rootCause.key)
-    .eq('status', 'published')
+    .eq('is_published', true)
     .limit(1)
     .maybeSingle()
 

@@ -52,16 +52,16 @@ export default async function DailyPathPage({ searchParams }: PageProps) {
     if (!todayAdherence || todayAdherence.length === 0) {
       const { data: items } = await adminClient
         .from('protocol_items')
-        .select('id, name, item_type, timing, sort_order')
+        .select('id, name, item_type, timing, display_order')
         .eq('template_id', protocol.template_id)
-        .order('sort_order', { ascending: true })
+        .order('display_order', { ascending: true })
 
       if (items && items.length > 0) {
         const rows = items.map((item: any) => ({
           member_id:   user.id,
           protocol_id: protocol.id,
-          item_id:     item.id,
           item_name:   item.name,
+          item_type:   item.item_type,
           log_date:    today,
           completed:   false,
           skipped:     false,
@@ -83,9 +83,9 @@ export default async function DailyPathPage({ searchParams }: PageProps) {
     // Fetch protocol items for timing/dose/type metadata
     const { data: protocolItems } = await adminClient
       .from('protocol_items')
-      .select('id, name, item_type, dose, timing, notes, sort_order')
+      .select('id, name, item_type, dose, timing, notes, display_order')
       .eq('template_id', protocol.template_id)
-      .order('sort_order', { ascending: true })
+      .order('display_order', { ascending: true })
 
     const itemMeta = new Map((protocolItems ?? []).map((i: any) => [i.id, i]))
 
@@ -101,7 +101,7 @@ export default async function DailyPathPage({ searchParams }: PageProps) {
           dose:      meta?.dose ?? null,
           timing:    meta?.timing ?? null,
           notes:     meta?.notes ?? null,
-          sortOrder: meta?.sort_order ?? 99,
+          sortOrder: meta?.display_order ?? 99,
           completed: a.completed,
           skipped:   a.skipped,
         }
@@ -182,7 +182,7 @@ export default async function DailyPathPage({ searchParams }: PageProps) {
     adminClient
       .from('protocol_templates')
       .select('id, name, description, duration_weeks, root_cause_key, root_cause_id, root_causes(name, colour)')
-      .eq('status', 'published')
+      .eq('is_published', true)
       .order('name', { ascending: true }),
     adminClient
       .from('rootfinder_results')

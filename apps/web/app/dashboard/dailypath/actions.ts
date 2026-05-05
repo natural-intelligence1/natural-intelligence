@@ -84,7 +84,9 @@ export async function generateTodayItems(protocolId: string): Promise<void> {
   if (!protocol) throw new Error('Protocol not found')
 
   const today = new Date().toISOString().split('T')[0]
-  await _insertTodayRows(adminClient, user.id, protocolId, protocol.template_id, today)
+  if (protocol.template_id) {
+    await _insertTodayRows(adminClient, user.id, protocolId, protocol.template_id, today)
+  }
 
   revalidatePath('/dashboard/dailypath')
 }
@@ -233,17 +235,17 @@ async function _insertTodayRows(
 ): Promise<void> {
   const { data: items } = await adminClient
     .from('protocol_items')
-    .select('id, name, item_type, timing, sort_order')
+    .select('id, name, item_type, timing, display_order')
     .eq('template_id', templateId)
-    .order('sort_order', { ascending: true })
+    .order('display_order', { ascending: true })
 
   if (!items || items.length === 0) return
 
   const rows = items.map((item) => ({
     member_id:   memberId,
     protocol_id: protocolId,
-    item_id:     item.id,
     item_name:   item.name,
+    item_type:   item.item_type,
     log_date:    today,
     completed:   false,
     skipped:     false,
