@@ -2,6 +2,8 @@ import Link                from 'next/link'
 import type { Metadata }  from 'next'
 import { createAdminClient } from '@natural-intelligence/db'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Cases — NI Care',
 }
