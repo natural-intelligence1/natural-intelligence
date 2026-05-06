@@ -22,11 +22,12 @@ export async function savePractitionerCoreProfile(
   const adminClient = createAdminClient()
   const { data: practitioner } = await adminClient
     .from('practitioners')
-    .select('id, profile_id')
+    .select('id')
     .eq('id', practitionerId)
     .single()
 
-  if (!practitioner || practitioner.profile_id !== user.id) {
+  // practitioners.id = auth.users.id — ownership is verified by matching id
+  if (!practitioner || practitioner.id !== user.id) {
     throw new Error('Forbidden')
   }
 

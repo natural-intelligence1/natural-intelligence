@@ -113,7 +113,6 @@ export default async function DailyPathPage({ searchParams }: PageProps) {
       .from('adherence_streaks')
       .select('current_streak, longest_streak, total_days_completed')
       .eq('member_id', user.id)
-      .eq('protocol_id', protocol.id)
       .maybeSingle()
 
     // ── Week dots (Mon–Sun of current week) ──────────────────────────────────
@@ -166,9 +165,9 @@ export default async function DailyPathPage({ searchParams }: PageProps) {
           }}
           items={dailyItems}
           streak={streak ? {
-            currentStreak:       streak.current_streak,
-            longestStreak:       streak.longest_streak,
-            totalDaysCompleted:  streak.total_days_completed,
+            currentStreak:       streak.current_streak       ?? 0,
+            longestStreak:       streak.longest_streak       ?? 0,
+            totalDaysCompleted:  streak.total_days_completed ?? 0,
           } : null}
           memberId={user.id}
           weekDots={weekDots}

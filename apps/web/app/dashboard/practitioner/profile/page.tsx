@@ -20,7 +20,7 @@ export default async function PractitionerProfileEditPage() {
   const { data: practitioner } = await adminClient
     .from('practitioners')
     .select('id, tagline, delivery_mode, primary_professions, area_tags, accepts_referrals, profile_completeness_pct, bio')
-    .eq('profile_id', user.id)
+    .eq('id', user.id)
     .maybeSingle()
 
   if (!practitioner) redirect('/dashboard')

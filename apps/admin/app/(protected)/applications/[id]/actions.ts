@@ -66,9 +66,9 @@ export async function approveApplication(applicationId: string, notes: string) {
 
   if (profileId) {
     // Compute initial completeness from application data
-    // Bio lives on profiles table — fetch it
+    // Also fetch full_name for display_name (required NOT NULL)
     const { data: profileRow } = await adminClient
-      .from('profiles').select('bio').eq('id', profileId).single()
+      .from('profiles').select('bio, full_name').eq('id', profileId).single()
 
     const completenessData = {
       tagline:             null,         // not set until profile editor
@@ -82,15 +82,15 @@ export async function approveApplication(applicationId: string, notes: string) {
     const pct         = calcCompleteness(completenessData)
     const isReady     = pct === 100
 
-    // Check for an existing practitioners row for this profile
+    // practitioners.id IS auth.users.id — check by id (not profile_id)
     const { data: existing } = await adminClient
       .from('practitioners')
       .select('id')
-      .eq('profile_id', profileId)
+      .eq('id', profileId)
       .maybeSingle()
 
     const practitionerPayload = {
-      profile_id:               profileId,
+      display_name:             profileRow?.full_name ?? (app as any).full_name ?? 'Practitioner',
       city:                     (app as any).city    ?? null,
       country:                  (app as any).country ?? null,
       primary_professions:      (app as any).primary_professions    ?? [],
@@ -102,13 +102,11 @@ export async function approveApplication(applicationId: string, notes: string) {
       accepts_referrals:        (app as any).accepts_referrals       ?? true,
       open_to_collaboration:    (app as any).open_to_collaboration   ?? false,
       collaboration_types:      (app as any).collaboration_types     ?? [],
-      specialties:              (app as any).area_tags               ?? [],
       credentials:              app.credentials ? [app.credentials] : [],
       website_url:              app.website_url  ?? null,
       linkedin_url:             app.linkedin_url ?? null,
       trust_level:              'unvetted' as const,
-      is_active:                true,
-      lifecycle_status:         isReady ? 'active' : 'approved_pending_profile',
+      status:                   (isReady ? 'active' : 'approved') as 'active' | 'approved',
       profile_completeness_pct: pct,
       is_directory_ready:       isReady,
       practitioner_tier:        'standard',
@@ -117,7 +115,7 @@ export async function approveApplication(applicationId: string, notes: string) {
     if (existing?.id) {
       await adminClient.from('practitioners').update(practitionerPayload).eq('id', existing.id)
     } else {
-      await adminClient.from('practitioners').insert(practitionerPayload)
+      await adminClient.from('practitioners').insert({ id: profileId, ...practitionerPayload })
     }
 
     // Set bio on profiles if provided in application and not already set

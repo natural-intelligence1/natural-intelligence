@@ -52,8 +52,8 @@ export default async function PractitionerDashboardPage() {
   const adminClient = createAdminClient()
   const { data: practitioner } = await adminClient
     .from('practitioners')
-    .select('id, tagline, is_directory_ready, profile_completeness_pct, lifecycle_status, practitioner_tier, trust_level')
-    .eq('profile_id', user.id)
+    .select('id, tagline, is_directory_ready, profile_completeness_pct, status, practitioner_tier, trust_level')
+    .eq('id', user.id)
     .maybeSingle()
 
   if (!practitioner) redirect('/dashboard')

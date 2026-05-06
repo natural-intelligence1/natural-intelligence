@@ -53,13 +53,12 @@ export async function startProtocol(templateId: string): Promise<void> {
     .upsert(
       {
         member_id:            user.id,
-        protocol_id:          protocol.id,
         current_streak:       0,
         longest_streak:       0,
         total_days_completed: 0,
         updated_at:           new Date().toISOString(),
       },
-      { onConflict: 'member_id,protocol_id', ignoreDuplicates: true }
+      { onConflict: 'member_id', ignoreDuplicates: true }
     )
 
   revalidatePath('/dashboard/dailypath')
@@ -295,7 +294,6 @@ async function _updateStreak(
     .from('adherence_streaks')
     .select('longest_streak')
     .eq('member_id', memberId)
-    .eq('protocol_id', protocolId)
     .maybeSingle()
 
   await adminClient
@@ -303,13 +301,12 @@ async function _updateStreak(
     .upsert(
       {
         member_id:            memberId,
-        protocol_id:          protocolId,
         current_streak:       currentStreak,
         longest_streak:       Math.max(existing?.longest_streak ?? 0, currentStreak),
         last_completed_date:  today.toISOString().split('T')[0],
         total_days_completed: uniqueDates.size,
         updated_at:           new Date().toISOString(),
       },
-      { onConflict: 'member_id,protocol_id' }
+      { onConflict: 'member_id' }
     )
 }

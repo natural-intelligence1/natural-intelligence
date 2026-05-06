@@ -121,10 +121,11 @@ export const copy = {
       approved:     'Approved',
     },
     lifecycle: {
-      approved_pending_profile: 'Pending profile',
-      active:                   'Active',
-      paused:                   'Paused',
-      rejected:                 'Rejected',
+      pending_review: 'Pending review',
+      approved:       'Approved',
+      active:         'Active',
+      suspended:      'Suspended',
+      archived:       'Archived',
     },
     actions: {
       activate:        'Set active',

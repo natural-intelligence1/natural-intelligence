@@ -58,7 +58,7 @@ export default function PractitionerActionsClient({ practitionerId, lifecycleSta
         )}
 
         {/* Pause */}
-        {lifecycleStatus !== 'paused' && (
+        {lifecycleStatus !== 'suspended' && (
           <button
             disabled={loading}
             onClick={() => setShowPause(!showPause)}

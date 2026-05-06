@@ -57,7 +57,8 @@ export default async function PractitionerProfilePage({ params }: Props) {
     .from('practitioners')
     .select(`
       id,
-      profile_id,
+      display_name,
+      bio,
       practice_name,
       tagline,
       city,
@@ -75,18 +76,16 @@ export default async function PractitionerProfilePage({ params }: Props) {
       website_url,
       linkedin_url,
       instagram_url,
-      display_order,
-      profiles!practitioners_profile_id_fkey(full_name, bio)
+      display_order
     `)
     .eq('id', params.id)
-    .eq('lifecycle_status', 'active')
+    .eq('status', 'active')
     .eq('is_directory_ready', true)
     .single()
 
   if (!p) notFound()
 
-  const profile       = (p as any).profiles
-  const name          = profile?.full_name ?? 'Practitioner'
+  const name          = (p as any).display_name ?? 'Practitioner'
   const location      = [p.city, p.country].filter(Boolean).join(', ')
   const areas         = ((p.area_tags?.length ?? 0) > 0 ? p.area_tags : []) as string[]
   const deliveryLabel = DELIVERY_MODES.find((d) => d.value === p.delivery_mode)?.label
@@ -96,7 +95,7 @@ export default async function PractitionerProfilePage({ params }: Props) {
   const { data: events } = await supabase
     .from('events')
     .select('id, title, event_type, starts_at, is_online')
-    .eq('hosted_by', p.profile_id)
+    .eq('hosted_by', p.id)
     .eq('status', 'published')
     .gt('starts_at', now)
     .order('starts_at', { ascending: true })
@@ -201,10 +200,10 @@ export default async function PractitionerProfilePage({ params }: Props) {
         <div className="lg:col-span-2 space-y-8">
 
           {/* About / bio */}
-          {profile?.bio && (
+          {(p as any).bio && (
             <section>
               <SectionHeading>{copy.practitionerProfile.sections.about}</SectionHeading>
-              <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">{profile.bio}</p>
+              <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">{(p as any).bio}</p>
             </section>
           )}
 

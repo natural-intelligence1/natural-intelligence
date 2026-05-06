@@ -46,8 +46,8 @@ export default async function ReferralMatchPanel({ searchParams }: Props) {
 
   let query = adminClient
     .from('practitioners')
-    .select('*, profiles!practitioners_profile_id_fkey(full_name, email)')
-    .eq('is_active', true)
+    .select('*')
+    .eq('status', 'active')
     .eq('accepts_referrals', true)
 
   if (rm_area)       query = query.contains('area_tags', [rm_area])
@@ -73,7 +73,7 @@ export default async function ReferralMatchPanel({ searchParams }: Props) {
   const { data: allPractitioners } = await adminClient
     .from('practitioners')
     .select('area_tags, primary_professions, client_types')
-    .eq('is_active', true)
+    .eq('status', 'active')
     .eq('accepts_referrals', true)
 
   const allAreaTags = Array.from(
@@ -221,8 +221,7 @@ export default async function ReferralMatchPanel({ searchParams }: Props) {
       ) : (
         <div className="space-y-3">
           {results.map((p: any) => {
-            const profile  = p.profiles
-            const name     = profile?.full_name ?? 'Practitioner'
+            const name     = (p as any).display_name ?? 'Practitioner'
             const location = [p.city, p.country].filter(Boolean).join(', ')
             const areas    = (p.area_tags as string[] | null) ?? []
 
@@ -237,8 +236,8 @@ export default async function ReferralMatchPanel({ searchParams }: Props) {
                       <p className="text-sm font-semibold text-text-primary">{name}</p>
                       {p.trust_level === 'vetted' && <VettedBadge vetted={true} size="sm" />}
                     </div>
-                    {profile?.email && (
-                      <p className="text-xs text-text-muted">{profile.email}</p>
+                    {(p as any).website_url && (
+                      <p className="text-xs text-text-muted">{(p as any).website_url}</p>
                     )}
                     {location && (
                       <p className="text-xs text-text-muted">{location}</p>

@@ -84,18 +84,18 @@ export default async function HomePage() {
     .from('practitioners')
     .select(`
       id,
-      profile_id,
+      display_name,
       practice_name,
       tagline,
+      bio,
       area_tags,
       primary_professions,
       trust_level,
-      lifecycle_status,
+      status,
       is_directory_ready,
-      display_order,
-      profiles!practitioners_profile_id_fkey(full_name, bio)
+      display_order
     `)
-    .eq('lifecycle_status', 'active')
+    .eq('status', 'active')
     .eq('is_directory_ready', true)
     .order('display_order', { ascending: true })
     .limit(3)
@@ -299,8 +299,7 @@ export default async function HomePage() {
           {practitioners && practitioners.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {practitioners.map((p: any) => {
-                const profile = p.profiles
-                const name    = profile?.full_name ?? 'Practitioner'
+                const name    = (p as any).display_name ?? 'Practitioner'
                 const tags    = (p.area_tags as string[] | null) ?? []
 
                 return (
@@ -332,9 +331,9 @@ export default async function HomePage() {
                       </div>
                     )}
 
-                    {profile?.bio && (
+                    {(p as any).bio && (
                       <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed mt-auto">
-                        {profile.bio}
+                        {(p as any).bio}
                       </p>
                     )}
                   </Link>

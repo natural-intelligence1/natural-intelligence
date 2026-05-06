@@ -116,7 +116,6 @@ export default async function DashboardPage() {
         .from('adherence_streaks')
         .select('current_streak')
         .eq('member_id', user.id)
-        .eq('protocol_id', activeProtocol.id)
         .maybeSingle(),
     ])
     const rows = todayRows ?? []

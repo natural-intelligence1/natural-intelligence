@@ -74,9 +74,10 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
       practitioner_tier,
       accepts_referrals,
       display_order,
-      profiles!practitioners_profile_id_fkey(full_name, bio)
+      display_name,
+      bio
     `)
-    .eq('lifecycle_status', 'active')
+    .eq('status', 'active')
     .eq('is_directory_ready', true)
 
   if (trust === 'vetted') {
@@ -97,7 +98,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
 
   if (q) {
     query = query.or(
-      `area_tags.cs.{${q}},primary_professions.cs.{${q}},profiles.full_name.ilike.%${q}%,city.ilike.%${q}%`
+      `area_tags.cs.{${q}},primary_professions.cs.{${q}},display_name.ilike.%${q}%,city.ilike.%${q}%`
     )
   }
 
@@ -217,8 +218,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
               {sorted.map((p: any) => {
-                const profile  = (p as any).profiles
-                const name     = profile?.full_name ?? 'Practitioner'
+                const name     = (p as any).display_name ?? 'Practitioner'
                 const role     = ((p.primary_professions as string[] | null)?.[0]) ?? null
                 const areas    = (p.area_tags as string[] | null) ?? []
 
@@ -246,9 +246,9 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
                     </div>
 
                     {/* Tagline */}
-                    {(p.tagline || profile?.bio) && (
+                    {(p.tagline || (p as any).bio) && (
                       <p className="text-sm text-text-secondary leading-relaxed line-clamp-2 mb-3 flex-1">
-                        {p.tagline ?? profile?.bio}
+                        {p.tagline ?? (p as any).bio}
                       </p>
                     )}
 

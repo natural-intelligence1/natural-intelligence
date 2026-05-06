@@ -6,10 +6,11 @@ import { copy } from '@/lib/copy'
 
 type BadgeVariant = 'default' | 'info' | 'success' | 'danger' | 'warning'
 const lifecycleBadge: Record<string, BadgeVariant> = {
-  approved_pending_profile: 'warning',
-  active:                   'success',
-  paused:                   'default',
-  rejected:                 'danger',
+  pending_review: 'warning',
+  approved:       'info',
+  active:         'success',
+  suspended:      'default',
+  archived:       'danger',
 }
 
 function CompletenessBar({ pct, isReady }: { pct: number; isReady: boolean }) {
@@ -51,7 +52,7 @@ export default async function PractitionersPage() {
 
   const { data: practitioners } = await adminClient
     .from('practitioners')
-    .select('*, profiles!practitioners_profile_id_fkey(full_name)')
+    .select('*')
     .order('created_at', { ascending: false })
 
   const c = copy.practitioners
@@ -65,11 +66,11 @@ export default async function PractitionersPage() {
 
       {/* Summary chips */}
       <div className="px-8 pt-5 flex flex-wrap gap-3">
-        {(['active', 'approved_pending_profile', 'paused'] as const).map((status) => {
-          const count = (practitioners ?? []).filter((p: any) => p.lifecycle_status === status).length
+        {(['active', 'approved', 'pending_review', 'suspended'] as const).map((status) => {
+          const count = (practitioners ?? []).filter((p: any) => p.status === status).length
           return (
             <Badge key={status} variant={lifecycleBadge[status] ?? 'default'}>
-              {c.lifecycle[status]} — {count}
+              {c.lifecycle[status as keyof typeof c.lifecycle] ?? status} — {count}
             </Badge>
           )
         })}
@@ -94,8 +95,8 @@ export default async function PractitionersPage() {
               </thead>
               <tbody className="divide-y divide-border-muted">
                 {(practitioners ?? []).map((p: any) => {
-                  const name = p.profiles?.full_name ?? '—'
-                  const lifecycle = p.lifecycle_status ?? 'approved_pending_profile'
+                  const name = p.display_name ?? '—'
+                  const lifecycle = p.status ?? 'pending_review'
                   const pct      = p.profile_completeness_pct ?? 0
                   const isReady  = p.is_directory_ready ?? false
                   return (
@@ -123,7 +124,7 @@ export default async function PractitionersPage() {
                         {isReady && (
                           <span className="text-xs text-status-successText mt-0.5 block">{c.directoryReady}</span>
                         )}
-                        {!isReady && lifecycle !== 'paused' && (
+                        {!isReady && lifecycle !== 'suspended' && (
                           <span className="text-xs text-text-muted mt-0.5 block">{c.directoryNotReady}</span>
                         )}
                       </td>
@@ -136,7 +137,7 @@ export default async function PractitionersPage() {
                           : <span className="text-xs text-text-muted">No</span>}
                       </td>
                       <td className="px-4 py-3 text-text-muted text-xs">
-                        {fmt(p.accepted_at ?? p.created_at)}
+                        {fmt(p.verified_at ?? p.created_at)}
                       </td>
                       <td className="px-4 py-3">
                         <Link href={`/practitioners/${p.id}`}

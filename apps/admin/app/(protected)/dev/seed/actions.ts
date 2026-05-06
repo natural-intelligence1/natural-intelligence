@@ -84,9 +84,10 @@ export async function seedTestPractitioner(): Promise<{ id: string }> {
   if (authError || !authData.user) throw new Error(authError?.message ?? 'Failed to create test auth user')
 
   const profileId = authData.user.id
+  const displayName = `Test Practitioner ${Date.now()}`
 
   await adminClient.from('profiles').update({
-    full_name: `Test Practitioner ${Date.now()}`,
+    full_name: displayName,
     role: 'practitioner',
     bio: 'Test practitioner bio. This practitioner was created via the admin dev seed tool for internal testing purposes only.',
     is_test_data: true,
@@ -95,7 +96,8 @@ export async function seedTestPractitioner(): Promise<{ id: string }> {
   const { data: prac, error: pracError } = await adminClient
     .from('practitioners')
     .insert({
-      profile_id:              profileId,
+      id:                      profileId,
+      display_name:            displayName,
       tagline:                 'Test practitioner tagline for directory display.',
       city:                    'Manchester',
       country:                 'UK',
@@ -109,11 +111,9 @@ export async function seedTestPractitioner(): Promise<{ id: string }> {
       open_to_collaboration:   true,
       practitioner_tier:       'standard',
       trust_level:             'unvetted',
-      lifecycle_status:        'active',
-      is_active:               true,
+      status:                  'active',
       is_directory_ready:      true,
       profile_completeness_pct: 100,
-      activated_at:            new Date().toISOString(),
       is_test_data:            true,
     })
     .select('id')
@@ -243,7 +243,8 @@ export async function seedShowcaseData(): Promise<{ practitioners: number; event
     }).eq('id', profileId)
 
     const { error: pracError } = await adminClient.from('practitioners').insert({
-      profile_id:              profileId,
+      id:                      profileId,
+      display_name:            p.name,
       tagline:                 p.tagline,
       city:                    p.city,
       country:                 'UK',
@@ -257,11 +258,9 @@ export async function seedShowcaseData(): Promise<{ practitioners: number; event
       open_to_collaboration:   true,
       practitioner_tier:       p.tier,
       trust_level:             p.trust,
-      lifecycle_status:        'active',
-      is_active:               true,
+      status:                  'active',
       is_directory_ready:      true,
       profile_completeness_pct: 100,
-      activated_at:            new Date().toISOString(),
       is_test_data:            true,
     })
 
@@ -444,7 +443,8 @@ export async function seedShowcasePractitioners(): Promise<{ practitioners: numb
     }).eq('id', profileId)
 
     const { error: pracError } = await adminClient.from('practitioners').insert({
-      profile_id:              profileId,
+      id:                      profileId,
+      display_name:            spec.full_name,
       tagline:                 spec.tagline,
       country:                 'UK',
       delivery_mode:           spec.delivery_mode,
@@ -453,11 +453,9 @@ export async function seedShowcasePractitioners(): Promise<{ practitioners: numb
       credentials:             spec.credentials,
       trust_level:             spec.trust_level,
       accepts_referrals:       spec.accepts_referrals,
-      lifecycle_status:        'active',
-      is_active:               true,
+      status:                  'active',
       is_directory_ready:      true,
       profile_completeness_pct: 100,
-      activated_at:            new Date().toISOString(),
       is_test_data:            true,
     })
 

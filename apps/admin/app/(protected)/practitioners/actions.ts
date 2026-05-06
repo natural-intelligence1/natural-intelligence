@@ -23,11 +23,9 @@ export async function activatePractitioner(practitionerId: string) {
   await adminClient
     .from('practitioners')
     .update({
-      lifecycle_status: 'active',
-      is_active:        true,
-      activated_at:     new Date().toISOString(),
-      paused_at:        null,
-      paused_reason:    null,
+      status:           'active',
+      suspended_at:     null,
+      suspension_reason: null,
       updated_at:       new Date().toISOString(),
     })
     .eq('id', practitionerId)
@@ -42,12 +40,11 @@ export async function pausePractitioner(practitionerId: string, reason: string) 
   await adminClient
     .from('practitioners')
     .update({
-      lifecycle_status: 'paused',
-      is_active:        false,
+      status:            'suspended',
       is_directory_ready: false,
-      paused_at:        new Date().toISOString(),
-      paused_reason:    reason || null,
-      updated_at:       new Date().toISOString(),
+      suspended_at:      new Date().toISOString(),
+      suspension_reason: reason || null,
+      updated_at:        new Date().toISOString(),
     })
     .eq('id', practitionerId)
 
@@ -73,21 +70,18 @@ export async function toggleDirectoryReady(practitionerId: string, ready: boolea
 export async function resendApprovalEmail(practitionerId: string) {
   const { adminClient } = await requireAdmin()
 
-  // Get practitioner + linked profile email via auth.users
+  // practitioners.id IS auth.users.id — fetch display_name and email directly
   const { data: practitioner } = await adminClient
     .from('practitioners')
-    .select('profile_id, profiles!practitioners_profile_id_fkey(full_name)')
+    .select('id, display_name')
     .eq('id', practitionerId)
     .single()
 
-  if (!practitioner?.profile_id) throw new Error('No profile linked to this practitioner')
+  if (!practitioner?.id) throw new Error('Practitioner not found')
 
-  // Use Supabase admin to get auth user email
-  const { data: { user: authUser } } = await adminClient.auth.admin.getUserById(
-    practitioner.profile_id
-  )
+  const { data: { user: authUser } } = await adminClient.auth.admin.getUserById(practitioner.id)
   const email    = authUser?.email
-  const fullName = (practitioner as any).profiles?.full_name ?? 'Practitioner'
+  const fullName = practitioner.display_name ?? 'Practitioner'
 
   if (!email) throw new Error('No email found for this practitioner')
 

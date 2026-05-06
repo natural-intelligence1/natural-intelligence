@@ -98,17 +98,16 @@ export default function PractitionerProfilePage() {
 
       const { data: practitioner } = await supabase
         .from('practitioners')
-        .select('*, profiles!practitioners_profile_id_fkey(bio)')
-        .eq('profile_id', user.id)
+        .select('*')
+        .eq('id', user.id)
         .maybeSingle()
 
       if (practitioner) {
         setPractitionerId(practitioner.id)
-        const profile = (practitioner as any).profiles
         setForm({
           practice_name:           practitioner.practice_name           ?? '',
           tagline:                 practitioner.tagline                 ?? '',
-          bio:                     profile?.bio                         ?? '',
+          bio:                     practitioner.bio                     ?? '',
           delivery_mode:           practitioner.delivery_mode           ?? '',
           open_to_collaboration:   practitioner.open_to_collaboration   ?? false,
           collaboration_types:     practitioner.collaboration_types     ?? [],

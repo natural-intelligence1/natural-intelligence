@@ -27,11 +27,12 @@ export async function savePractitionerProfile(
   const adminClient = createAdminClient()
   const { data: practitioner } = await adminClient
     .from('practitioners')
-    .select('id, profile_id, city, country, primary_professions, area_tags')
+    .select('id, city, country, primary_professions, area_tags')
     .eq('id', practitionerId)
     .single()
 
-  if (!practitioner || practitioner.profile_id !== user.id) {
+  // practitioners.id = auth.users.id — ownership verified by matching id
+  if (!practitioner || practitioner.id !== user.id) {
     throw new Error('Forbidden')
   }
 
@@ -69,12 +70,12 @@ export async function savePractitionerProfile(
 
   if (error) throw new Error(error.message)
 
-  // Sync bio to profiles table
+  // Sync bio to practitioners table (bio now lives on practitioners, not profiles)
   if (payload.bio !== undefined) {
     await adminClient
-      .from('profiles')
+      .from('practitioners')
       .update({ bio: payload.bio?.trim() || null })
-      .eq('id', user.id)
+      .eq('id', practitionerId)
   }
 
   // Recalculate profile completeness
@@ -106,19 +107,8 @@ export async function savePractitionerProfile(
     })
     .eq('id', practitionerId)
 
-  // If now complete, check if we should auto-promote lifecycle_status
-  if (ready) {
-    const { data: current } = await adminClient
-      .from('practitioners')
-      .select('lifecycle_status')
-      .eq('id', practitionerId)
-      .single()
-
-    if (current?.lifecycle_status === 'approved_pending_profile') {
-      // Don't auto-activate — admin must manually activate.
-      // Just set is_directory_ready = true so admin can see it's ready to activate.
-    }
-  }
+  // Don't auto-activate on profile completion — admin must explicitly set status='active'.
+  // is_directory_ready=true signals to admin that the profile is ready to activate.
 
   revalidatePath('/dashboard/profile')
   revalidatePath('/dashboard')
