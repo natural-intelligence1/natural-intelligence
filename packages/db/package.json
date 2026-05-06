@@ -7,12 +7,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
-    "./intake": "./src/intake/index.ts"
+    "./intake": "./src/intake/index.ts",
+    "./practitioners": "./src/practitioners/index.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {
