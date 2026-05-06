@@ -47,14 +47,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return go(request, '/')
 
-  // Service-role client for reliable status read (bypasses RLS)
-  const service = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { cookies: { getAll: () => [], setAll: () => {} } }
-  )
-
-  const { data: p } = await service
+  const { data: p } = await supabase
     .from('practitioners')
     .select('status')
     .eq('id', user.id)
