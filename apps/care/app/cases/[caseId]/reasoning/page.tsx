@@ -1,8 +1,7 @@
 import Link                        from 'next/link'
 import { notFound }               from 'next/navigation'
 import type { Metadata }          from 'next'
-import { createAdminClient }      from '@natural-intelligence/db'
-import { getPractitionerTrace }   from '@natural-intelligence/db'
+import { createServerSupabaseClient, getPractitionerTrace } from '@natural-intelligence/db'
 
 export const metadata: Metadata = { title: 'Clinical Reasoning — NI Care' }
 
@@ -75,10 +74,14 @@ export default async function ReasoningPage({
 }: {
   params: { caseId: string }
 }) {
-  const admin = createAdminClient()
+  // Authenticated SSR client — RLS (case_practitioner_select) ensures
+  // only practitioners with active work on this case can load it.
+  // A practitioner navigating to an unassigned caseId gets .single()
+  // PGRST116 → caseErr truthy → notFound(). No differential response.
+  const supabase = createServerSupabaseClient()
 
   // Load case
-  const { data: clientCase, error: caseErr } = await admin
+  const { data: clientCase, error: caseErr } = await supabase
     .from('client_cases')
     .select(`id, primary_concern, case_complexity_score, escalation_required, status, created_at, profiles:client_id (full_name)`)
     .eq('id', params.caseId)
@@ -87,7 +90,7 @@ export default async function ReasoningPage({
   if (caseErr || !clientCase) return notFound()
 
   // Load trace + entries
-  const trace = await getPractitionerTrace(admin, params.caseId)
+  const trace = await getPractitionerTrace(supabase, params.caseId)
 
   const profile = clientCase.profiles as unknown as { full_name: string | null } | null
   const fullName = profile?.full_name ?? 'Unknown'

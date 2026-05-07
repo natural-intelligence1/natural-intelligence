@@ -6,6 +6,11 @@ export async function submitWaitlist(email: string): Promise<{ ok: boolean }> {
   const trimmed = email.trim().toLowerCase()
   if (!trimmed || !trimmed.includes('@')) return { ok: false }
 
+  // Service-role is intentional here: this endpoint is invoked
+  // anonymously (public waitlist form), and the operation is
+  // an append-only insert to support_requests with no
+  // privacy boundary to enforce. Reviewed and approved as
+  // part of G.1.3e-FIX audit.
   const adminClient = createAdminClient()
 
   const { error } = await adminClient
