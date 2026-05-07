@@ -1,6 +1,6 @@
 import Link                from 'next/link'
 import type { Metadata }  from 'next'
-import { createAdminClient } from '@natural-intelligence/db'
+import { createServerSupabaseClient } from '@natural-intelligence/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,9 +9,12 @@ export const metadata: Metadata = {
 }
 
 export default async function CasesPage() {
-  const admin = createAdminClient()
+  // Authenticated SSR client — RLS (case_practitioner_select) scopes
+  // results to cases where the signed-in practitioner has an
+  // assigned/in_review work row. No application-level filter needed.
+  const supabase = createServerSupabaseClient()
 
-  const { data: cases } = await admin
+  const { data: cases } = await supabase
     .from('client_cases')
     .select(`
       id,
