@@ -203,13 +203,26 @@ export default async function StoryPage() {
       <FadeStyles />
 
       {/* ── My Body's Story ───────────────────────────────────────────────── */}
-      <div className="story-section mb-10">
+      <div className="story-section mb-8">
         <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-4">
           My Body&apos;s Story
         </p>
         <h1 className="text-3xl font-medium text-text-primary leading-tight">
           Why you&apos;re feeling the way you are.
         </h1>
+      </div>
+
+      {/* ── Introductory reflection block ────────────────────────────────── */}
+      <div className="story-section mb-12" style={{ maxWidth: '480px' }}>
+        <p
+          className="font-display text-text-primary"
+          style={{ fontSize: '22px', fontWeight: 300, fontStyle: 'italic', lineHeight: 1.35, marginBottom: '10px' }}
+        >
+          Witness the signs within you.
+        </p>
+        <p className="text-[15px] leading-relaxed text-text-secondary">
+          Through patterns, biology, memory, and deeper interpretation.
+        </p>
       </div>
 
       <div className="story-section">

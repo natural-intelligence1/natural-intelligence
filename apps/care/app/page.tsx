@@ -44,6 +44,48 @@ export default function CarePage() {
       >
         <div style={{ maxWidth: '600px', width: '100%' }}>
 
+          {/* ── Brand lockup ─────────────────────────────────────────────── */}
+          <div style={{ marginBottom: '64px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Image
+              src="/images/NI_logo_thumb_transparent.png"
+              alt="Natural Intelligence"
+              width={108}
+              height={108}
+              unoptimized
+              style={{
+                height: 'clamp(80px, 9vw, 108px)',
+                width: 'auto',
+                filter: 'invert(1)',
+                marginBottom: '32px',
+              }}
+            />
+            <p
+              className="font-display"
+              style={{
+                fontSize:    'clamp(26px, 4vw, 38px)',
+                fontWeight:  300,
+                fontStyle:   'italic',
+                color:       '#F8F6F2',
+                letterSpacing: '-0.01em',
+                lineHeight:  1.2,
+                marginBottom: '14px',
+              }}
+            >
+              The Signs Within You
+            </p>
+            <p
+              style={{
+                fontSize:    '14px',
+                color:       '#8A8880',
+                letterSpacing: '0.025em',
+                lineHeight:  1.7,
+                maxWidth:    '360px',
+              }}
+            >
+              An intelligence system for deeper understanding of health.
+            </p>
+          </div>
+
           {/* Eyebrow */}
           <p
             style={{
