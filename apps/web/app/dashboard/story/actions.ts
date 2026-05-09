@@ -17,6 +17,9 @@ export async function generateBodyStory(memberId: string): Promise<{
   status: 'success' | 'insufficient_data' | 'error'
 }> {
   const adminClient = createAdminClient()
+  const startMs = Date.now()
+
+  console.log(JSON.stringify({ event: 'body_story.start', user_id: memberId }))
 
   try {
     // ── 1. Load intake answers ────────────────────────────────────────────────
@@ -42,6 +45,7 @@ export async function generateBodyStory(memberId: string): Promise<{
     ])
 
     if (!answers || answers.length === 0) {
+      console.log(JSON.stringify({ event: 'body_story.insufficient_data', user_id: memberId, reason: 'no_intake_answers' }))
       return { status: 'insufficient_data' }
     }
 
@@ -158,9 +162,20 @@ export async function generateBodyStory(memberId: string): Promise<{
     revalidatePath('/dashboard/story')
     revalidatePath('/dashboard')
 
+    console.log(JSON.stringify({
+      event:        'body_story.success',
+      user_id:      memberId,
+      trace_id:     caseId,
+      duration_ms:  Date.now() - startMs,
+      input_tokens:  message.usage.input_tokens,
+      output_tokens: message.usage.output_tokens,
+    }))
+
     return { status: 'success' }
 
   } catch (err) {
+    const errorCode = err instanceof Error ? err.message : String(err)
+    console.log(JSON.stringify({ event: 'body_story.failure', user_id: memberId, error_code: errorCode, duration_ms: Date.now() - startMs }))
     console.error('[generateBodyStory] error:', err)
     return { status: 'error' }
   }
