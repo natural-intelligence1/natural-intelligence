@@ -105,12 +105,13 @@ export default async function StoryPage() {
 
   const adminClient = createAdminClient()
 
-  // Check intake completion
+  // Check intake completion — include created_at for generation timeout check (M1)
   const { data: intake } = await adminClient
     .from('intake_responses')
-    .select('is_complete')
+    .select('is_complete, created_at')
     .eq('member_id', user.id)
     .eq('is_complete', true)
+    .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
@@ -149,13 +150,49 @@ export default async function StoryPage() {
   // ── Intake done — try to load the story ───────────────────────────────────
   const story = await getClientStory(adminClient, user.id)
 
-  // ── Generating state ──────────────────────────────────────────────────────
+  // ── Generating / failed state ─────────────────────────────────────────────
   if (!story) {
     async function regenerate() {
       'use server'
       await generateBodyStory(user!.id)
     }
 
+    // Option B timeout: if intake completed > 5 min ago and no story exists,
+    // treat as failed. No schema change — uses intake_responses.created_at
+    // as the generation-trigger timestamp proxy.
+    const GENERATION_TIMEOUT_MS = 5 * 60 * 1000
+    const intakeCompletedAt = intake?.created_at ? new Date(intake.created_at).getTime() : Date.now()
+    const generationTimedOut = Date.now() - intakeCompletedAt > GENERATION_TIMEOUT_MS
+
+    if (generationTimedOut) {
+      // ── Failed state — show calm error + retry ──────────────────────────
+      return (
+        <div className="max-w-[720px] mx-auto px-4 py-12">
+          <FadeStyles />
+          <div className="story-section mb-10">
+            <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">My Body&apos;s Story</p>
+            <h1 className="text-3xl font-medium text-text-primary leading-tight">
+              We couldn&apos;t put your story together this time.
+            </h1>
+          </div>
+          <div className="story-section space-y-5 text-[17px] leading-[1.75] text-text-secondary">
+            <p>You can try again, or come back later.</p>
+          </div>
+          <div className="story-section mt-10">
+            <form action={regenerate}>
+              <button
+                type="submit"
+                className="px-6 py-3 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
+              >
+                Try again
+              </button>
+            </form>
+          </div>
+        </div>
+      )
+    }
+
+    // ── Generating state — auto-refresh while within timeout window ───────
     return (
       <div className="max-w-[720px] mx-auto px-4 py-12">
         <FadeStyles />
