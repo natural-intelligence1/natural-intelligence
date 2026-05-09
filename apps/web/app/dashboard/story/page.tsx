@@ -293,7 +293,7 @@ export default async function StoryPage() {
 
       <p className="mt-6 text-xs text-text-muted leading-relaxed">
         This is for informational purposes only and does not constitute medical advice.
-        A practitioner will review your case if needed.
+        Some cases may be referred for practitioner review where additional judgement is needed.
       </p>
     </div>
   )
