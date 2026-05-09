@@ -625,3 +625,229 @@ The BioHub tables (migration 0026) may or may not have a practitioner-facing RLS
 
 *End of Phase B Design Proposal.*  
 *Awaiting approval before any implementation work begins.*
+
+---
+
+## Phase B Addendum — Review Resolutions
+
+**Date:** 2026-05-09  
+**Status:** Closes all open questions from Section 14; clarifies ambiguities in Sections 3–8, 12. The original proposal above is unchanged.
+
+---
+
+### Part 1 — Open Question Resolutions (Q1–Q6)
+
+---
+
+**Q1: Workspace URL structure — DECIDED**
+
+`/cases/[caseId]/work/[workId]` is confirmed.
+
+Rationale: the nested structure preserves `caseId` in the URL so that the workspace layout can read case context from params without a DB round-trip (used for breadcrumb, top-bar header, and RLS scope). It also enables clean deep-links — a URL pasted into a browser slot reconstructs the full context without ambiguity. The flat `/work/[workId]` alternative would require resolving `caseId` from the work item on every render, adding a query before the page can render.
+
+Next.js layout nesting: the `cases/[caseId]/` segment will carry a layout that owns the breadcrumb and top-bar chrome; the `work/[workId]` segment renders the workspace content. B.1 sets up the route structure and layout shell even though the workspace content is not fully built until B.2.
+
+---
+
+**Q2: Multiple work items on the same case — DECIDED**
+
+Confirmed design: when a practitioner has two open work items on the same case (e.g., `case_review` and `safety_review`), each has its own workspace URL, its own `localStorage` draft key (`ni-care:draft:${workItemId}`), and its own action panel state. The case content panels (Reasoning Trace, Case History, BioHub Signals, Prior Reviews) render identically for both — they are scoped to `caseId` and the case has not changed. The top-bar header displays the `work_type` of the current work item, not a generic "Case Review" label, so the practitioner knows which obligation they are addressing. No disambiguation UI is needed — the URL is the discriminator.
+
+---
+
+**Q3: Note verbosity — PROVISIONAL (v1 default confirmed)**
+
+Sidebar textarea placement confirmed for B.2. Behaviour:
+- Min-height 80px; grows vertically on focus up to 320px (CSS `resize: vertical`)
+- No hard character limit
+- Soft character count shown below the field once text exceeds 200 characters — orientation marker only, not a limit
+
+Full-width notes are deferred to practitioner feedback after B.2 ships. If practitioners consistently write clinical summaries > 300 words, a layout variant with full-width notes (and the decision/recommendation fields stacked below) is the upgrade path.
+
+---
+
+**Q4: `needs_revision` — DECIDED**
+
+`needs_revision` is a recorded decision only. The `complete_practitioner_work` RPC writes the decision and the case event. No automated action follows in Phase B: no admin notification, no AI re-generation trigger, no new work item created. The RPC is not modified for Phase B.
+
+Any downstream automation triggered by `needs_revision` (e.g., queuing a new AI reasoning pass, notifying admin, auto-assigning a follow-up review) must be specced in a separate proposal. It belongs in Phase D or a dedicated process-automation sprint, not Phase B.
+
+---
+
+**Q5: `display_name` field — VERIFIED**
+
+Query run against live DB (`yftxzvdrxnhwpcnsrktn`):
+
+```sql
+SELECT id, display_name, status
+FROM practitioners
+WHERE status = 'active' AND display_name IS NULL
+```
+
+**Result: 0 rows.** All active practitioners have `display_name` populated.
+
+`practitioners.display_name` is the canonical source for the practitioner name in the care app top-bar header. No fallback to `profiles.full_name` required. `getPractitioner(client, id)` returns the full row including `display_name` and is the correct helper for layout-level practitioner identity.
+
+---
+
+**Q6: Intake and BioHub access pattern — DECIDED (Option B)**
+
+**Investigation findings:**
+
+`intake_answers` RLS policies (3 policies):
+- `Members manage own intake answers` — `authenticated`, ALL, `member_id = auth.uid()`
+- `Admins read all intake answers` — `authenticated`, SELECT, `profiles.role = 'admin'`
+- `Service role manages intake answers` — `service_role`, ALL, `true`
+
+`intake_responses` RLS policies (2 policies):
+- `Members manage own intake` — `authenticated`, ALL, `member_id = auth.uid()`
+- `Admins read all intake` — `authenticated`, SELECT, `profiles.role = 'admin'`
+- *(No service_role policy — noted)*
+
+BioHub-adjacent tables:
+- `biomarker_results` — member SELECT (`member_id = auth.uid()`), member INSERT only. No admin policy, no service_role policy.
+- `biomarker_trajectory` — member ALL + admin SELECT (`profiles.role = 'admin'`). No service_role policy.
+- `lab_reports` — member SELECT/INSERT/UPDATE + admin ALL. No service_role policy.
+
+**Key finding:** None of these tables have a practitioner-scoped policy. Practitioners are `authenticated` users but have `profiles.role != 'admin'`, so they pass neither the member condition (`member_id = auth.uid()` — they are not the client) nor the admin condition (`profiles.role = 'admin'`). A practitioner using a standard authenticated client has **zero RLS access** to intake data and biohub tables.
+
+**Decision: Option B — admin client in server component.**
+
+The workspace is a server component. The care app already has a `createAdminClient` pattern (established in G.1). Using it here is:
+
+1. **Safe** — the admin client never reaches the browser. It is created inside a server action or server component, executes the query, and the result (a subset of fields, structured) is serialised to the client.
+2. **Application-layer scoped** — every query in `getIntakeSummary` and the BioHub inline query is bound to the specific `memberId` / `clientId` derived from the authenticated practitioner's work item. The practitioner's authenticated session confirms they have a valid work item for that case before the admin client is used. The admin client is a read-only access path, not a write path.
+3. **Consistent with existing patterns** — `generateBodyStory` and other CRT paths use admin client for exactly this reason.
+4. **Migration-free** — Option A (adding practitioner-scoped policies to intake and biohub tables) would require writing cross-table join policies across 5+ tables, a new migration, and a verification sweep. That is not Phase B scope.
+
+**Option A deferred.** Practitioner-scoped RLS on intake and biohub tables is the correct long-term security posture (G.1 principle: RLS as truth layer). It should be implemented as a dedicated migration in a post-Phase-B sprint, with explicit policy names, tested against the live DB, and verified via RLS unit tests. The deferred Option A migration should cover: `intake_responses`, `intake_answers`, `biomarker_results`, `biomarker_trajectory`, `lab_reports` — each with a `practitioners_read_assigned_client` policy using a sub-select on `client_practitioner_links`.
+
+**Consequence for B.2 build:** `getIntakeSummary` and the BioHub inline query both use `createAdminClient()`. This must be documented in their JSDoc comments: `// Uses admin client — intake/biohub tables have no practitioner RLS policy (see Phase B Addendum Q6).`
+
+---
+
+### Part 2 — Section Clarifications
+
+---
+
+**S3 — Inbox**
+
+**Completed Recently cap:** Capped at 5 rows, not unlimited within 7 days. When a 6th completion occurs within the rolling 7-day window, the oldest drops out. This prevents the section from growing disproportionately during high-throughput sessions and keeps the inbox scroll length predictable. The `listWorkForInbox` query applies `LIMIT 5` to the completed bucket specifically.
+
+**Escalated section semantics:** The "Escalated" section shows work items **escalated by this practitioner** — not work items of type `escalation_review` assigned to this practitioner. These are the practitioner's own escalated submissions. The section exists to confirm to the practitioner that their escalation was received and is visible to admin. It is read-only, non-actionable, and sorted by `completed_at` descending. Escalation reviews assigned to this practitioner appear in **Needs Review**, not Escalated.
+
+**Empty state copy (correction):** The original proposal reads "You have no open work items. New cases will appear here when assigned." Revised copy: "No assigned work. New cases will appear here when your next review is assigned." This removes the word "cases" (the inbox is a work list, not a case list) and removes the implied self-assignment invitation.
+
+---
+
+**S4 — Case Review Workspace**
+
+**Default panel collapse state:** On workspace load, two panels render expanded and three render collapsed:
+
+| Panel | Default state |
+|---|---|
+| Client Summary | Expanded |
+| Reasoning Trace | Expanded |
+| Case History | Collapsed — shows row count: "Case History · 4 events" |
+| BioHub Signals | Collapsed — shows "No lab data" or row count if present |
+| Prior Reviews | Collapsed — shows "Prior Reviews · 2 reviews" or "No prior reviews" |
+
+Practitioners consistently need Summary + Reasoning on first open; the other panels are supporting context consulted selectively. Collapsed headers provide orientation without requiring scroll.
+
+**Hypothesis Board layout change:** The Hypothesis Board was in the right sidebar in the existing `/cases/[caseId]/reasoning` page. In the workspace, it moves into the main content column as a section rendered *above* the timeline (as noted in Section 4 of the original proposal). The right column is exclusively the action panel — no secondary sidebar. B.2 must account for this layout difference when reusing the Hypothesis Board component.
+
+**`in_review` status and re-open guard:** Once a work item has been transitioned to `in_review`, `startWorkItem` must not be called again on re-open. Guard: at workspace load, check the work item's current `status`. Call `startWorkItem` only if `status === 'assigned'`. If already `in_review`, `completed`, or `escalated`, skip the transition call entirely.
+
+**Disabled Submit button treatment:** The Submit button is always rendered — it does not appear and disappear. When no decision is selected: `opacity: 0.5`, `cursor: not-allowed`, tooltip on hover: "Select a decision to continue." This pattern is consistent with standard form UX: practitioners see where the workflow ends before they begin, which reduces the cognitive cost of understanding the surface.
+
+**Work item metadata in action panel:** A metadata line is rendered directly below the action panel header (above the Notes textarea):
+
+```
+Status: In review  ·  Due tomorrow  ·  Started 3h ago
+```
+
+Font: 11px, muted (`#8A8880`). Fields: `status` (humanised: "In review", "Assigned"), `due_at` (relative if within 7 days, absolute otherwise, omitted if null), `started_at` (relative, omitted if `assigned`). This gives the practitioner clock awareness without requiring a trip back to the inbox.
+
+---
+
+**S5 — Completion Flow**
+
+**Session expiry during completion:** If the practitioner's session expires between workspace open and submission click, the server action returns a 401. The client catches this (in the server action's response handling) and redirects to:
+
+```
+/auth/sign-in?next=/cases/[caseId]/work/[workId]
+```
+
+Post-login, the `next` parameter returns them to the workspace URL. Their `localStorage` draft is preserved (session expiry does not touch `localStorage`). The confirmation step is repeated — the practitioner must re-click Submit after returning.
+
+**Decision-specific confirmation copy:** The confirmation panel in Step 2 shows decision-specific language:
+
+| Decision | Confirmation copy |
+|---|---|
+| `Approved` | "Decision: Approved · Case event will be recorded." |
+| `Needs revision` | "Decision: Needs revision · Case event will be recorded. No automated action follows." |
+| `Escalate` | "Decision: Escalate · Case flagged for admin review. Escalation note recorded." |
+
+The `needs_revision` copy explicitly states "No automated action follows" — this sets practitioner expectations and prevents misuse of the decision as an implicit work-queue trigger.
+
+---
+
+**S6 — Escalation Flow**
+
+**Shortcut interaction model:** The four "Suggested next step" options (Senior practitioner, Specialist referral, GP letter, Urgent safety concern) use **prefix-append**, not replace. Clicking a shortcut prepends `[Shortcut label] ` to the beginning of whatever is in the escalation reason textarea:
+
+- If the field is empty: `[Urgent safety concern] ` is inserted and cursor positioned after it.
+- If the field has text: `[Urgent safety concern] ` is prepended, existing text follows.
+
+This allows practitioners to combine label + free text: `[Urgent safety concern] patient disclosed suicidal ideation on follow-up call`. Clicking two shortcuts accumulates both: `[Urgent safety concern] [Specialist referral needed] ...`. Practitioners can delete unwanted prefix labels manually.
+
+Rationale: escalation reasons are rarely single-label. The shortcut is a starting point, not a terminal choice. Replace semantics would erase context the practitioner has already written.
+
+---
+
+**S8 — State Management**
+
+**Multi-tab last-write-wins:** If the practitioner opens the same work item in two browser tabs, both tabs share the same `localStorage` key (`ni-care:draft:${workItemId}`). Writes from each tab overwrite the other. This is accepted for v1.
+
+Detection and warning: on workspace mount, read the existing `lastSavedAt` from `localStorage`. Store this value as `mountTimeSavedAt`. On each focus event on the notes textarea, re-read `localStorage.lastSavedAt`. If the value is > 2 seconds newer than the current tab's last write timestamp (i.e., another tab has written since this tab last wrote), show a non-blocking amber banner: "This case is open in another tab — edits may conflict." The banner dismisses on next keystroke from the current tab.
+
+**Degraded draft mode:** When `localStorage` is unavailable (private browsing, restrictive security policy), the action panel shows a persistent amber banner above the notes textarea: "Draft saving unavailable. Notes will be lost if you navigate away." The practitioner can still compose and submit — draft state is held in React state only. The `localStorage` access attempt is wrapped in a `try/catch`; if it throws, the component falls back to React state and sets `draftMode: 'degraded'`.
+
+---
+
+**S12 — B.1 Transition / Component Extraction**
+
+The existing `/cases/[caseId]/reasoning/page.tsx` contains the following reusable visual primitives inline:
+- `EntryTypeBadge`, `ConfidenceBar`, `TimelineEntry`, `Section`, `SnapshotCard`, `StatPill`
+- `ENTRY_TYPE_COLORS`, `AGENT_LABELS` constants
+
+Before B.2 builds the Reasoning Trace panel in the workspace, these must be extracted to `apps/care/components/reasoning/`. The reasoning page becomes a thin consumer of the extracted components. The workspace also consumes them.
+
+This extraction is a **B.1 task**, even though it doesn't ship user-visible changes in B.1. Rationale: if it is deferred to B.2, B.2 has two concurrent concerns (build the workspace *and* refactor the reasoning page), which creates merge conflict risk and makes B.2 scope harder to estimate. Extract in B.1, where the only other file work is helpers and the inbox route — no risk of collision.
+
+Extraction target: `apps/care/components/reasoning/index.ts` (barrel export). The existing reasoning page imports from the barrel.
+
+---
+
+### Part 3 — Pre-Implementation Verification
+
+The following checks must pass before B.1 implementation begins. They are recorded here as acceptance criteria, not run during the design phase.
+
+**Typecheck:**
+```bash
+pnpm typecheck
+```
+Expected: zero new errors across all packages. The design phase introduced no code changes — this is a baseline confirmation that the repo is clean before B.1 adds new files.
+
+**Lint:**
+```bash
+pnpm lint --filter=care --filter=admin
+```
+Expected: zero new warnings or errors.
+
+Both checks are to be run and recorded in the B.1 sprint opening commit message. If either fails, the failure must be resolved before B.1 implementation files are created.
+
+---
+
+*End of Phase B Addendum.*  
+*B.1 implementation may begin after explicit approval of both the original proposal and this addendum.*
