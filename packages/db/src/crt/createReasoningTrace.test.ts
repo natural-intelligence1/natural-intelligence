@@ -153,7 +153,7 @@ describe.skipIf(!HAVE_DB)('createReasoningTrace — integration', () => {
 
     const traceId = await createReasoningTrace(admin, {
       caseId,
-      traceType:   'intake_analysis',
+      traceType:   'food_analysis',   // distinct from beforeAll's intake_analysis — avoids M2 unique constraint
       generatedBy: 'ai',
       entries:     [entry],
     })
@@ -190,7 +190,7 @@ describe.skipIf(!HAVE_DB)('createReasoningTrace — integration', () => {
   it('sets status to client_visible', async () => {
     const traceId = await createReasoningTrace(admin, {
       caseId,
-      traceType:   'food_analysis',
+      traceType:   'lab_analysis',   // distinct from intake_analysis, food_analysis, weekly_review — avoids M2
       generatedBy: 'ai',
       entries:     [],
     })
