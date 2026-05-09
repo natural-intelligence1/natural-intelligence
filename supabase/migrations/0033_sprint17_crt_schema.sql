@@ -1,7 +1,10 @@
 -- Sprint 17 — Clinical Reasoning Trace (CRT) schema
 -- Applied to live DB via Supabase MCP. DDL extracted from information_schema
--- and pg_catalog on 2026-05-09.  Written as IF NOT EXISTS throughout so it
--- is safe to re-apply against a fresh or existing database.
+-- and pg_catalog on 2026-05-09.
+--
+-- Idempotent: CREATE TABLE / INDEX use IF NOT EXISTS; triggers use
+-- DROP IF EXISTS before CREATE; policies use DROP IF EXISTS before CREATE.
+-- Safe to apply against both fresh and existing databases.
 --
 -- Tables created:
 --   client_cases, case_events, reasoning_traces, reasoning_trace_entries
@@ -25,22 +28,26 @@ CREATE TABLE IF NOT EXISTS public.client_cases (
 CREATE INDEX IF NOT EXISTS idx_client_cases_client_id
   ON public.client_cases USING btree (client_id);
 
+DROP TRIGGER IF EXISTS trg_client_cases_updated_at ON public.client_cases;
 CREATE TRIGGER trg_client_cases_updated_at
   BEFORE UPDATE ON public.client_cases
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 ALTER TABLE public.client_cases ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS client_cases_service_all ON public.client_cases;
 CREATE POLICY client_cases_service_all
   ON public.client_cases
   FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS client_cases_member_select ON public.client_cases;
 CREATE POLICY client_cases_member_select
   ON public.client_cases
   FOR SELECT
   USING (auth.uid() = client_id);
 
+DROP POLICY IF EXISTS case_practitioner_select ON public.client_cases;
 CREATE POLICY case_practitioner_select
   ON public.client_cases
   FOR SELECT
@@ -77,11 +84,13 @@ CREATE INDEX IF NOT EXISTS idx_case_events_case_id
 
 ALTER TABLE public.case_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS case_events_service_all ON public.case_events;
 CREATE POLICY case_events_service_all
   ON public.case_events
   FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS case_events_member_select ON public.case_events;
 CREATE POLICY case_events_member_select
   ON public.case_events
   FOR SELECT
@@ -93,6 +102,7 @@ CREATE POLICY case_events_member_select
     )
   );
 
+DROP POLICY IF EXISTS case_events_practitioner_select ON public.case_events;
 CREATE POLICY case_events_practitioner_select
   ON public.case_events
   FOR SELECT
@@ -131,17 +141,20 @@ CREATE TABLE IF NOT EXISTS public.reasoning_traces (
 CREATE INDEX IF NOT EXISTS idx_reasoning_traces_case_id
   ON public.reasoning_traces USING btree (case_id);
 
+DROP TRIGGER IF EXISTS trg_reasoning_traces_updated_at ON public.reasoning_traces;
 CREATE TRIGGER trg_reasoning_traces_updated_at
   BEFORE UPDATE ON public.reasoning_traces
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 ALTER TABLE public.reasoning_traces ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS reasoning_traces_service_all ON public.reasoning_traces;
 CREATE POLICY reasoning_traces_service_all
   ON public.reasoning_traces
   FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS reasoning_traces_member_select ON public.reasoning_traces;
 CREATE POLICY reasoning_traces_member_select
   ON public.reasoning_traces
   FOR SELECT
@@ -154,6 +167,7 @@ CREATE POLICY reasoning_traces_member_select
     )
   );
 
+DROP POLICY IF EXISTS reasoning_traces_practitioner_select ON public.reasoning_traces;
 CREATE POLICY reasoning_traces_practitioner_select
   ON public.reasoning_traces
   FOR SELECT
@@ -211,11 +225,13 @@ CREATE INDEX IF NOT EXISTS idx_reasoning_trace_entries_visibility
 
 ALTER TABLE public.reasoning_trace_entries ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS reasoning_trace_entries_service_all ON public.reasoning_trace_entries;
 CREATE POLICY reasoning_trace_entries_service_all
   ON public.reasoning_trace_entries
   FOR ALL
   USING (auth.role() = 'service_role');
 
+DROP POLICY IF EXISTS reasoning_trace_entries_member_select ON public.reasoning_trace_entries;
 CREATE POLICY reasoning_trace_entries_member_select
   ON public.reasoning_trace_entries
   FOR SELECT
@@ -231,6 +247,7 @@ CREATE POLICY reasoning_trace_entries_member_select
     )
   );
 
+DROP POLICY IF EXISTS reasoning_trace_entries_practitioner_select ON public.reasoning_trace_entries;
 CREATE POLICY reasoning_trace_entries_practitioner_select
   ON public.reasoning_trace_entries
   FOR SELECT
