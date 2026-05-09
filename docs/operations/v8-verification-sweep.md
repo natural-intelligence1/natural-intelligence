@@ -2,7 +2,8 @@
 
 **Date:** 2026-05-09  
 **Scope:** Read-only. Six procedural checks against the V.8 closure report.  
-**Outcome:** 3 PASS · 2 CONCERN · 1 FAIL
+**Outcome (initial):** 3 PASS · 2 CONCERN · 1 FAIL  
+**Outcome (after corrective commits `617c670`, `75b5ffc`):** 6 PASS · 0 CONCERN · 0 FAIL
 
 ---
 
@@ -27,8 +28,8 @@ Against a **fresh database** (the `supabase db reset` use case), all four CRT ta
 
 The problem is the migration header claims: _"Written as IF NOT EXISTS throughout so it is safe to re-apply against a fresh or existing database."_ This is false for triggers and policies. Re-running against an existing DB (e.g., the live dev DB) would error on `CREATE TRIGGER trg_client_cases_updated_at` and all `CREATE POLICY` statements.
 
-**RESULT: CONCERN**  
-**Notes:** Migration applies cleanly to a fresh DB (the primary use case for `db reset`). The idempotency claim in the header overstates safety — triggers and policies would fail on re-application to an existing DB. The live DB was not affected because the tables were applied via MCP before the migration file was written. Corrective option: wrap triggers in `CREATE OR REPLACE TRIGGER` and policies in `DROP POLICY IF EXISTS ... ; CREATE POLICY ...` guards. Scope for a separate phase.
+**RESULT: PASS** *(after corrective commit `75b5ffc`)*  
+**Notes:** Initial version lacked `IF NOT EXISTS` guards on triggers and policies — corrected by adding `DROP TRIGGER IF EXISTS` before each `CREATE TRIGGER` (2 triggers) and `DROP POLICY IF EXISTS` before each `CREATE POLICY` (12 policies). Re-applied against the live dev DB via MCP with all 4 batches returning no errors. Migration now genuinely idempotent against both fresh and existing databases. `supabase db reset` not runnable in this environment (Supabase CLI blocked on Windows); idempotency confirmed by re-apply against existing live schema instead.
 
 ---
 
@@ -136,8 +137,8 @@ This is a **test design flaw introduced in H1**, not a production code defect. T
 
 The M2 constraint is behaving exactly as intended. The test needs to use a distinct `trace_type` (e.g., `food_analysis`) for the second insert, or clean up the first trace before inserting a replacement.
 
-**RESULT: FAIL**  
-**Notes:** 25/26 CRT tests pass against the live DB. 1 test fails due to a conflict between the H1 test design and the M2 constraint. The constraint itself is correct. This requires a scoped fix to `createReasoningTrace.test.ts` — out of scope for this verification sweep.
+**RESULT: PASS** *(after corrective commit `617c670`)*  
+**Notes:** Initial run found 1 failure: the test's second `intake_analysis` insert collided with `beforeAll`'s first via the M2 index. Fixed by assigning distinct `trace_type` values to each test — `intake_analysis` (beforeAll fixture), `food_analysis` (entries fields test), `weekly_review` (empty entries test), `lab_analysis` (status test). Re-run after fix: **186/186 passing**, 26/26 CRT tests passing (10 unit + 16 integration). All 16 integration tests exercised against the live DB with real RLS evaluation.
 
 ---
 
@@ -242,16 +243,15 @@ The two care app usages (`profiles as unknown as`) are the same pattern as H3 fi
 
 | Check | Result | Action required |
 |---|---|---|
-| **1** — Migration 0033 reproducibility | **CONCERN** | Triggers and policies lack `IF NOT EXISTS` guards; header claim of full idempotency is inaccurate. Applies cleanly to fresh DB. Corrective migration needed before this file is used as a reset baseline. |
+| **1** — Migration 0033 reproducibility | **PASS** *(fixed `75b5ffc`)* | `DROP IF EXISTS` guards added for 2 triggers and 12 policies. Re-applied cleanly against live DB. |
 | **2** — M2 index data integrity | **PASS** | Zero pre-existing duplicates. Index created cleanly. |
 | **3** — M1 timeout proxy accuracy | **PASS** | Fire-and-forget gap is 0–2s. No more accurate timestamp available. Proxy is appropriate for v1. |
-| **4** — H1 integration tests exercised RLS | **FAIL** | 1 of 26 CRT tests fails against the live DB: `createReasoningTrace > writes trace entries with correct fields` violates the M2 unique index. Test design flaw — second `intake_analysis` insert needs a distinct `trace_type`. Requires a scoped corrective fix. |
+| **4** — H1 integration tests exercised RLS | **PASS** *(fixed `617c670`)* | All 26 CRT tests pass (10 unit + 16 integration). 186/186 total. Distinct trace_types per test prevent M2 collisions. |
 | **5** — M3 logging payload safety | **PASS** | All log events contain only identifiers, timing, and token counts. Minor edge case noted in `error_code` (model output only, not user data). |
 | **6** — H3/H4/H5 wider cleanup | **PASS** | Zero `as any` hits. Two pre-existing `as unknown as` in care app are out of scope. No regressions introduced. |
 
-**Overall closure status:** V.8 is NOT fully closed. Two items require corrective work before sign-off:
+**Overall closure status: V.8 fully closed.** All 6 checks PASS after two corrective commits:
+- `617c670` — fix createReasoningTrace integration test trace_type collisions
+- `75b5ffc` — make migration 0033 genuinely idempotent with DROP IF EXISTS guards
 
-1. **CHECK 4 (FAIL):** Fix `createReasoningTrace.test.ts` — use a distinct `trace_type` for the second integration test insert so it doesn't conflict with the M2 index. One test, one line change.
-2. **CHECK 1 (CONCERN):** Add idempotency guards to migration 0033 for `CREATE TRIGGER` and `CREATE POLICY` statements, or retract the "safe against existing DB" claim in the header.
-
-Awaiting explicit approval before corrective phase.
+Ready for Phase B.
