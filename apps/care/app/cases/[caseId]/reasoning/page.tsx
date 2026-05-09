@@ -1,7 +1,8 @@
 import Link                        from 'next/link'
 import { notFound }               from 'next/navigation'
 import type { Metadata }          from 'next'
-import { createServerSupabaseClient, getPractitionerTrace } from '@natural-intelligence/db'
+import { createServerSupabaseClient }  from '@natural-intelligence/db'
+import { getPractitionerTrace }        from '@natural-intelligence/db/crt'
 
 export const metadata: Metadata = { title: 'Clinical Reasoning — NI Care' }
 

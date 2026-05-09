@@ -2,7 +2,7 @@ import Link                         from 'next/link'
 import { redirect }                 from 'next/navigation'
 import type { Metadata }            from 'next'
 import { createAdminClient, createServerSupabaseClient } from '@natural-intelligence/db'
-import { getClientStory }           from '@natural-intelligence/db'
+import { getClientStory }           from '@natural-intelligence/db/crt'
 import { generateBodyStory }        from './actions'
 
 export const metadata: Metadata = {

@@ -3,8 +3,8 @@
 import Anthropic                                         from '@anthropic-ai/sdk'
 import { revalidatePath }                                from 'next/cache'
 import { createAdminClient }                             from '@natural-intelligence/db'
-import { getOrCreateClientCase, createReasoningTrace }  from '@natural-intelligence/db'
-import type { TraceEntry }                              from '@natural-intelligence/db'
+import { getOrCreateClientCase, createReasoningTrace }  from '@natural-intelligence/db/crt'
+import type { TraceEntry }                              from '@natural-intelligence/db/crt'
 
 // ─── generateBodyStory ────────────────────────────────────────────────────────
 // Reads the member's intake answers, calls Claude, writes a full reasoning trace

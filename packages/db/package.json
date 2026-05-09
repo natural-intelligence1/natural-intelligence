@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
     "./intake": "./src/intake/index.ts",
-    "./practitioners": "./src/practitioners/index.ts"
+    "./practitioners": "./src/practitioners/index.ts",
+    "./crt": "./src/crt/index.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
