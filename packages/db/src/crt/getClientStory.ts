@@ -47,6 +47,6 @@ export async function getClientStory(
     body_story:   bodyStoryEntry?.content   ?? '',
     future_self:  futureSelfEntry?.content  ?? '',
     systems:      systemsEntry ? JSON.parse(systemsEntry.content) : [],
-    generated_at: (trace as unknown as { created_at: string }).created_at,
+    generated_at: trace.created_at,
   }
 }

@@ -4,29 +4,30 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database }       from '../types'
+import type { AgentName, EntryType, Visibility, TraceType, TraceStatus, GeneratedBy } from './types'
 
 type AdminClient = SupabaseClient<Database>
 
 export interface PractitionerTraceEntry {
   id:               string
-  agent_name:       string
-  entry_type:       string
+  agent_name:       AgentName
+  entry_type:       EntryType
   system_area:      string | null
   hypothesis_key:   string | null
   content:          string
   evidence_payload: Record<string, unknown>
   confidence:       number | null
   priority:         number | null
-  visibility:       string
+  visibility:       Visibility
   created_at:       string
 }
 
 export interface PractitionerTrace {
   id:           string
-  trace_type:   string
-  status:       string
+  trace_type:   TraceType
+  status:       TraceStatus
   summary:      string | null
-  generated_by: string
+  generated_by: GeneratedBy
   created_at:   string
   entries:      PractitionerTraceEntry[]
 }
@@ -57,8 +58,14 @@ export async function getPractitionerTrace(
 
   return {
     ...trace,
+    trace_type:   trace.trace_type   as TraceType,
+    status:       trace.status       as TraceStatus,
+    generated_by: trace.generated_by as GeneratedBy,
     entries: (entries ?? []).map(e => ({
       ...e,
+      agent_name:       e.agent_name   as AgentName,
+      entry_type:       e.entry_type   as EntryType,
+      visibility:       e.visibility   as Visibility,
       evidence_payload: (e.evidence_payload ?? {}) as Record<string, unknown>,
     })),
   }

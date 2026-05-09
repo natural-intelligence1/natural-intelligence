@@ -79,7 +79,7 @@ export async function generateBodyStory(memberId: string): Promise<{
       : (answerMap['primary_concerns'] as string | undefined)
 
     const caseId = await getOrCreateClientCase(adminClient, memberId, {
-      primaryConcern: primaryConcern ?? (intake as any)?.primary_concerns?.[0],
+      primaryConcern: primaryConcern ?? intake?.primary_concerns?.[0] ?? undefined,
     })
 
     // ── 6. Build trace entries ────────────────────────────────────────────────
