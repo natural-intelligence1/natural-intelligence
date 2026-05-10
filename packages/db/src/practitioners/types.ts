@@ -99,6 +99,26 @@ export interface CreateClientPractitionerLinkInput {
   notes?:         string
 }
 
+// ─── Inbox ────────────────────────────────────────────────────────────────────
+
+export type InboxUrgency = 'overdue' | 'watch' | 'normal'
+
+export interface InboxWorkItem {
+  workItemId:          string
+  caseId:              string
+  workType:            WorkType
+  status:              WorkStatus
+  assignedAt:          string
+  startedAt:           string | null
+  completedAt:         string | null
+  dueAt:               string | null
+  clientName:          string
+  primaryConcern:      string | null
+  caseComplexityScore: number
+  escalationRequired:  boolean
+  urgency:             InboxUrgency
+}
+
 // Safe projection returned by getClientTeam — contact/admin fields excluded
 export interface ClientTeamMember {
   practitionerId:      string

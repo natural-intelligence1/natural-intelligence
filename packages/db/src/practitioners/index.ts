@@ -16,6 +16,8 @@ export type {
   EndReason,
   CreateClientPractitionerLinkInput,
   ClientTeamMember,
+  InboxUrgency,
+  InboxWorkItem,
 } from './types'
 
 export { getPractitioner }               from './getPractitioner'
@@ -28,3 +30,5 @@ export { createClientPractitionerLink }  from './createClientPractitionerLink'
 export { endClientPractitionerLink }     from './endClientPractitionerLink'
 export { listClientLinksForPractitioner } from './listClientLinksForPractitioner'
 export { getClientTeam }                 from './getClientTeam'
+export { listWorkForInbox }              from './listWorkForInbox'
+export { startWorkItem }                 from './startWorkItem'
