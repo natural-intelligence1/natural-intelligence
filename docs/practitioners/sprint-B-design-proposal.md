@@ -720,9 +720,24 @@ The workspace is a server component. The care app already has a `createAdminClie
 3. **Consistent with existing patterns** — `generateBodyStory` and other CRT paths use admin client for exactly this reason.
 4. **Migration-free** — Option A (adding practitioner-scoped policies to intake and biohub tables) would require writing cross-table join policies across 5+ tables, a new migration, and a verification sweep. That is not Phase B scope.
 
-**Option A deferred.** Practitioner-scoped RLS on intake and biohub tables is the correct long-term security posture (G.1 principle: RLS as truth layer). It should be implemented as a dedicated migration in a post-Phase-B sprint, with explicit policy names, tested against the live DB, and verified via RLS unit tests. The deferred Option A migration should cover: `intake_responses`, `intake_answers`, `biomarker_results`, `biomarker_trajectory`, `lab_reports` — each with a `practitioners_read_assigned_client` policy using a sub-select on `client_practitioner_links`.
+**Option A deferred — temporary exception, not preferred architecture.** G.1 established PostgreSQL RLS as the architectural truth layer for all data access. Option B is a controlled, time-bounded exception to that principle. It is acceptable for Phase B because the practitioner population during Phase B is NI's internal clinical team — a known, vetted group whose access is gated by `practitioners.status = 'active'` in middleware and whose work-item ownership is verified before the admin client is used. Application-layer scoping is operationally appropriate for this population. It is not a correctness model.
 
-**Consequence for B.2 build:** `getIntakeSummary` and the BioHub inline query both use `createAdminClient()`. This must be documented in their JSDoc comments: `// Uses admin client — intake/biohub tables have no practitioner RLS policy (see Phase B Addendum Q6).`
+**Why Option A is not being implemented during Phase B:** writing correct practitioner-scoped policies for these five tables requires cross-table join conditions (`member_id IN (SELECT client_id FROM client_practitioner_links WHERE practitioner_id = auth.uid() AND ended_at IS NULL)`). Each table must be audited for the correct join key (`member_id` vs. `client_id`), and the full policy set must be applied in a migration and verified against the live DB. This is small but non-trivial work — approximately one migration + one verification sweep — and is out of Phase B time budget. Phase B is already bounded by four sub-phases (B.1–B.4); adding a schema migration to unblock B.2 when Option B is safe for the current practitioner population is not justified.
+
+**Sunset condition — Option A must land before Phase C.** Phase C introduces practitioners invited from outside NI's internal team. The trust assumption that makes Option B safe — that every practitioner has been individually vetted and operates within a known, internal trust boundary — breaks when external practitioners arrive via invitation. For external practitioners, application-layer scoping is not a sufficient security model. The database must enforce access. This is the same reasoning that drove the G.1.3e fix: internal staff trust is not a correctness model, and it cannot be extended to an unbounded external population.
+
+Concretely: **Option A (the five-table `practitioners_read_assigned_client` migration) must be shipped and verified on the live DB before Phase C scoping begins.** This is a hard gate, not a recommendation.
+
+**Slippage policy.** If the Option A migration is not ready when Phase C is scoped, one of the following must happen explicitly:
+
+- **(a) Phase C scoping is delayed** until Option A lands and is verified, OR
+- **(b) Phase C is consciously scoped with Option B persisting** for invited practitioners — with explicit documentation of that decision, an acknowledgement of the expanded risk surface, and a named individual accepting that risk.
+
+Default deferral — letting Phase C proceed without revisiting the Option A question — is not acceptable.
+
+**Migration scope (confirmed).** The Option A migration covers five tables: `intake_responses`, `intake_answers`, `biomarker_results`, `biomarker_trajectory`, `lab_reports`. One `CREATE POLICY` per table, named `practitioners_read_assigned_client`, using a sub-select on `client_practitioner_links` for the `WHERE` condition. The migration is expected to be small — comparable in size to G.1's `case_practitioner_select` policy — and should follow the same structure and verification pattern.
+
+**Consequence for B.2 build:** `getIntakeSummary` and the BioHub inline query both use `createAdminClient()`. This must be documented in their JSDoc comments: `// Uses admin client — intake/biohub tables have no practitioner RLS policy. Temporary: Option A migration required before Phase C (see Phase B Addendum Q6).`
 
 ---
 
