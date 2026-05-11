@@ -2,16 +2,11 @@
 // Returns all work items for the practitioner inbox, joined with case + client
 // display data.
 //
-// NOTE: Uses admin client (service_role), not an authenticated practitioner
-// client. The `case_practitioner_select` policy on `client_cases` only covers
-// statuses 'assigned' and 'in_review' — querying via an authenticated client
-// would return null case data for escalated and completed work items, making
-// those inbox sections unusable. The admin client is safe here because:
-//   1. The caller derives practitionerId from an authenticated session.
-//   2. All queries are hard-scoped to that practitioner's ID.
-//   3. No data beyond the specified practitioner's work is returned.
-// Tracked: Option A RLS migration (five-table practitioner policies) must land
-// before Phase C — see Phase B Addendum Q6.
+// Uses an authenticated SSR client — no admin client required. The
+// `case_practitioner_select` policy on `client_cases` was extended in migration
+// `extend_case_practitioner_select_all_statuses` to cover any work history
+// (assigned, in_review, escalated, completed) without a status restriction.
+// RLS ensures a practitioner can only read cases they hold work items for.
 
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types'
@@ -105,11 +100,11 @@ function mapRow(row: RawRow): InboxWorkItem {
 // ─── Main function ────────────────────────────────────────────────────────────
 
 export async function listWorkForInbox(
-  adminClient:    ReturnType<typeof createClient<Database>>,
+  client:         ReturnType<typeof createClient<Database>>,
   practitionerId: string,
 ): Promise<InboxWorkItem[]> {
   // Query 1 — active work items (assigned / in_review / escalated)
-  const { data: activeData, error: activeError } = await adminClient
+  const { data: activeData, error: activeError } = await client
     .from('case_practitioner_work')
     .select(WORK_SELECT)
     .eq('practitioner_id', practitionerId)
@@ -122,7 +117,7 @@ export async function listWorkForInbox(
 
   // Query 2 — recently completed (last 7 days, max 5 per addendum S3)
   const sevenDaysAgo = new Date(Date.now() - SEVEN_DAYS_MS).toISOString()
-  const { data: completedData, error: completedError } = await adminClient
+  const { data: completedData, error: completedError } = await client
     .from('case_practitioner_work')
     .select(WORK_SELECT)
     .eq('practitioner_id', practitionerId)

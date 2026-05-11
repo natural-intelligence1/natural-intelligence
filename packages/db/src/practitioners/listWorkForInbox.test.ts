@@ -57,7 +57,7 @@ describe('computeUrgency', () => {
 
 // ─── listWorkForInbox — unit (mocked client, always-run) ─────────────────────
 
-// Builds a mock admin client that returns the given results for the two
+// Builds a mock client that returns the given results for the two
 // sequential queries: active items first, completed items second.
 function mockClient(
   activeResult:    { data: unknown[] | null; error: { code: string; message: string } | null },
@@ -278,6 +278,40 @@ describe.skipIf(!HAVE_DB)('listWorkForInbox — integration', () => {
 
     const items = await listWorkForInbox(admin, practitionerA.id)
     expect(items.some(i => i.workItemId === escId && i.status === 'escalated')).toBe(true)
+  })
+
+  it('does not return completed or escalated work belonging to practitioner B when called with practitioner A id', async () => {
+    // This test specifically exercises the statuses that required the admin-client
+    // exception (F1): completed and escalated items join client_cases via the admin
+    // client. Verify the practitioner_id filter still isolates A from B's data.
+    const completedIdB = await assignWork(admin, {
+      caseId:         caseId,
+      practitionerId: practitionerB.id,
+      workType:       'escalation_review',
+      assignedBy:     practitionerB.id,
+    })
+    createdWorkIds.push(completedIdB)
+    await admin
+      .from('case_practitioner_work')
+      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .eq('id', completedIdB)
+
+    const escalatedIdB = await assignWork(admin, {
+      caseId:         caseId,
+      practitionerId: practitionerB.id,
+      workType:       'specialist_consult',
+      assignedBy:     practitionerB.id,
+    })
+    createdWorkIds.push(escalatedIdB)
+    await admin
+      .from('case_practitioner_work')
+      .update({ status: 'escalated' })
+      .eq('id', escalatedIdB)
+
+    // Call with practitioner A's id — must not see B's completed or escalated items
+    const items = await listWorkForInbox(admin, practitionerA.id)
+    expect(items.some(i => i.workItemId === completedIdB)).toBe(false)
+    expect(items.some(i => i.workItemId === escalatedIdB)).toBe(false)
   })
 
   it('includes recently completed items and caps at 5', async () => {

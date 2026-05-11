@@ -7,10 +7,7 @@
 
 import Link                    from 'next/link'
 import type { Metadata }       from 'next'
-import {
-  createServerSupabaseClient,
-  createAdminClient,
-} from '@natural-intelligence/db'
+import { createServerSupabaseClient } from '@natural-intelligence/db'
 import {
   listWorkForInbox,
   type InboxWorkItem,
@@ -220,11 +217,9 @@ export default async function InboxPage() {
     .eq('id', practitionerId)
     .maybeSingle()
 
-  // admin client required — see listWorkForInbox.ts for RLS rationale
   let allItems: InboxWorkItem[] = []
   try {
-    const adminClient = createAdminClient()
-    allItems = await listWorkForInbox(adminClient, practitionerId)
+    allItems = await listWorkForInbox(supabase, practitionerId)
   } catch {
     // Render an empty inbox with an error note — do not throw to the error boundary
     return (
