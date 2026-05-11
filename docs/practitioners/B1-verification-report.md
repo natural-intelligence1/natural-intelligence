@@ -2,8 +2,8 @@
 
 **Phase:** B.1 — Inbox + plumbing  
 **Date:** 2026-05-11  
-**Commits:** a741d37 · ebf9ee0 · 4a0562e · d88d455  
-**Status:** All checks passed. One design deviation documented (F1 below).
+**Commits:** a741d37 · ebf9ee0 · 4a0562e · d88d455 · 94227e0  
+**Status:** All checks passed. Finding F1 resolved and closed (see below).
 
 ---
 
@@ -92,44 +92,51 @@ Result: **PASS** — all three routes present, server-rendered (ƒ), no build er
 
 ---
 
-## Finding F1 — Design deviation: listWorkForInbox uses admin client
+## Finding F1 — Design deviation: listWorkForInbox used admin client ✅ CLOSED
 
 **Section:** Section 3 of the design proposal states: "No admin client — authenticated SSR client uses RLS."
 
-**Finding:** The `case_practitioner_select` policy on `client_cases` is:
+**Original finding:** The `case_practitioner_select` policy on `client_cases` restricted its `EXISTS` condition to `status IN ('assigned', 'in_review')`. Querying via an authenticated practitioner client returned `null` case data for `escalated` and `completed` work items, making those inbox sections render without client name or case metadata. `listWorkForInbox` temporarily used `createAdminClient()` as a workaround.
+
+**Resolution (commit 94227e0):** Migration `extend_case_practitioner_select_all_statuses` drops the status filter from the `EXISTS` sub-select:
 
 ```sql
-(EXISTS (
-  SELECT 1 FROM case_practitioner_work cpw
-  WHERE cpw.case_id = client_cases.id
-    AND cpw.practitioner_id = auth.uid()
-    AND cpw.status = ANY (ARRAY['assigned', 'in_review'])
-))
+DROP POLICY IF EXISTS case_practitioner_select ON public.client_cases;
+
+CREATE POLICY case_practitioner_select
+  ON public.client_cases
+  FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM   public.case_practitioner_work cpw
+      WHERE  cpw.case_id         = client_cases.id
+        AND  cpw.practitioner_id = auth.uid()
+      -- No status filter: any work history justifies read access
+    )
+  );
 ```
 
-This policy only covers `assigned` and `in_review` statuses. When querying via an authenticated practitioner client, the nested join from `case_practitioner_work` to `client_cases` returns `null` for any work items in `escalated` or `completed` status — making those inbox sections render without client name or case metadata.
+A practitioner who holds any work item on a case has a legitimate read interest in that case's display fields regardless of the item's current status (clinical continuity). The `practitioner_id = auth.uid()` scope is preserved — cross-practitioner access remains impossible.
 
-**Resolution:** `listWorkForInbox` uses `createAdminClient()` (service_role). The admin client is safe here:
-1. `practitionerId` is always derived from the authenticated session (`supabase.auth.getUser()`).
-2. All queries are hard-scoped to `.eq('practitioner_id', practitionerId)`.
-3. The function is called from a server component; the admin client never reaches the browser.
+`listWorkForInbox` now accepts an authenticated SSR client (`client` parameter). The admin client exception is fully removed from both the helper and `apps/care/app/cases/page.tsx`.
 
-This is documented inline in `listWorkForInbox.ts` and follows the same pattern as `listAssignedWork`.
+**Regression test added:** `'does not return completed or escalated work belonging to practitioner B when called with practitioner A id'` — creates one completed and one escalated item for practitioner B, calls `listWorkForInbox(admin, practitionerA.id)`, asserts both work IDs absent. This covers the specific statuses that motivated F1 (the pre-existing isolation test only covered `assigned` status).
 
-**Follow-up required:** A migration adding practitioner-scoped policies to `client_cases` (extending `case_practitioner_select` to include `escalated` and `completed` statuses, or adding a separate policy) would allow switching `listWorkForInbox` back to an authenticated client. This is lower urgency than the five-table intake/biohub Option A migration (which is required before Phase C) but should be tracked.
+**F1 is fully closed. No outstanding deviation from the design proposal.**
 
 ---
 
 ## Service-role usage audit
 
-Admin client (`createAdminClient` / service_role) is used in exactly the following locations in the care app after B.1:
+Admin client (`createAdminClient` / service_role) is used in exactly the following locations in the care app after B.1 + F1 resolution:
 
 | File | Usage | Approved |
 |---|---|---|
-| `apps/care/app/cases/page.tsx` | `listWorkForInbox` — inbox data query | ✅ Yes — see F1 above |
 | `apps/care/app/actions.ts` | Waitlist submission (anonymous, pre-existing) | ✅ Pre-existing, G.1.3e reviewed |
 
-No other files in `apps/care` use `createAdminClient`. The workspace route (`/cases/[caseId]/work/[workId]`) and the reasoning route both use `createServerSupabaseClient()` exclusively. No admin-client scope creep.
+`apps/care/app/cases/page.tsx` no longer uses `createAdminClient`. The inbox route, the workspace route (`/cases/[caseId]/work/[workId]`), and the reasoning route all use `createServerSupabaseClient()` exclusively. No admin-client scope creep.
 
 ---
 
@@ -143,4 +150,4 @@ No other files in `apps/care` use `createAdminClient`. The workspace route (`/ca
 
 ---
 
-*B.1 verification complete. Awaiting approval before B.2 begins.*
+*B.1 verification complete. F1 closed. Ready for B.2.*
