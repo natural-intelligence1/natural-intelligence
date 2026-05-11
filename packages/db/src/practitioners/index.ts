@@ -18,6 +18,10 @@ export type {
   ClientTeamMember,
   InboxUrgency,
   InboxWorkItem,
+  IntakeSummary,
+  CaseEvent,
+  BioHubSignal,
+  PriorReview,
 } from './types'
 
 export { getPractitioner }               from './getPractitioner'
@@ -32,3 +36,7 @@ export { listClientLinksForPractitioner } from './listClientLinksForPractitioner
 export { getClientTeam }                 from './getClientTeam'
 export { listWorkForInbox }              from './listWorkForInbox'
 export { startWorkItem }                 from './startWorkItem'
+export { getIntakeSummary }              from './getIntakeSummary'
+export { getCaseEvents }                 from './getCaseEvents'
+export { getBioHubSignals }              from './getBioHubSignals'
+export { getPriorReviews }               from './getPriorReviews'

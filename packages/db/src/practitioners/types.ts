@@ -119,6 +119,58 @@ export interface InboxWorkItem {
   urgency:             InboxUrgency
 }
 
+// ─── Workspace — helper return types ──────────────────────────────────────────
+
+export interface IntakeSummary {
+  arrivalEmotion:          string | null
+  primaryConcerns:         string[] | null
+  primarySystem:           string | null
+  stressLevel:             number | null   // 1–10
+  sleepQuality:            number | null   // 0–10
+  energyLevel:             number | null   // 0–10
+  concernSeverity:         number | null   // 0–10 (from intake_answers.concern_severity_baseline)
+  postExertionalWorsening: boolean | null  // from intake_answers.post_exertional_worsening
+  dietDescription:         string | null
+  currentMedications:      string | null
+  currentSupplements:      string | null
+  symptomOnset:            string | null
+  timelineLastWell:        string | null
+  timelineTrigger:         string | null
+  diagnosedConditions:     string[] | null
+}
+
+export interface CaseEvent {
+  id:           string
+  eventType:    string
+  eventPayload: Record<string, unknown>
+  createdAt:    string
+  sourceId:     string | null
+  sourceTable:  string | null
+}
+
+export interface BioHubSignal {
+  id:             string
+  markerName:     string
+  markerKey:      string | null
+  value:          number | null
+  unit:           string | null
+  reportDate:     string | null
+  functionalZone: number | null
+  gpRangeLow:     number | null
+  gpRangeHigh:    number | null
+  niOptimalLow:   number | null
+  niOptimalHigh:  number | null
+}
+
+export interface PriorReview {
+  workItemId:       string
+  workType:         WorkType
+  status:           WorkStatus
+  completedAt:      string
+  notes:            string | null
+  practitionerName: string | null
+}
+
 // Safe projection returned by getClientTeam — contact/admin fields excluded
 export interface ClientTeamMember {
   practitionerId:      string
