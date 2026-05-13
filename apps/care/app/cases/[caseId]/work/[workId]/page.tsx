@@ -78,39 +78,51 @@ export default async function WorkspacePage({
   }
 
   // ── 3. Load case for header + client metadata ─────────────────────────────
+  // profiles FK join is intentionally absent — full-row SELECT on profiles is
+  // not granted to practitioners. Client identity (full_name, avatar_url) is
+  // fetched separately from the practitioner_client_identity view (F2).
   const { data: clientCase, error: caseErr } = await supabase
     .from('client_cases')
-    .select('id, primary_concern, case_complexity_score, escalation_required, status, client_id, profiles:client_id (full_name)')
+    .select('id, primary_concern, case_complexity_score, escalation_required, status, client_id')
     .eq('id', params.caseId)
     .single()
 
   if (caseErr || !clientCase) return notFound()
 
-  const profile  = clientCase.profiles as unknown as { full_name: string | null } | null
-  const fullName = profile?.full_name ?? 'Unknown'
   const workType = workItem.work_type.replace(/_/g, ' ')
   const memberId = clientCase.client_id
 
   // ── 4. Parallel data fetch ────────────────────────────────────────────────
   // Admin client for intake + biohub (Q6 exception — no practitioner RLS on these tables).
-  // Authenticated client for case events, prior reviews, reasoning trace.
+  // Authenticated client for case events, prior reviews, reasoning trace, and
+  // client identity (via practitioner_client_identity view — column-scoped, F2).
   const adminClient = createAdminClient()
 
-  const [intake, events, biohub, priorReviews, trace] = await Promise.allSettled([
+  const [intake, events, biohub, priorReviews, trace, identityResult] = await Promise.allSettled([
     getIntakeSummary(adminClient, memberId),
     getCaseEvents(supabase, params.caseId),
     getBioHubSignals(adminClient, memberId),
     getPriorReviews(supabase, params.caseId, params.workId),
     getPractitionerTrace(supabase, params.caseId),
+    supabase
+      .from('practitioner_client_identity' as 'profiles') // view not yet in generated types
+      .select('full_name, avatar_url')
+      .eq('id', memberId)
+      .maybeSingle(),
   ])
 
   // Extract settled values — individual failures render panel-level empty states
   // rather than crashing the whole workspace.
-  const intakeSummary = intake.status      === 'fulfilled' ? intake.value      : null
-  const caseEvents    = events.status      === 'fulfilled' ? events.value      : []
-  const bioHubSignals = biohub.status      === 'fulfilled' ? biohub.value      : []
-  const reviews       = priorReviews.status === 'fulfilled' ? priorReviews.value : []
-  const reasoningTrace = trace.status      === 'fulfilled' ? trace.value       : null
+  const intakeSummary  = intake.status       === 'fulfilled' ? intake.value       : null
+  const caseEvents     = events.status       === 'fulfilled' ? events.value       : []
+  const bioHubSignals  = biohub.status       === 'fulfilled' ? biohub.value       : []
+  const reviews        = priorReviews.status === 'fulfilled' ? priorReviews.value : []
+  const reasoningTrace = trace.status        === 'fulfilled' ? trace.value        : null
+
+  const identityRow = identityResult.status === 'fulfilled'
+    ? (identityResult.value.data as unknown as { full_name: string | null; avatar_url: string | null } | null)
+    : null
+  const fullName = identityRow?.full_name ?? 'Unknown'
 
   // ── 5. Section nav metadata ───────────────────────────────────────────────
   const navSections = [

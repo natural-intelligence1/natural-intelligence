@@ -43,6 +43,10 @@ export function computeUrgency(opts: {
 
 // ─── Query helpers ────────────────────────────────────────────────────────────
 
+// client_id is included so we can batch-fetch identities from the
+// practitioner_client_identity view after the work-item queries resolve.
+// The profiles FK join is intentionally absent — full-row access to profiles
+// is not granted to practitioners; the view is the access boundary (F2).
 const WORK_SELECT = `
   id,
   case_id,
@@ -53,10 +57,10 @@ const WORK_SELECT = `
   completed_at,
   due_at,
   client_cases (
+    client_id,
     primary_concern,
     case_complexity_score,
-    escalation_required,
-    profiles:client_id ( full_name )
+    escalation_required
   )
 ` as const
 
@@ -70,14 +74,14 @@ type RawRow = {
   completed_at: string | null
   due_at:       string | null
   client_cases: {
+    client_id:             string
     primary_concern:       string | null
     case_complexity_score: number
     escalation_required:   boolean
-    profiles:              { full_name: string | null } | null
   } | null
 }
 
-function mapRow(row: RawRow): InboxWorkItem {
+function mapRow(row: RawRow, clientName: string): InboxWorkItem {
   const cc     = row.client_cases
   const status = row.status as WorkStatus
   return {
@@ -89,7 +93,7 @@ function mapRow(row: RawRow): InboxWorkItem {
     startedAt:           row.started_at,
     completedAt:         row.completed_at,
     dueAt:               row.due_at,
-    clientName:          cc?.profiles?.full_name   ?? 'Unknown',
+    clientName,
     primaryConcern:      cc?.primary_concern        ?? null,
     caseComplexityScore: cc?.case_complexity_score  ?? 0,
     escalationRequired:  cc?.escalation_required    ?? false,
@@ -130,8 +134,37 @@ export async function listWorkForInbox(
     throw new Error(`listWorkForInbox (completed) failed [${completedError.code}]: ${completedError.message}`)
   }
 
-  const active    = (activeData    ?? []).map(r => mapRow(r as unknown as RawRow))
-  const completed = (completedData ?? []).map(r => mapRow(r as unknown as RawRow))
+  // Batch-fetch client identities from the column-scoped view (F2).
+  // The view enforces practitioner-scope access; RLS on profiles itself is not
+  // relied on. We skip the query when there are no work items to avoid a
+  // pointless .in('id', []) call (which may return empty or error depending
+  // on the driver).
+  const allRows   = [...(activeData ?? []), ...(completedData ?? [])]
+  const clientIds = [...new Set(
+    allRows
+      .map(r => (r as unknown as RawRow).client_cases?.client_id)
+      .filter((id): id is string => typeof id === 'string'),
+  )]
+
+  const nameMap = new Map<string, string>()
+  if (clientIds.length > 0) {
+    const { data: identities } = await client
+      .from('practitioner_client_identity' as 'profiles') // cast: view not in generated types yet
+      .select('id, full_name')
+      .in('id', clientIds)
+    for (const identity of identities ?? []) {
+      const row = identity as unknown as { id: string; full_name: string | null }
+      nameMap.set(row.id, row.full_name ?? 'Unknown')
+    }
+  }
+
+  const getName = (r: RawRow) => {
+    const clientId = r.client_cases?.client_id
+    return clientId ? (nameMap.get(clientId) ?? 'Unknown') : 'Unknown'
+  }
+
+  const active    = (activeData    ?? []).map(r => mapRow(r as unknown as RawRow, getName(r as unknown as RawRow)))
+  const completed = (completedData ?? []).map(r => mapRow(r as unknown as RawRow, getName(r as unknown as RawRow)))
 
   return [...active, ...completed]
 }

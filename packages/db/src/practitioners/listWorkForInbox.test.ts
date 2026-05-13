@@ -57,11 +57,13 @@ describe('computeUrgency', () => {
 
 // ─── listWorkForInbox — unit (mocked client, always-run) ─────────────────────
 
-// Builds a mock client that returns the given results for the two
-// sequential queries: active items first, completed items second.
+// Builds a mock client that returns the given results for the three
+// sequential queries: active items, completed items, identity view batch fetch.
+// identityResult defaults to empty (no client_ids resolved → 'Unknown' fallback).
 function mockClient(
   activeResult:    { data: unknown[] | null; error: { code: string; message: string } | null },
   completedResult: { data: unknown[] | null; error: { code: string; message: string } | null },
+  identityResult:  { data: unknown[] | null; error: null } = { data: [], error: null },
 ) {
   let callCount = 0
   return {
@@ -79,18 +81,26 @@ function mockClient(
           }),
         }
       }
-      // Completed items query: .select().eq().eq().gte().order().limit()
-      return {
-        select: () => ({
-          eq: () => ({
+      if (callCount === 2) {
+        // Completed items query: .select().eq().eq().gte().order().limit()
+        return {
+          select: () => ({
             eq: () => ({
-              gte: () => ({
-                order: () => ({
-                  limit: () => Promise.resolve(completedResult),
+              eq: () => ({
+                gte: () => ({
+                  order: () => ({
+                    limit: () => Promise.resolve(completedResult),
+                  }),
                 }),
               }),
             }),
           }),
+        }
+      }
+      // Identity view query: .select().in()  (practitioner_client_identity)
+      return {
+        select: () => ({
+          in: () => Promise.resolve(identityResult),
         }),
       }
     },
@@ -121,6 +131,8 @@ describe('listWorkForInbox — unit', () => {
   })
 
   it('maps a row to a correctly-shaped InboxWorkItem', async () => {
+    // client_id is now fetched via the practitioner_client_identity view (F2).
+    // The third mockClient call returns the identity for 'client-1'.
     const row = {
       id:           'work-1',
       case_id:      'case-1',
@@ -131,13 +143,17 @@ describe('listWorkForInbox — unit', () => {
       completed_at: null,
       due_at:       null,
       client_cases: {
+        client_id:             'client-1',
         primary_concern:       'Fatigue',
         case_complexity_score: 3,
         escalation_required:   false,
-        profiles:              { full_name: 'Emma Clarke' },
       },
     }
-    const client = mockClient({ data: [row], error: null }, { data: [], error: null })
+    const client = mockClient(
+      { data: [row], error: null },
+      { data: [], error: null },
+      { data: [{ id: 'client-1', full_name: 'Emma Clarke' }], error: null },
+    )
     const result = await listWorkForInbox(client, 'p-id')
     expect(result).toHaveLength(1)
     const item = result[0]
@@ -152,11 +168,13 @@ describe('listWorkForInbox — unit', () => {
     expect(typeof item.urgency).toBe('string')
   })
 
-  it('returns "Unknown" client name when profiles is null', async () => {
+  it('returns "Unknown" client name when no client_id is present', async () => {
+    // client_cases has no client_id → clientIds is empty → identity query skipped
+    // → getName returns 'Unknown'. Only 2 from() calls are made (active + completed).
     const row = {
       id: 'w', case_id: 'c', work_type: 'safety_review', status: 'in_review',
       assigned_at: new Date().toISOString(), started_at: null, completed_at: null, due_at: null,
-      client_cases: { primary_concern: null, case_complexity_score: 1, escalation_required: false, profiles: null },
+      client_cases: { primary_concern: null, case_complexity_score: 1, escalation_required: false },
     }
     const client = mockClient({ data: [row], error: null }, { data: [], error: null })
     const [item] = await listWorkForInbox(client, 'p-id')
