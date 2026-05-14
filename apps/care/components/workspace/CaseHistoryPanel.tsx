@@ -11,8 +11,9 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   lab_upload:         'Lab upload',
   gp_record_upload:   'GP record upload',
   grocery_receipt:    'Grocery receipt',
-  practitioner_note:  'Practitioner note',
-  protocol_update:    'Protocol update',
+  practitioner_note:      'Practitioner note',
+  practitioner_decision:  'Practitioner decision',
+  protocol_update:        'Protocol update',
 }
 
 function formatPayloadSummary(eventType: string, payload: Record<string, unknown>): string {
@@ -26,6 +27,13 @@ function formatPayloadSummary(eventType: string, payload: Record<string, unknown
   }
   if (eventType === 'practitioner_note' && payload.summary) {
     return String(payload.summary).slice(0, 80)
+  }
+  if (eventType === 'practitioner_decision' && payload.decision) {
+    const label: Record<string, string> = {
+      approved: 'Approved', needs_revision: 'Needs revision', escalated: 'Escalated',
+    }
+    const who = payload.practitioner_display_name ? ` · ${payload.practitioner_display_name}` : ''
+    return `${label[String(payload.decision)] ?? String(payload.decision)}${who}`
   }
   // Fallback: first key-value pair
   const [k, v] = Object.entries(payload)[0]
