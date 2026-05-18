@@ -2,25 +2,32 @@
 // ─── ActionPanel ──────────────────────────────────────────────────────────────
 // Sticky right-side action panel for the Case Review Workspace.
 //
-// B.3 — 5-state inline completion flow:
-//
+// B.3 — 5-state inline completion flow (approved / needs_revision):
 //   'compose'  → user fills notes / decision / recommendation
 //   'confirm'  → summary shown, awaiting final confirmation
 //   'loading'  → submitReview in-flight, no interaction
 //   'success'  → event recorded, back-to-inbox link shown
 //   (errors)   → return to 'compose' with errorBanner set
 //
-// State initialised to 'success' when the server passes status='completed'
-// (page reloads after completion — no re-submission possible).
+// B.4 — Escalation path:
+//   When decision='escalated' is selected, compose state changes shape:
+//     • Notes label becomes "Escalation reason" (load-bearing, required)
+//     • Five shortcut prefix buttons render above the textarea
+//     • Submit gated on non-empty reason (separate from canSubmit)
+//   Confirm state shows escalation-specific copy.
+//   Success state shows "↑ Escalated · Flagged for admin review."
+//   Reload after escalation (status='escalated' from server) renders success
+//     state directly — Option A: no event-fetch, copy derived from status prop.
 //
-// Escalate is rendered but non-interactive: B.4 will wire the escalation path.
+// Shortcut prefix semantics (per addendum S6):
+//   Clicking a shortcut prepends "[Label] " at the start of the reason field.
+//   If the field already starts with a prefix, the new shortcut REPLACES it
+//   while preserving the free-text portion. "Other" CLEARS any prefix.
 //
 // localStorage draft (addendum S8):
 //   Key: ni-care:draft:${workItemId}
 //   Fields: notes, decision, recommendation, lastSavedAt
 //   Cleared only on successful completion (State 3 → 4 transition).
-//   Multi-tab detection: amber banner if another tab wrote more recently.
-//   Degraded mode: amber banner when localStorage unavailable.
 
 import { useEffect, useRef, useState, useCallback, useTransition } from 'react'
 import { submitReview } from '@/app/cases/actions'
@@ -29,7 +36,7 @@ import type { SubmitResult } from '@/app/cases/actions'
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Decision      = 'approved' | 'needs_revision' | 'escalated' | null
-type SubmittableDecision = 'approved' | 'needs_revision'
+type SubmittableDecision = 'approved' | 'needs_revision' | 'escalated'
 type PanelState    = 'compose' | 'confirm' | 'loading' | 'success'
 type ErrorCode     = 'generic' | 'auth' | null
 
@@ -75,6 +82,28 @@ function isLocalStorageAvailable(): boolean {
   }
 }
 
+// ─── Escalation prefix logic (addendum S6) ────────────────────────────────────
+
+const ESCALATION_PREFIX_RE = /^\[[^\]]+\]\s*/
+
+// Apply a shortcut prefix to the reason field.
+//   label = null  → clear any existing prefix, preserve rest
+//   label = "X"   → ensure reason starts with "[X] " followed by existing rest
+export function applyEscalationPrefix(current: string, label: string | null): string {
+  const match = current.match(ESCALATION_PREFIX_RE)
+  const rest  = match ? current.slice(match[0].length) : current
+  if (label === null) return rest
+  return `[${label}] ${rest}`
+}
+
+const ESCALATION_SHORTCUTS: { label: string; prefix: string | null }[] = [
+  { label: 'Senior practitioner',  prefix: 'Senior practitioner'  },
+  { label: 'Specialist referral',  prefix: 'Specialist referral'  },
+  { label: 'GP letter',            prefix: 'GP letter'            },
+  { label: 'Urgent safety',        prefix: 'Urgent safety'        },
+  { label: 'Other',                prefix: null                   }, // clears prefix
+]
+
 // ─── Date formatting ──────────────────────────────────────────────────────────
 
 function formatRelative(iso: string): string {
@@ -104,11 +133,19 @@ function formatDue(iso: string): string {
 const DECISION_LABELS: Record<SubmittableDecision, string> = {
   approved:       'Approved',
   needs_revision: 'Needs revision',
+  escalated:      'Escalated',
 }
 
-function successCopy(decision: SubmittableDecision | null): string {
-  if (decision === 'approved')       return '✓ Approved · Case event recorded.'
-  if (decision === 'needs_revision') return '✓ Recorded · Marked for revision.'
+// Success copy.
+//   forStatus='escalated'    → escalation copy regardless of confirmedDecision
+//   forStatus='completed'    → use confirmedDecision (set during this session
+//                              by State 2→3 click) or fallback for reload
+function successCopy(status: string, confirmedDecision: SubmittableDecision | null): string {
+  if (status === 'escalated' || confirmedDecision === 'escalated') {
+    return '↑ Escalated · Flagged for admin review.'
+  }
+  if (confirmedDecision === 'approved')       return '✓ Approved · Case event recorded.'
+  if (confirmedDecision === 'needs_revision') return '✓ Recorded · Marked for revision.'
   return '✓ Review submitted.'
 }
 
@@ -121,39 +158,38 @@ interface ActionPanelProps {
   startedAt:  string | null
 }
 
-const DECISION_OPTIONS: { value: NonNullable<Decision>; label: string; b4?: true }[] = [
+const DECISION_OPTIONS: { value: SubmittableDecision; label: string }[] = [
   { value: 'approved',       label: 'Approved' },
   { value: 'needs_revision', label: 'Needs revision' },
-  { value: 'escalated',      label: 'Escalate', b4: true },
+  { value: 'escalated',      label: 'Escalate' },
 ]
 
 export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPanelProps) {
   // ── State ──────────────────────────────────────────────────────────────────
-  // Initialise to 'success' when the work item is already completed so the
+  // Initialise to 'success' when the work item is already terminal so the
   // panel renders a done state immediately, without the compose form.
-  const [panelState,       setPanelState]       = useState<PanelState>(
-    status === 'completed' ? 'success' : 'compose',
+  const isTerminalStatus = status === 'completed' || status === 'escalated'
+  const [panelState,        setPanelState]        = useState<PanelState>(
+    isTerminalStatus ? 'success' : 'compose',
   )
-  const [errorBanner,      setErrorBanner]      = useState<ErrorCode>(null)
-  const [notes,            setNotes]            = useState('')
-  const [decision,         setDecision]         = useState<Decision>(null)
-  const [recommendation,   setRecommendation]   = useState('')
-  const [draftMode,        setDraftMode]        = useState<'normal' | 'degraded'>('normal')
-  const [multiTabBanner,   setMultiTabBanner]   = useState(false)
-  // Holds the decision that was confirmed at the confirm-click instant,
-  // used both for the RPC call and the success copy message.
+  const [errorBanner,       setErrorBanner]       = useState<ErrorCode>(null)
+  const [notes,             setNotes]             = useState('')
+  const [decision,          setDecision]          = useState<Decision>(null)
+  const [recommendation,    setRecommendation]    = useState('')
+  const [draftMode,         setDraftMode]         = useState<'normal' | 'degraded'>('normal')
+  const [multiTabBanner,    setMultiTabBanner]    = useState(false)
   const [confirmedDecision, setConfirmedDecision] = useState<SubmittableDecision | null>(null)
 
   const [isPending, startTransition] = useTransition()
 
-  // Timestamps used for multi-tab detection
   const mountTimeSavedAt   = useRef<string | null>(null)
   const lastWriteTimestamp = useRef<string | null>(null)
   const saveTimer          = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const notesRef           = useRef<HTMLTextAreaElement | null>(null)
 
   // ── Mount: load draft ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (status === 'completed') return // skip draft restore for completed items
+    if (isTerminalStatus) return
 
     if (!isLocalStorageAvailable()) {
       setDraftMode('degraded')
@@ -168,7 +204,7 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
       mountTimeSavedAt.current   = existing.lastSavedAt
       lastWriteTimestamp.current = existing.lastSavedAt
     }
-  }, [workItemId, status])
+  }, [workItemId, isTerminalStatus])
 
   // ── Debounced save ─────────────────────────────────────────────────────────
   const scheduleSave = useCallback((n: string, d: Decision, r: string) => {
@@ -209,11 +245,25 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
     scheduleSave(notes, decision, val)
   }
 
+  // ── Escalation shortcut click ──────────────────────────────────────────────
+  function handleShortcutClick(prefix: string | null) {
+    const next = applyEscalationPrefix(notes, prefix)
+    setNotes(next)
+    setMultiTabBanner(false)
+    scheduleSave(next, decision, recommendation)
+    // Focus the textarea after applying so the user can keep typing
+    requestAnimationFrame(() => {
+      notesRef.current?.focus()
+      const len = notesRef.current?.value.length ?? 0
+      notesRef.current?.setSelectionRange(len, len)
+    })
+  }
+
   // ── State machine actions ──────────────────────────────────────────────────
 
   function handleSubmitClick() {
-    // Guard: only 'approved' and 'needs_revision' are submittable in B.3
-    if (decision !== 'approved' && decision !== 'needs_revision') return
+    if (decision !== 'approved' && decision !== 'needs_revision' && decision !== 'escalated') return
+    if (decision === 'escalated' && notes.trim().length === 0) return
     setConfirmedDecision(decision)
     setErrorBanner(null)
     setPanelState('confirm')
@@ -248,14 +298,18 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
   const humanStatus = status === 'in_review' ? 'In review'
     : status === 'assigned'   ? 'Assigned'
     : status === 'completed'  ? 'Completed'
+    : status === 'escalated'  ? 'Escalated'
     : status
   const metaParts: string[] = [humanStatus]
   if (dueAt)     metaParts.push(formatDue(dueAt))
   if (startedAt) metaParts.push(`Started ${formatRelative(startedAt)}`)
 
+  const isEscalating  = decision === 'escalated'
   const charCount     = notes.length
-  const canSubmit     = decision === 'approved' || decision === 'needs_revision'
+  const reasonOk      = !isEscalating || notes.trim().length > 0
+  const canSubmit     = (decision === 'approved' || decision === 'needs_revision' || decision === 'escalated') && reasonOk
   const isInteractive = panelState === 'compose'
+  const isEscalationConfirm = confirmedDecision === 'escalated'
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -281,33 +335,40 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
       </div>
 
       {/* ── SUCCESS state ───────────────────────────────────────────────────── */}
-      {panelState === 'success' && (
-        <div style={{ padding: '24px 16px', textAlign: 'center' }}>
-          <div style={{ fontSize: '24px', marginBottom: '12px' }}>✓</div>
-          <p style={{ fontSize: '13px', color: '#1A1917', fontWeight: 500, marginBottom: '8px', lineHeight: '1.4' }}>
-            {successCopy(confirmedDecision)}
-          </p>
-          <p style={{ fontSize: '11px', color: '#B0AEA8', marginBottom: '20px', lineHeight: '1.4' }}>
-            This review is complete. The case event has been recorded.
-          </p>
-          <a
-            href="/cases"
-            style={{
-              display:      'block',
-              padding:      '10px 16px',
-              background:   '#1A1917',
-              color:        '#FFFFFF',
-              borderRadius: '6px',
-              fontSize:     '13px',
-              fontWeight:   500,
-              textAlign:    'center',
-              textDecoration: 'none',
-            }}
-          >
-            Back to inbox
-          </a>
-        </div>
-      )}
+      {panelState === 'success' && (() => {
+        const isEscalatedSuccess = status === 'escalated' || confirmedDecision === 'escalated'
+        return (
+          <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', marginBottom: '12px' }}>
+              {isEscalatedSuccess ? '↑' : '✓'}
+            </div>
+            <p style={{ fontSize: '13px', color: '#1A1917', fontWeight: 500, marginBottom: '8px', lineHeight: '1.4' }}>
+              {successCopy(status, confirmedDecision)}
+            </p>
+            <p style={{ fontSize: '11px', color: '#B0AEA8', marginBottom: '20px', lineHeight: '1.4' }}>
+              {isEscalatedSuccess
+                ? 'An admin will pick this case up for review.'
+                : 'This review is complete. The case event has been recorded.'}
+            </p>
+            <a
+              href="/cases"
+              style={{
+                display:      'block',
+                padding:      '10px 16px',
+                background:   '#1A1917',
+                color:        '#FFFFFF',
+                borderRadius: '6px',
+                fontSize:     '13px',
+                fontWeight:   500,
+                textAlign:    'center',
+                textDecoration: 'none',
+              }}
+            >
+              Back to inbox
+            </a>
+          </div>
+        )
+      })()}
 
       {/* ── LOADING state ───────────────────────────────────────────────────── */}
       {panelState === 'loading' && (
@@ -319,23 +380,28 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
       {/* ── CONFIRM state ───────────────────────────────────────────────────── */}
       {panelState === 'confirm' && confirmedDecision && (
         <div style={{ padding: '16px' }}>
-          <p style={{ fontSize: '12px', color: '#8A8880', marginBottom: '12px' }}>
-            Confirm your decision before submitting.
+          <p style={{ fontSize: '12px', color: isEscalationConfirm ? '#92400E' : '#8A8880', marginBottom: '12px', lineHeight: '1.5' }}>
+            {isEscalationConfirm
+              ? 'You are about to escalate this case for admin review.'
+              : 'Confirm your decision before submitting.'}
           </p>
           <div style={{
             padding:      '10px 12px',
-            background:   '#F4F3F0',
+            background:   isEscalationConfirm ? '#FFFBEB' : '#F4F3F0',
+            border:       isEscalationConfirm ? '1px solid #D97706' : 'none',
             borderRadius: '6px',
             marginBottom: '16px',
             fontSize:     '13px',
             color:        '#1A1917',
             fontWeight:   500,
           }}>
-            {DECISION_LABELS[confirmedDecision]}
+            {isEscalationConfirm ? '↑ ' : ''}{DECISION_LABELS[confirmedDecision]}
           </div>
           {notes.trim() && (
             <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#8A8880', marginBottom: '4px' }}>Notes</div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#8A8880', marginBottom: '4px' }}>
+                {isEscalationConfirm ? 'Escalation reason' : 'Notes'}
+              </div>
               <div style={{ fontSize: '12px', color: '#1A1917', lineHeight: '1.5', maxHeight: '80px', overflow: 'hidden' }}>
                 {notes.slice(0, 200)}{notes.length > 200 ? '…' : ''}
               </div>
@@ -354,7 +420,7 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
             style={{
               width:        '100%',
               padding:      '10px 16px',
-              background:   '#1A1917',
+              background:   isEscalationConfirm ? '#D97706' : '#1A1917',
               color:        '#FFFFFF',
               border:       'none',
               borderRadius: '6px',
@@ -365,7 +431,7 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
               marginBottom: '8px',
             }}
           >
-            Confirm & submit
+            {isEscalationConfirm ? 'Confirm and submit' : 'Confirm & submit'}
           </button>
           <button
             onClick={handleBackToEdit}
@@ -381,7 +447,7 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
               fontFamily:   'inherit',
             }}
           >
-            Edit
+            {isEscalationConfirm ? 'Back to edit' : 'Edit'}
           </button>
         </div>
       )}
@@ -420,16 +486,51 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
             </div>
           )}
 
-          {/* Notes textarea */}
+          {/* ── Escalation shortcuts (rendered above notes when escalating) ── */}
+          {isEscalating && (
+            <div style={{ marginBottom: '12px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#8A8880', marginBottom: '6px' }}>
+                Reason shortcuts
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {ESCALATION_SHORTCUTS.map(s => (
+                  <button
+                    key={s.label}
+                    type="button"
+                    onClick={() => handleShortcutClick(s.prefix)}
+                    style={{
+                      padding:      '4px 8px',
+                      background:   '#FFFFFF',
+                      color:        '#1A1917',
+                      border:       '1px solid #E8E6E0',
+                      borderRadius: '4px',
+                      fontSize:     '11px',
+                      cursor:       'pointer',
+                      fontFamily:   'inherit',
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes / Escalation reason textarea */}
           <div style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#8A8880', marginBottom: '6px' }}>
-              Notes
+              {isEscalating ? (
+                <>Escalation reason <span style={{ color: '#D97706' }}>*</span></>
+              ) : 'Notes'}
             </label>
             <textarea
+              ref={notesRef}
               value={notes}
               onChange={e => handleNotesChange(e.target.value)}
               disabled={!isInteractive}
-              placeholder="Clinical observations, questions, flags."
+              placeholder={isEscalating
+                ? 'What needs admin attention? Use a shortcut above or type freely.'
+                : 'Clinical observations, questions, flags.'}
               style={{
                 width:        '100%',
                 minHeight:    '80px',
@@ -465,36 +566,28 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
               Decision
             </div>
             {DECISION_OPTIONS.map(opt => (
-              <div key={opt.value}>
-                <label
-                  style={{
-                    display:     'flex',
-                    alignItems:  'center',
-                    gap:         '8px',
-                    marginBottom: opt.b4 ? '2px' : '6px',
-                    cursor:      opt.b4 ? 'not-allowed' : 'pointer',
-                    fontSize:    '13px',
-                    color:       opt.b4 ? '#B0AEA8' : '#1A1917',
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name={`decision-${workItemId}`}
-                    value={opt.value}
-                    checked={decision === opt.value}
-                    onChange={() => !opt.b4 && handleDecisionChange(opt.value)}
-                    disabled={!!opt.b4}
-                    style={{ accentColor: '#B8935A' }}
-                  />
-                  {opt.label}
-                </label>
-                {/* B.4 marker beneath the Escalate option */}
-                {opt.b4 && (
-                  <p style={{ fontSize: '10px', color: '#B0AEA8', marginTop: 0, marginBottom: '6px', marginLeft: '20px' }}>
-                    [B.4] Escalation handling lands in B.4
-                  </p>
-                )}
-              </div>
+              <label
+                key={opt.value}
+                style={{
+                  display:      'flex',
+                  alignItems:   'center',
+                  gap:          '8px',
+                  marginBottom: '6px',
+                  cursor:       'pointer',
+                  fontSize:     '13px',
+                  color:        '#1A1917',
+                }}
+              >
+                <input
+                  type="radio"
+                  name={`decision-${workItemId}`}
+                  value={opt.value}
+                  checked={decision === opt.value}
+                  onChange={() => handleDecisionChange(opt.value)}
+                  style={{ accentColor: opt.value === 'escalated' ? '#D97706' : '#B8935A' }}
+                />
+                {opt.label}
+              </label>
             ))}
           </div>
 
@@ -534,11 +627,15 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
             <button
               disabled={!canSubmit || isPending}
               onClick={handleSubmitClick}
-              title={!canSubmit ? 'Select a decision to continue' : undefined}
+              title={!canSubmit
+                ? (isEscalating
+                    ? 'Provide an escalation reason to submit.'
+                    : 'Select a decision to continue')
+                : undefined}
               style={{
                 width:        '100%',
                 padding:      '10px 16px',
-                background:   '#1A1917',
+                background:   isEscalating ? '#D97706' : '#1A1917',
                 color:        '#FFFFFF',
                 border:       'none',
                 borderRadius: '6px',
@@ -549,8 +646,13 @@ export function ActionPanel({ workItemId, status, dueAt, startedAt }: ActionPane
                 fontFamily:   'inherit',
               }}
             >
-              Complete review
+              {isEscalating ? 'Escalate for admin review' : 'Complete review'}
             </button>
+            {isEscalating && !reasonOk && (
+              <p style={{ fontSize: '11px', color: '#B0AEA8', marginTop: '6px', textAlign: 'center' }}>
+                Provide an escalation reason to submit.
+              </p>
+            )}
           </div>
         </div>
       )}

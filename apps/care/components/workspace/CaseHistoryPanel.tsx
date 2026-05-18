@@ -30,7 +30,7 @@ function formatPayloadSummary(eventType: string, payload: Record<string, unknown
   }
   if (eventType === 'practitioner_decision' && payload.decision) {
     const label: Record<string, string> = {
-      approved: 'Approved', needs_revision: 'Needs revision', escalated: 'Escalated',
+      approved: 'Approved', needs_revision: 'Needs revision', escalated: '↑ Escalated',
     }
     const who = payload.practitioner_display_name ? ` · ${payload.practitioner_display_name}` : ''
     return `${label[String(payload.decision)] ?? String(payload.decision)}${who}`
