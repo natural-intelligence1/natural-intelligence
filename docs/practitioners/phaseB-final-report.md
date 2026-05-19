@@ -317,3 +317,123 @@ Directional, not committed.
 ---
 
 *Phase B closed. Awaiting explicit approval before Personalisation Substrate scoping begins.*
+
+---
+
+## F1 Migration Drift — Closed
+
+**Date:** 2026-05-19
+**Migration:** `supabase/migrations/0046_backfill_f1_case_practitioner_select_all_statuses.sql`
+**Applied as:** `backfill_f1_case_practitioner_select_all_statuses` (live dev DB)
+**Commits:** `991c2e9` (migration) · this commit (report update)
+
+The Phase C gate item flagged in §3 and §11 — *"F1 migration drift resolved: backfill the F1 fix as a numbered file in supabase/migrations/"* — is now closed.
+
+### PROCEDURE / OBSERVED / RESULT
+
+#### Step 1 — Investigate live policy state
+
+**Procedure:** Queried `pg_policy` for every policy named `case_practitioner_select` across all tables, plus searched `supabase/migrations/` for the file that introduced the pre-F1 policy.
+
+**Observed:**
+- Exactly one policy named `case_practitioner_select` exists in live, on `public.client_cases` (not `case_practitioner_work` as the original Phase C gate text suggested).
+- Live USING expression:
+  ```sql
+  (EXISTS ( SELECT 1
+     FROM case_practitioner_work cpw
+    WHERE ((cpw.case_id = client_cases.id) AND (cpw.practitioner_id = auth.uid()))))
+  ```
+- Origin file: `supabase/migrations/0037_g1_rls_care_extensions.sql` line 10 — created the pre-F1 version with `AND cpw.status IN ('assigned','in_review')` appended.
+- Next available migration slot: `0046`.
+
+**Result:** Surfaced two corrections to the spec body before writing: target table is `client_cases`, not `case_practitioner_work`; USING expression is an EXISTS subquery (the spec's `practitioner_id = auth.uid()` would not parse against `client_cases`). Stopped and surfaced to the user; corrected body approved.
+
+#### Step 2 — Apply the backfill migration
+
+**Procedure:** Applied `0046_backfill_f1_case_practitioner_select_all_statuses.sql` to the live dev DB via Supabase MCP `apply_migration`. The migration uses `DROP POLICY IF EXISTS … CREATE POLICY …` so it succeeds whether or not the policy already exists.
+
+**Observed:** `{"success": true}` from `apply_migration`.
+
+**Result:** ✅ Applied without error.
+
+#### Step 3 — Verify live policy state matches expected
+
+**Procedure:** Re-queried `pg_policy` for the policy on `public.client_cases`.
+
+**Observed:**
+```
+table_name:    client_cases
+policy_name:   case_practitioner_select
+command:       r (SELECT)
+roles:         {authenticated}
+using_expr:    (EXISTS ( SELECT 1
+                  FROM case_practitioner_work cpw
+                 WHERE ((cpw.case_id = client_cases.id) AND (cpw.practitioner_id = auth.uid()))))
+```
+
+**Result:** ✅ USING expression matches the live state from Step 1 exactly. No status filter on `cpw`. Drop+recreate produced the same policy that was present before — F1 fix preserved.
+
+#### Step 3.b — Inbox visibility regression test (Dr Sarah Chen)
+
+**Procedure:**
+1. SQL: queried `client_cases` as Dr Sarah Chen (`e8ee62b0-…`) via JWT-spoofed authenticated session for both her cases (`10d4456a-…` with completed work, `cccccccc-…` with escalated work).
+2. UI: navigated to `/cases` as Dr Sarah Chen against live deployment.
+
+**Observed:**
+
+SQL:
+```
+auth_uid:        e8ee62b0-1f94-4c52-8005-b52a6d2b6d12
+visible_cases:   2
+case_ids:        10d4456a-5cc7-4c48-a035-0d6ed134c7c9,
+                 cccccccc-0000-4000-8000-000000000003
+```
+
+UI:
+```
+PRACTITIONER INBOX — All reviews complete
+
+NEEDS REVIEW
+No assigned work. New cases will appear here when your next review is assigned.
+
+ESCALATED (1)
+⚠ Natural Intelligence — case_review — Awaiting admin
+
+COMPLETED RECENTLY
+⚠ Natural Intelligence — case_review — Completed 4d ago
+```
+
+**Result:** ✅ Both sections render with the work items they previously contained. F1 fix preserved through the drop+recreate.
+
+#### Step 4 — Negative test (Lena Parrish)
+
+**Procedure:** Queried `client_cases` as Lena Parrish (`c0334d65-…`) via JWT-spoofed authenticated session for both of Dr Sarah Chen's cases.
+
+**Observed:**
+```
+auth_uid:               c0334d65-2bde-4bca-aa0c-1d5cd33a1e18
+visible_sarah_cases:    0
+```
+
+**Result:** ✅ Cross-practitioner scope still enforced. Lena cannot see Dr Sarah Chen's cases.
+
+#### Step 5 — Verification suite
+
+| Check | Result |
+|---|---|
+| `pnpm --filter @natural-intelligence/db test` | ✅ 169 passed · 69 skipped (238 total) — unchanged from Phase B close |
+| `pnpm --filter care type-check` | ✅ clean |
+| `pnpm --filter care build` | ✅ Compiled successfully |
+| `pnpm --filter care lint` | ✅ No ESLint warnings or errors |
+
+### Phase C gate update
+
+The F1 drift backfill required-item from §11 is now closed:
+
+- [x] **F1 migration drift resolved.** Migration `0046_backfill_f1_case_practitioner_select_all_statuses.sql` captures the live policy state verbatim. `supabase db reset` from the current `supabase/migrations/` directory now produces a DB with the F1 fix in place; Completed Recently and Escalated inbox sections will render correctly on a fresh deploy.
+
+Remaining Phase C gate items unchanged:
+- [ ] Q6 Option A migration landed and verified
+- [ ] Personalisation Substrate phase scoped and implemented
+
+*F1 drift closure complete. No other drift addressed (deliberate per scope). Awaiting explicit approval before any forward work.*
