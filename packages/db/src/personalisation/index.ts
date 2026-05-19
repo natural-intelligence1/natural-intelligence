@@ -7,3 +7,4 @@ export type {
 } from './types'
 
 export { setClinicalNotesOnSex } from './setClinicalNotesOnSex'
+export { getClientPersonalisation, type ClientPersonalisation } from './getClientPersonalisation'
