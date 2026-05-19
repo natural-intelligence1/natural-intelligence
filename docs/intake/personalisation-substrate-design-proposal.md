@@ -713,3 +713,26 @@ The public marketing site (`natural-intelligence.uk` and all routes outside `/da
 No other sections of the original proposal change. The 12 design decisions are confirmed, the 4 gaps are closed, and the rendering rule and public boundary are explicit.
 
 **PS.1 is now ready to scope.** Awaiting explicit approval before implementation begins.
+
+---
+
+## Architectural Contract — Future-Sensitive Columns Rule
+
+New columns added to `user_personalisation` are **NOT automatically exposed anywhere.** Every future field must be:
+
+1. **Explicitly classified** as one of:
+   - **practitioner-visible** — surfaced to practitioners via the `practitioner_client_personalisation` view
+   - **AI-only** — readable by AI generation context only, not visible to practitioners or client UI
+   - **client-only** — visible to the client in their own surfaces only, not in the practitioner view or AI context
+
+2. **Practitioner visibility requires explicit addition to `practitioner_client_personalisation` view DDL.** Adding a column to `user_personalisation` without adding it to the view means practitioners cannot see it (by default).
+
+3. **AI access requires explicit addition to prompt context builders** (`packages/db/src/prompts/` when that lands in PS.4). Adding a column to `user_personalisation` does not automatically make it available to AI generation.
+
+4. **Dashboard exposure requires explicit addition** to `PersonalisationProvider`'s context shape and the `getPersonalisationContext` server helper. Adding a column to `user_personalisation` does not automatically make it available to client-side rendering.
+
+5. **Every PR adding a column to `user_personalisation` must state in its description which of the four exposure surfaces** (practitioner view, AI context, client context, none) the column is being added to, and why.
+
+This rule applies indefinitely. The principle: **information exposure is opt-in per surface, never inherited from the base table.**
+
+This section is the canonical reference for any future work touching `user_personalisation`. It is part of the table's architectural contract.
