@@ -39,6 +39,7 @@ import {
   getPriorReviews,
 }                                     from '@natural-intelligence/db/practitioners'
 import { getPractitionerTrace }       from '@natural-intelligence/db/crt'
+import { getClientPersonalisation }   from '@natural-intelligence/db/personalisation'
 import { TopBar }                     from '@/components/TopBar'
 import {
   ClientSummaryPanel,
@@ -98,7 +99,7 @@ export default async function WorkspacePage({
   // client identity (via practitioner_client_identity view — column-scoped, F2).
   const adminClient = createAdminClient()
 
-  const [intake, events, biohub, priorReviews, trace, identityResult] = await Promise.allSettled([
+  const [intake, events, biohub, priorReviews, trace, identityResult, personalisationResult] = await Promise.allSettled([
     getIntakeSummary(adminClient, memberId),
     getCaseEvents(supabase, params.caseId),
     getBioHubSignals(adminClient, memberId),
@@ -109,6 +110,7 @@ export default async function WorkspacePage({
       .select('full_name, avatar_url')
       .eq('id', memberId)
       .maybeSingle(),
+    getClientPersonalisation(supabase, memberId),
   ])
 
   // Extract settled values — individual failures render panel-level empty states
@@ -123,6 +125,12 @@ export default async function WorkspacePage({
     ? (identityResult.value.data as unknown as { full_name: string | null; avatar_url: string | null } | null)
     : null
   const fullName = identityRow?.full_name ?? 'Unknown'
+
+  // Graceful empty state on failure — Clinical context renders "Not recorded"
+  // for sex and "Add clinical note" affordance instead of crashing the panel.
+  const personalisation = personalisationResult.status === 'fulfilled'
+    ? personalisationResult.value
+    : null
 
   // ── 5. Section nav metadata ───────────────────────────────────────────────
   const navSections = [
@@ -190,7 +198,7 @@ export default async function WorkspacePage({
 
           {/* Main content column */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <ClientSummaryPanel  summary={intakeSummary} clientName={fullName} />
+            <ClientSummaryPanel  summary={intakeSummary} clientName={fullName} memberId={memberId} personalisation={personalisation} />
             <ReasoningTracePanel trace={reasoningTrace} />
             <CaseHistoryPanel    events={caseEvents} />
             <BioHubSignalsPanel  signals={bioHubSignals} />
