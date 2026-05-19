@@ -525,3 +525,191 @@ These need explicit decisions before PS.1 starts.
 ---
 
 *Personalisation Substrate design proposal complete. No code, no schema. Awaiting addendum review cycle before PS.1 implementation.*
+
+---
+
+## Addendum — PS Design Resolutions
+
+**Date:** 2026-05-19
+**References:** Original proposal §§3, 5, 6, 8, 12.
+**Purpose:** Close the four gaps surfaced during review, confirm the twelve open questions, restate the Islamic-content rendering rule explicitly, and reaffirm the public frontend boundary. The original proposal sections above are unchanged; this addendum supplements them.
+
+---
+
+### Part 1 — Gaps closed
+
+#### A.1 — Enable Row Level Security
+
+The migration that creates `user_personalisation` must explicitly enable RLS immediately after the `CREATE TABLE`. Without this, the four `CREATE POLICY` statements in §5 are inert and the table is wide-open.
+
+```sql
+CREATE TABLE public.user_personalisation ( … );  -- see §3
+
+ALTER TABLE public.user_personalisation ENABLE ROW LEVEL SECURITY;
+
+-- Then the four policies from §5
+CREATE POLICY up_member_select  …
+CREATE POLICY up_member_insert  …
+CREATE POLICY up_member_update  …
+CREATE POLICY up_admin_all      …
+```
+
+Stated as a single migration in PS.1.
+
+#### A.2 — DELETE stance
+
+Explicit position for v1:
+
+- **No client DELETE policy.** Default deny applies — clients cannot delete their own personalisation row directly.
+- **No admin DELETE policy.** Admin deletion happens via SQL or service-role tooling when needed; an explicit admin DELETE policy is not warranted yet.
+- **Row removal happens via CASCADE** when a profile is deleted (`user_id uuid PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE` in §3). The FK already handles account teardown.
+
+**Reasoning:** personalisation is account-bound state. Direct client-initiated deletion is not a v1 workflow. If "reset my personalisation" becomes a real client need, revisit with an explicit policy then. Note that the `up_admin_all` policy from §5 uses `FOR ALL`, which technically grants admin DELETE — so admins *can* delete via the SQL editor when justified, no separate policy needed.
+
+#### A.3 — `updated_at` trigger
+
+**Verification (read-only query against live dev DB, project `yftxzvdrxnhwpcnsrktn`):**
+
+```sql
+SELECT proname FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE p.proname ILIKE '%updated_at%' AND n.nspname IN ('public','auth','extensions');
+```
+
+Returns two functions, both in `public` and both `RETURNS trigger`:
+- `public.handle_updated_at()` — confirmed exists, exact name as referenced in this addendum
+- `public.set_updated_at()` — also exists (older sibling, not used here)
+
+The migration adds:
+
+```sql
+CREATE TRIGGER set_user_personalisation_updated_at
+  BEFORE UPDATE ON public.user_personalisation
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+```
+
+The `set_clinical_notes_on_sex` RPC also writes `updated_at = now()` explicitly in its UPDATE branch (see A.4) — the trigger fires too, so the result is the same value, but the explicit set documents intent at the RPC level.
+
+#### A.4 — Full RPC body for `set_clinical_notes_on_sex`
+
+**Auth join shape verification (read-only):** confirmed `case_practitioner_work.case_id uuid`, `case_practitioner_work.practitioner_id uuid`, `client_cases.id uuid`, `client_cases.client_id uuid`. The join shape assumed by the drafted RPC matches live schema exactly — no structural adjustment needed.
+
+```sql
+CREATE OR REPLACE FUNCTION public.set_clinical_notes_on_sex(
+  p_user_id uuid,
+  p_notes   text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_caller_id  uuid := auth.uid();
+  v_authorised boolean;
+BEGIN
+  -- Reject anonymous callers
+  IF v_caller_id IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
+  -- Authorise: caller must be an assigned practitioner on a case
+  -- for the target client. Any work status grants this (matches
+  -- F1 spirit: practitioner who has worked on the client retains
+  -- identity-adjacent access).
+  SELECT EXISTS (
+    SELECT 1
+    FROM case_practitioner_work cpw
+    JOIN client_cases cc ON cc.id = cpw.case_id
+    WHERE cc.client_id = p_user_id
+      AND cpw.practitioner_id = v_caller_id
+  ) INTO v_authorised;
+
+  IF NOT v_authorised THEN
+    RAISE EXCEPTION 'Not authorised to update clinical notes for this client';
+  END IF;
+
+  -- Upsert pattern: ensure a personalisation row exists before
+  -- writing the note. If the client hasn't yet completed intake
+  -- (no row), we still create a minimal row so practitioners can
+  -- record observations.
+  INSERT INTO user_personalisation (user_id, clinical_notes_on_sex)
+  VALUES (p_user_id, p_notes)
+  ON CONFLICT (user_id) DO UPDATE
+    SET clinical_notes_on_sex = EXCLUDED.clinical_notes_on_sex,
+        updated_at            = now();
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.set_clinical_notes_on_sex(uuid, text) TO authenticated;
+```
+
+**Key properties:**
+
+- **Layer 1** — function rejects null `auth.uid()` with `Authentication required`.
+- **Layer 2** — function rejects callers without a `case_practitioner_work` row linking them to the target client, regardless of work status. Mirrors the F1 spirit (clinical-continuity access for any work, not just active).
+- **Field scope** — the function reads and writes only `clinical_notes_on_sex`. It does **not** touch `religion`, `religious_content_preference`, or `biological_sex`.
+- **Upsert** — `ON CONFLICT (user_id) DO UPDATE` handles the case where the client has no personalisation row yet (e.g., intake not yet complete). The default values from §3 (`religion='prefer_not_to_say'`, `religious_content_preference='hide'`) apply to the inserted row.
+- **Explicit `updated_at = now()`** in the UPDATE branch — documents intent at the RPC level even though the trigger from A.3 fires too.
+- **Returns `void`** — callers detect failure by catching the raised exception, matching the `complete_practitioner_work` failure-signalling convention.
+- **`SECURITY DEFINER` + `SET search_path = public`** — same hardening pattern as `complete_practitioner_work`.
+
+If during PS.2 implementation the live schema or RLS reveals a structural difference from this draft (e.g., a new column in `case_practitioner_work` that should appear in the auth check, or a constraint that blocks the upsert), surface and adjust — do not silently change the auth model.
+
+---
+
+### Part 2 — Open question decisions (Q1–Q12)
+
+| # | Decision | Rationale (one-liner where useful) |
+|---|---|---|
+| **Q1** | **CONFIRMED** — `biological_sex = 'male' \| 'female'` only. `clinical_notes_on_sex` exists for practitioner nuance. | Per §2 / Option (b). |
+| **Q2** | **CONFIRMED** — full 9-value enum: `muslim \| christian \| jewish \| hindu \| buddhist \| sikh \| secular \| prefer_not_to_say \| other`. | Per §2 — same migration cost, better trust signal. |
+| **Q3** | **CONFIRMED** — `religious_content_preference` default = `'hide'`. Opt-in required, no auto-on for any religion. | Per §2 — fails safe to secular. |
+| **Q4** | **CONFIRMED** — `religion` and `religious_content_preference` hidden from practitioners in v1. Revisit if clinical need becomes a recurring pattern. | Per §5 — clinical vs. UI-preference separation. |
+| **Q5** | **CONFIRMED** — no settings UI in PS.1. Data-layer editability lands in PS.1; user-facing edit UI deferred to a small post-PS phase. | Per §11. |
+| **Q6** | **CONFIRMED** — `biological_sex` locked post-intake. Edge cases handled via `clinical_notes_on_sex`. | Per §4 — avoids cascade-recomputation of downstream artefacts. |
+| **Q7** | **CONFIRMED** — capture at intake (dedicated `section0_demographics`). | Per §4. |
+| **Q8** | **CONFIRMED** — no age, geography, or other demographic factors in AI generation context in PS scope. **Flagged for backlog** as future personalisation extensions. | Substrate is shaped to accept them later. |
+| **Q9** | **CONFIRMED** — `practitioner_client_personalisation` view (column-scoped, F2 pattern) is the access mechanism. No direct practitioner policy on the base table. | Mirrors F2 precedent. |
+| **Q10** | **CONFIRMED** — `clinical_notes_on_sex` hidden from client in v1. | Chart annotation, not form answer. |
+| **Q11** | **CONFIRMED** — no `religion_other_freetext` column in v1. Add later if `'other'` selections are common in practice. | Adds form complexity for low return. |
+| **Q12** | **CONFIRMED** — no `case_event` on `clinical_notes_on_sex` updates in v1. The row's `updated_at` is sufficient. | Reconsider if audit requirements emerge. |
+
+---
+
+### Part 3 — Islamic content rendering rule
+
+Islamic content variants are rendered **if and only if BOTH conditions hold**:
+
+1. `user_personalisation.religion = 'muslim'`
+2. `user_personalisation.religious_content_preference = 'show'`
+
+Either condition failing means **secular content is rendered**.
+
+When `religious_content_preference = 'hide'`, the `religion` value has **no rendering effect**, regardless of what it is.
+
+This boolean is the gate. Future religions (Christian, Jewish, Hindu, etc.) follow the same pattern when their content variants are authored: each renders **iff** `(religion = '<R>' AND religious_content_preference = 'show')`. The substrate gates on a single conjunction; the content layer supplies the variant.
+
+For the avoidance of doubt: `religion = 'prefer_not_to_say'`, `religion = 'secular'`, or any future religion without authored variants all fall through to secular content. The default state of the platform is secular; framing is a layered opt-in on top.
+
+---
+
+### Part 4 — Public frontend boundary reaffirmed
+
+The architectural boundary described in §8 is reaffirmed and binding:
+
+- `<PersonalisationProvider>` mounted **only** in `apps/web/app/dashboard/layout.tsx`.
+- `getPersonalisationContext(userId)` namespaced for authenticated use (lives in `packages/db/src/personalisation/dashboardContext.ts`).
+- CI grep / lint rule enforces the namespace boundary — fails the build if `getPersonalisationContext` is imported from any path outside `apps/web/app/dashboard/` or `apps/care/app/`.
+- Marketing OpenGraph image, sitemap, and root metadata are static and cannot incorporate personalisation by construction.
+
+The public marketing site (`natural-intelligence.uk` and all routes outside `/dashboard`) **stays secular regardless of any user's personalisation values, ever**. This is enforced by architecture (provider scoping + CI boundary check), not by convention.
+
+---
+
+### Confirmation
+
+No other sections of the original proposal change. The 12 design decisions are confirmed, the 4 gaps are closed, and the rendering rule and public boundary are explicit.
+
+**PS.1 is now ready to scope.** Awaiting explicit approval before implementation begins.
