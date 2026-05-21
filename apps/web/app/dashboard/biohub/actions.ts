@@ -2,6 +2,8 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import { getPersonalisationForGeneration } from '@natural-intelligence/db/personalisation'
+import { buildBiologicalContextBlock }     from '@natural-intelligence/db/prompts'
 
 // ─── Guard: ANTHROPIC_API_KEY ────────────────────────────────────────────────
 // Model: claude-opus-4-5 (Anthropic). Set ANTHROPIC_API_KEY in Vercel
@@ -93,9 +95,15 @@ export async function parseLabReport(
     // Convert PDF bytes to base64
     const base64Pdf = Buffer.from(pdfBuffer).toString('base64')
 
+    // PS.4 (Option iii) — biological_sex context only for clinical
+    // reference-range correctness. NO religious framing in biohub prompts
+    // (lab interpretation is clinical data, not narrative).
+    const personalisation     = await getPersonalisationForGeneration(adminClient, memberId)
+    const biologicalContext   = buildBiologicalContextBlock(personalisation)
+
     const anthropic = getAnthropicClient()
 
-    const systemPrompt = `You are a medical lab report parser. Extract all biomarkers from the provided PDF lab report.
+    const systemPrompt = biologicalContext + '\n\n' + `You are a medical lab report parser. Extract all biomarkers from the provided PDF lab report.
 Return a JSON object with this exact structure:
 {
   "report_date": "YYYY-MM-DD or null",
