@@ -3,6 +3,13 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createAdminClient } from '@natural-intelligence/db'
 import { revalidatePath } from 'next/cache'
+import {
+  getPersonalisationForGeneration,
+}                              from '@natural-intelligence/db/personalisation'
+import {
+  buildPersonalisationBlock,
+  isIslamicFramingEnabled,
+}                              from '@natural-intelligence/db/prompts'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +42,7 @@ export async function generateHealthSynopsis(memberId: string): Promise<{
   summaryId?: string
 }> {
   const adminClient = createAdminClient()
+  const startMs = Date.now()
 
   try {
     const [
@@ -42,6 +50,7 @@ export async function generateHealthSynopsis(memberId: string): Promise<{
       { data: rootfinderResults },
       { data: biomarkerResults },
       { data: profile },
+      personalisation,
     ] = await Promise.all([
       adminClient
         .from('intake_responses')
@@ -68,12 +77,24 @@ export async function generateHealthSynopsis(memberId: string): Promise<{
         .select('full_name, onboarding_intent')
         .eq('id', memberId)
         .single(),
+      getPersonalisationForGeneration(adminClient, memberId),
     ])
 
     const hasBiomarkers = (biomarkerResults?.length ?? 0) > 0
     const hasRootfinder  = (rootfinderResults?.length ?? 0) > 0
 
+    // PS.4 — structured logging (small M3 extension matching the body_story
+    // pattern). biological_sex + derived boolean ONLY; religion value never
+    // logged.
+    console.log(JSON.stringify({
+      event:                  'health_synopsis.start',
+      user_id:                memberId,
+      biological_sex:         personalisation.biologicalSex,
+      islamic_framing_enabled: isIslamicFramingEnabled(personalisation),
+    }))
+
     if (!intake && !hasBiomarkers && !hasRootfinder) {
+      console.log(JSON.stringify({ event: 'health_synopsis.insufficient_data', user_id: memberId }))
       return { status: 'insufficient_data' }
     }
 
@@ -81,7 +102,9 @@ export async function generateHealthSynopsis(memberId: string): Promise<{
       throw new Error('ANTHROPIC_API_KEY is not configured')
     }
 
-    const systemPrompt = `You are a clinical health intelligence analyst working for Natural Intelligence, a UK-based integrative health platform. Your role is to synthesise a member's health data — including their self-reported intake form, any biomarker results from uploaded lab reports, and root cause analysis outputs — into a clear, personalised health synopsis.
+    // PS.4 — prepend personalisation block. CLIENT CONTEXT sits first so the
+    // model has demographic/framing context before reading its role/task.
+    const systemPrompt = buildPersonalisationBlock(personalisation) + '\n\n' + `You are a clinical health intelligence analyst working for Natural Intelligence, a UK-based integrative health platform. Your role is to synthesise a member's health data — including their self-reported intake form, any biomarker results from uploaded lab reports, and root cause analysis outputs — into a clear, personalised health synopsis.
 
 Write in warm, plain English that a health-conscious non-clinician can understand. Do not use medical jargon without explanation. The synopsis should:
 - Open with 1–2 sentences summarising the member's overall health picture
@@ -147,9 +170,19 @@ Format: use plain paragraphs. You may use short bullet lists (starting with -) f
     revalidatePath('/dashboard/synopsis')
     revalidatePath('/dashboard')
 
+    console.log(JSON.stringify({
+      event:        'health_synopsis.success',
+      user_id:      memberId,
+      duration_ms:  Date.now() - startMs,
+      input_tokens:  message.usage.input_tokens,
+      output_tokens: message.usage.output_tokens,
+    }))
+
     return { status: 'success', summaryId: inserted?.id }
 
   } catch (err) {
+    const errorCode = err instanceof Error ? err.message : String(err)
+    console.log(JSON.stringify({ event: 'health_synopsis.failure', user_id: memberId, error_code: errorCode, duration_ms: Date.now() - startMs }))
     console.error('[generateHealthSynopsis] error:', err)
     return { status: 'error' }
   }
