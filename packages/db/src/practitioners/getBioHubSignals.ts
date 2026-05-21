@@ -1,8 +1,9 @@
 // ─── packages/db/src/practitioners/getBioHubSignals.ts ───────────────────────
 // Returns biomarker results for the BioHub Signals panel.
 //
-// Uses admin client — intake/biohub tables have no practitioner RLS policy.
-// Temporary: Option A migration required before Phase C (see Phase B Addendum Q6).
+// Uses authenticated client — RLS (practitioners_read_assigned_client,
+// migration 0048) enforces practitioner-scoped access on biomarker_results
+// and the joined lab_reports. Q6 Option A closed.
 //
 // Returns raw marker values + reference ranges. No interpretation — practitioners
 // apply clinical judgement. Empty array if no lab data uploaded for this member.
@@ -12,10 +13,10 @@ import type { Database }     from '../types'
 import type { BioHubSignal } from './types'
 
 export async function getBioHubSignals(
-  adminClient: ReturnType<typeof createClient<Database>>,
-  memberId:    string,
+  client:   ReturnType<typeof createClient<Database>>,
+  memberId: string,
 ): Promise<BioHubSignal[]> {
-  const { data, error } = await adminClient
+  const { data, error } = await client
     .from('biomarker_results')
     .select(`
       id,

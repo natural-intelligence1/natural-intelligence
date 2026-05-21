@@ -27,10 +27,7 @@
 
 import { notFound }                   from 'next/navigation'
 import type { Metadata }              from 'next'
-import {
-  createServerSupabaseClient,
-  createAdminClient,
-}                                     from '@natural-intelligence/db'
+import { createServerSupabaseClient } from '@natural-intelligence/db'
 import {
   startWorkItem,
   getIntakeSummary,
@@ -94,15 +91,16 @@ export default async function WorkspacePage({
   const memberId = clientCase.client_id
 
   // ── 4. Parallel data fetch ────────────────────────────────────────────────
-  // Admin client for intake + biohub (Q6 exception — no practitioner RLS on these tables).
-  // Authenticated client for case events, prior reviews, reasoning trace, and
-  // client identity (via practitioner_client_identity view — column-scoped, F2).
-  const adminClient = createAdminClient()
-
+  // All queries use the authenticated SSR client. Q6 Option A migration (0048)
+  // added practitioner-scoped RLS on intake_responses, intake_answers,
+  // biomarker_results, biomarker_trajectory, and lab_reports, so the previous
+  // admin-client exception for intake + biohub is no longer needed.
+  // Case events, prior reviews, reasoning trace, and client identity
+  // (practitioner_client_identity view — F2) were already authenticated.
   const [intake, events, biohub, priorReviews, trace, identityResult, personalisationResult] = await Promise.allSettled([
-    getIntakeSummary(adminClient, memberId),
+    getIntakeSummary(supabase, memberId),
     getCaseEvents(supabase, params.caseId),
-    getBioHubSignals(adminClient, memberId),
+    getBioHubSignals(supabase, memberId),
     getPriorReviews(supabase, params.caseId, params.workId),
     getPractitionerTrace(supabase, params.caseId),
     supabase

@@ -1,8 +1,9 @@
 // ─── packages/db/src/practitioners/getIntakeSummary.ts ───────────────────────
 // Returns a structured intake summary for the Client Summary panel.
 //
-// Uses admin client — intake/biohub tables have no practitioner RLS policy.
-// Temporary: Option A migration required before Phase C (see Phase B Addendum Q6).
+// Uses authenticated client — RLS (practitioners_read_assigned_client,
+// migration 0048) enforces practitioner-scoped access on intake_responses
+// and intake_answers. Q6 Option A closed.
 //
 // Queries:
 //   1. intake_responses — top-level structured fields (most recent row for member)
@@ -14,11 +15,11 @@ import type { Database }    from '../types'
 import type { IntakeSummary } from './types'
 
 export async function getIntakeSummary(
-  adminClient:  ReturnType<typeof createClient<Database>>,
-  memberId:     string,
+  client:   ReturnType<typeof createClient<Database>>,
+  memberId: string,
 ): Promise<IntakeSummary | null> {
   // ── Query 1: intake_responses ─────────────────────────────────────────────
-  const { data: ir, error: irErr } = await adminClient
+  const { data: ir, error: irErr } = await client
     .from('intake_responses')
     .select(`
       arrival_emotion,
@@ -47,7 +48,7 @@ export async function getIntakeSummary(
   if (!ir) return null
 
   // ── Query 2: curated intake_answers ──────────────────────────────────────
-  const { data: answers, error: answersErr } = await adminClient
+  const { data: answers, error: answersErr } = await client
     .from('intake_answers')
     .select('question_id, answer')
     .eq('member_id', memberId)
