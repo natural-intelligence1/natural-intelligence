@@ -14,3 +14,8 @@ export {
   DEFAULT_PERSONALISATION_CONTEXT,
   type PersonalisationContext,
 } from './getPersonalisationContext'
+export {
+  getPersonalisationForGeneration,
+  DEFAULT_PERSONALISATION_FOR_GENERATION,
+  type PersonalisationForGeneration,
+} from './getPersonalisationForGeneration'

@@ -10,7 +10,8 @@
     "./intake": "./src/intake/index.ts",
     "./practitioners": "./src/practitioners/index.ts",
     "./crt": "./src/crt/index.ts",
-    "./personalisation": "./src/personalisation/index.ts"
+    "./personalisation": "./src/personalisation/index.ts",
+    "./prompts": "./src/prompts/index.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
