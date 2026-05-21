@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import UploadForm from './UploadForm'
+import { BiohubReferenceNote } from './BiohubReferenceNote'
 
 export default async function BioHubPage() {
   const supabase = createServerSupabaseClient()
@@ -32,6 +33,8 @@ export default async function BioHubPage() {
         <p className="text-sm text-text-muted">
           Upload a PDF lab report and our AI will map your biomarkers against functional reference ranges.
         </p>
+        {/* PS.3 worked example — sex-aware reference-range note */}
+        <BiohubReferenceNote />
       </div>
 
       {/* Upload card */}
