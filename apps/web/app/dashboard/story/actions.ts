@@ -5,6 +5,14 @@ import { revalidatePath }                                from 'next/cache'
 import { createAdminClient }                             from '@natural-intelligence/db'
 import { getOrCreateClientCase, createReasoningTrace }  from '@natural-intelligence/db/crt'
 import type { TraceEntry }                              from '@natural-intelligence/db/crt'
+import {
+  getPersonalisationForGeneration,
+  type PersonalisationForGeneration,
+}                                                       from '@natural-intelligence/db/personalisation'
+import {
+  buildPersonalisationBlock,
+  isIslamicFramingEnabled,
+}                                                       from '@natural-intelligence/db/prompts'
 
 // ─── generateBodyStory ────────────────────────────────────────────────────────
 // Reads the member's intake answers, calls Claude, writes a full reasoning trace
@@ -13,17 +21,20 @@ import type { TraceEntry }                              from '@natural-intellige
 // Safe to call multiple times — idempotent at the client_case level.
 // Calling again will create a new trace (revision history preserved).
 
-export async function generateBodyStory(memberId: string): Promise<{
+export async function generateBodyStory(
+  memberId:        string,
+  // Optional personalisation override — preserves backwards compatibility.
+  // If not passed, fetched inside via getPersonalisationForGeneration.
+  personalisation?: PersonalisationForGeneration,
+): Promise<{
   status: 'success' | 'insufficient_data' | 'error'
 }> {
   const adminClient = createAdminClient()
   const startMs = Date.now()
 
-  console.log(JSON.stringify({ event: 'body_story.start', user_id: memberId }))
-
   try {
-    // ── 1. Load intake answers ────────────────────────────────────────────────
-    const [{ data: answers }, { data: intake }, { data: profile }] = await Promise.all([
+    // ── 1. Load intake answers + personalisation ─────────────────────────────
+    const [{ data: answers }, { data: intake }, { data: profile }, p] = await Promise.all([
       adminClient
         .from('intake_answers')
         .select('question_id, answer, mapped_systems')
@@ -42,7 +53,19 @@ export async function generateBodyStory(memberId: string): Promise<{
         .select('full_name')
         .eq('id', memberId)
         .single(),
+      personalisation
+        ? Promise.resolve(personalisation)
+        : getPersonalisationForGeneration(adminClient, memberId),
     ])
+
+    // M3 structured logging — biologicalSex + derived boolean ONLY.
+    // Religion value is never logged (only the gate result is).
+    console.log(JSON.stringify({
+      event:                  'body_story.start',
+      user_id:                memberId,
+      biological_sex:         p.biologicalSex,
+      islamic_framing_enabled: isIslamicFramingEnabled(p),
+    }))
 
     if (!answers || answers.length === 0) {
       console.log(JSON.stringify({ event: 'body_story.insufficient_data', user_id: memberId, reason: 'no_intake_answers' }))
@@ -64,10 +87,12 @@ export async function generateBodyStory(memberId: string): Promise<{
     // ── 3. Call Claude ────────────────────────────────────────────────────────
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+    const systemPrompt = buildBodyStorySystemPrompt(p)
+
     const message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
       max_tokens: 4096,
-      system:     SYSTEM_PROMPT,
+      system:     systemPrompt,
       messages:   [{ role: 'user', content: userPrompt }],
     })
 
@@ -182,8 +207,17 @@ export async function generateBodyStory(memberId: string): Promise<{
 }
 
 // ─── System prompt ────────────────────────────────────────────────────────────
+//
+// PS.4 — the system prompt is now built per request so the personalisation
+// CLIENT CONTEXT block can be prepended. The personalisation block sits
+// FIRST so the model has client context before reading its role/task. The
+// existing role/task/format/tone content follows unchanged.
 
-const SYSTEM_PROMPT = `You are a clinical reasoning engine for Natural Intelligence, a UK integrative health platform.
+function buildBodyStorySystemPrompt(p: PersonalisationForGeneration): string {
+  return [buildPersonalisationBlock(p), BODY_STORY_PROMPT_BODY].join('\n\n')
+}
+
+const BODY_STORY_PROMPT_BODY = `You are a clinical reasoning engine for Natural Intelligence, a UK integrative health platform.
 
 Your task: analyse a member's health intake and generate a structured Clinical Reasoning Trace.
 
