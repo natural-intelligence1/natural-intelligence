@@ -17,6 +17,10 @@ export interface FoodSymptomLink {
 
 export interface FormState {
   arrival_emotion:           string
+  // PS.1 substrate field, captured by intake to drive sex-specific branching.
+  // Persisted to user_personalisation.biological_sex (NOT intake_responses).
+  // null = not yet answered. 'male'|'female' = answered.
+  biological_sex:            'male' | 'female' | null
   primary_concerns:          string[]
   concern_duration:          string
   symptom_pattern:           string

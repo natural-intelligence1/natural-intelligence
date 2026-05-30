@@ -288,7 +288,10 @@ function WarmTextarea({
 // ─── Form state ───────────────────────────────────────────────────────────────
 // FormState interface lives in ./types.ts — imported at the top of this file.
 
-function initialState(e: Record<string, unknown> | null): FormState {
+function initialState(
+  e: Record<string, unknown> | null,
+  biologicalSex: 'male' | 'female' | null,
+): FormState {
   const arr = (k: string) => (e?.[k] as string[] | null) ?? []
   const str = (k: string) => (e?.[k] as string | null) ?? ''
   const num = (k: string) => (e?.[k] as number | null) ?? null
@@ -303,6 +306,10 @@ function initialState(e: Record<string, unknown> | null): FormState {
   }
   return {
     arrival_emotion:           str('arrival_emotion'),
+    // Sourced from user_personalisation (not intake_responses) — passed in
+    // from the server page. Persistence on change writes back via the
+    // authenticated client (member up_member_update RLS).
+    biological_sex:            biologicalSex,
     primary_concerns:          arr('primary_concerns'),
     concern_duration:          str('concern_duration'),
     symptom_pattern:           str('symptom_pattern'),
@@ -529,11 +536,39 @@ function WordChipRow({
 }
 
 function Section1({
-  form, setForm, persist,
-}: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; persist: PersistFn }) {
+  form, setForm, persist, setBiologicalSex,
+}: {
+  form: FormState
+  setForm: React.Dispatch<React.SetStateAction<FormState>>
+  persist: PersistFn
+  setBiologicalSex: (v: 'male' | 'female') => void
+}) {
   return (
     <div className="space-y-8">
       <SectionHeader section={1} name="Your story" heading="What's been on your mind most lately?" subtitle="Select everything that resonates." />
+
+      {/* Decision 4 — biological_sex captured before the hormonal branch.
+          Drives sex-specific question visibility downstream. Stored on
+          user_personalisation, not intake_responses. */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-2">
+          Biological sex
+        </p>
+        <p className="text-xs text-text-muted mb-3">
+          We ask because biological sex changes how the body responds to symptoms,
+          medications, and reference ranges. This is captured once and stays with
+          your account.
+        </p>
+        <WordChipRow
+          options={[
+            { key: 'female', label: 'Female' },
+            { key: 'male',   label: 'Male'   },
+          ]}
+          selected={form.biological_sex ?? ''}
+          onChange={v => { if (v === 'female' || v === 'male') setBiologicalSex(v) }}
+        />
+      </div>
+
       <div>
         <BigChipCloud
           options={PRIMARY_CONCERNS}
@@ -711,8 +746,19 @@ function Section2({
   }
 
   if (branch === 'hormonal') {
-    // R3: single derived boolean — referenced in both items 7 and 8, not inlined twice
+    // Decision 4 — menstrual section gated on biological_sex='female' from
+    // user_personalisation, NOT on menstrual_status. Stops the prior trust-
+    // breaking case where a male user picking "Hormonal symptoms" saw
+    // menstrual options. The hormonal_symptoms chip cloud and cycle_patterns
+    // selector stay sex-agnostic for now (Section 2 hormonal still applies to
+    // any sex with hormonal concerns — e.g., low testosterone, thyroid).
+    const isFemale = form.biological_sex === 'female'
+
+    // R3 derived gate, now sex-conditional: cycle length + flow heaviness
+    // questions appear only when the user is female AND has selected a
+    // non-excluded menstrual status.
     const showCycleQuestions = (
+      isFemale &&
       form.menstrual_status !== '' &&
       !MENSTRUAL_GATE_EXCLUDED.has(form.menstrual_status)
     )
@@ -727,31 +773,38 @@ function Section2({
             onChange={v => persist('hormonal_symptoms', v, 2, { clinicalObjective: 'hormonal_assessment', mappedSystems: ['hormonal'] })}
           />
         </div>
-        <div>
-          <p className="text-sm font-medium text-text-primary mb-3">Do your symptoms follow a cycle pattern?</p>
-          <CyclePatternSelector
-            value={form.cycle_patterns}
-            onChange={v => persist('cycle_patterns', v, 2, { clinicalObjective: 'cycle_pattern', mappedSystems: ['hormonal'] })}
-          />
-        </div>
 
-        {/* Item 6 — Menstrual status (WordChipRow single-select, sensitivity-aware) */}
-        <div>
-          <p className="text-sm font-medium text-text-primary mb-2">
-            What best describes your current menstrual status?{' '}
-            <span className="text-text-muted font-normal">(optional)</span>
-          </p>
-          <WordChipRow
-            options={MENSTRUAL_STATUS_OPTIONS}
-            selected={form.menstrual_status}
-            onChange={v => persist('menstrual_status', v, 2, {
-              clinicalObjective: 'menstrual_status_capture',
-              mappedSystems: ['hormonal'],
-            })}
-          />
-        </div>
+        {/* cycle_patterns — female-only (cycles are inherently menstrual context) */}
+        {isFemale && (
+          <div>
+            <p className="text-sm font-medium text-text-primary mb-3">Do your symptoms follow a cycle pattern?</p>
+            <CyclePatternSelector
+              value={form.cycle_patterns}
+              onChange={v => persist('cycle_patterns', v, 2, { clinicalObjective: 'cycle_pattern', mappedSystems: ['hormonal'] })}
+            />
+          </div>
+        )}
 
-        {/* Items 7 + 8 — gated by showCycleQuestions (R3: single derived boolean) */}
+        {/* Item 6 — Menstrual status (WordChipRow single-select, sensitivity-aware)
+            Decision 4 — gated on biological_sex='female'. */}
+        {isFemale && (
+          <div>
+            <p className="text-sm font-medium text-text-primary mb-2">
+              What best describes your current menstrual status?{' '}
+              <span className="text-text-muted font-normal">(optional)</span>
+            </p>
+            <WordChipRow
+              options={MENSTRUAL_STATUS_OPTIONS}
+              selected={form.menstrual_status}
+              onChange={v => persist('menstrual_status', v, 2, {
+                clinicalObjective: 'menstrual_status_capture',
+                mappedSystems: ['hormonal'],
+              })}
+            />
+          </div>
+        )}
+
+        {/* Items 7 + 8 — gated by showCycleQuestions (sex + menstrual_status) */}
         {showCycleQuestions && (
           <div className="space-y-6" style={{ animation: 'fadeSlideIn 200ms ease-out' }}>
             {/* Item 7 — Cycle length (NumberStepper 21–45 default 28) */}
@@ -1353,9 +1406,11 @@ function Section9({ consent, setConsent }: { consent: boolean; setConsent: (v: b
 export function IntakeForm({
   existing,
   memberId,
+  initialBiologicalSex,
 }: {
-  existing: Record<string, unknown> | null
-  memberId: string
+  existing:              Record<string, unknown> | null
+  memberId:              string
+  initialBiologicalSex:  'male' | 'female' | null
 }) {
   const router  = useRouter()
   const TOTAL   = 10  // sections 0–9
@@ -1380,7 +1435,32 @@ export function IntakeForm({
     resumeSection,
     saveStatus,
     retryLastSave,
-  } = useIntakeAnswers({ supabase, memberId, initialForm: initialState(existing) })
+  } = useIntakeAnswers({ supabase, memberId, initialForm: initialState(existing, initialBiologicalSex) })
+
+  // Decision 4 — persist biological_sex directly to user_personalisation.
+  // Member up_member_update RLS allows the user to update their own row.
+  // We update form state immediately for responsive branching, then write
+  // through to the substrate (best-effort — failure leaves the in-form
+  // answer in place so the user can still progress; a settings UI later
+  // can let them correct).
+  async function setBiologicalSex(value: 'male' | 'female') {
+    setForm(f => ({ ...f, biological_sex: value }))
+    try {
+      // Same 'as profiles' cast trick used elsewhere — user_personalisation
+      // is not in the generated Database types yet.
+      const { error } = await supabase
+        .from('user_personalisation' as 'profiles')
+        .update({ biological_sex: value } as never)
+        .eq('id' as 'id', memberId)
+      if (error) {
+        console.error('[IntakeForm] biological_sex persist failed:', error.message)
+      }
+    } catch (err) {
+      // Soft fail — keep the answer in form state so branching works
+      // even if the persistence call had a transient issue.
+      console.error('[IntakeForm] biological_sex persist exception:', err)
+    }
+  }
 
   // C4.3 — jump to the furthest answered section once hydration completes
   useEffect(() => {
@@ -1484,7 +1564,7 @@ export function IntakeForm({
         className="rounded-2xl border border-border-default bg-surface-raised p-6 mb-6"
       >
         {section === 0 && <Section0 form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 1 && <Section1 form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 1 && <Section1 form={form} setForm={setForm} persist={setAnswer} setBiologicalSex={setBiologicalSex} />}
         {section === 2 && <Section2 branch={section2Branch} form={form} setForm={setForm} persist={setAnswer} />}
         {section === 3 && <Section3 form={form} setForm={setForm} persist={setAnswer} />}
         {section === 4 && <Section4 form={form} setForm={setForm} persist={setAnswer} />}
