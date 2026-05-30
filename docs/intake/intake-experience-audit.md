@@ -498,3 +498,58 @@ Sequence, not implementation. Each step is a stand-alone decision-gated phase.
 ---
 
 *Intake audit complete. No code changed, no schema touched. Awaiting founder decisions on §5 before any redesign begins.*
+
+---
+
+## 7. Founder decisions — Tier 1 (resolved)
+
+Four Tier 1 questions from §5 received decisions before Sprint B (intake journey architecture) begins. Recorded here for the canonical record. Tier 2 and Tier 3 questions remain open and will be addressed during the journey redesign.
+
+### Decision 1 — ACE capture: **deliberately deferred** (resolves §5.1.1)
+
+Adverse childhood experiences will **not** be captured in the intake at this stage. The emotional weight and clinical responsibility of ACE data requires a clinical context NI does not yet have (qualified review of disclosures, supportive follow-up, escalation pathways for activating responses). The intake may ask about significant life events and health correlations (timeline_trigger and the planned "what was different about your life then?" follow-up); it will **not** use ACE framing, scoring, or screening instruments. This is a deliberate deferral, not an oversight — revisit when the clinical infrastructure to receive ACE disclosures responsibly exists.
+
+### Decision 2 — Suicidality / risk pathway: **out of scope; safety signposting flagged as future work** (resolves §5.1.3)
+
+NI is not a clinical service and cannot handle a risk disclosure safely. The intake will **not** include direct mental health risk assessment questions — no PHQ-9, no Columbia Suicide Severity Rating Scale, no equivalent screening instrument. Questions about stress and emotional wellbeing should be framed around **patterns and history**, not acute risk.
+
+If a user volunteers distress in a free-text field (e.g., `psychosocial_worry`, `aggravating_factors`, `timeline_trigger`), the platform will signpost professional support (crisis line, GP) rather than treat the disclosure as actionable intake data. **The signposting mechanism itself is out of intake scope for now and is flagged as a future safety feature requirement** — it requires its own design, including detection heuristics, signposting copy, and an audit trail.
+
+### Decision 3 — Medications "🔒 Encrypted" banner: **removed** (resolves §5.5.22)
+
+Pre-fix audit confirmed:
+- `intake_responses.current_medications` column type is `text` (plaintext)
+- Zero `pgp_sym_encrypt` / `pgp_sym_decrypt` / `pgcrypto` usage in the application code on this column
+- The `pgcrypto` extension is installed at the DB level for other purposes (UUID generation)
+
+The banner ("🔒 Encrypted · Never shared without consent") was aspirational, not factual. Per founder direction, the correction is **removing the false claim**, not building encryption now. The banner is removed in commit `bb3016d`. Encryption-at-rest for sensitive intake fields is flagged as future work; if pursued, the banner can return once the implementation is genuine.
+
+The "Never shared without consent" half of the banner travelled with the lock icon as a single component. It's also removed; consent for AI processing is now established explicitly in Section 9 (`consent_to_ai_analysis`).
+
+### Decision 4 — Menstrual gating bug: **fixed** (resolves §5.4.19 and the trust-breaking case noted in §4.1)
+
+The menstrual section was previously gated on `menstrual_status`, not on `biological_sex`. A male user picking "Hormonal symptoms" → Section 2 hormonal branch → was shown the `menstrual_status` word chips (regular cycles / irregular / post-menopause / surgical menopause / on HRT / on the pill / never menstruated / prefer not to say) and the conditional cycle length + flow heaviness questions.
+
+Fix landed in commit `d3172f5`:
+
+- **New question**: `biological_sex` (binary radio, female / male) renders as the first question of Section 1 (before `primary_concerns`), so the answer exists before Section 2 hormonal branch can fire. Captioned: *"We ask because biological sex changes how the body responds to symptoms, medications, and reference ranges. This is captured once and stays with your account."*
+- **Persistence**: writes directly to `user_personalisation.biological_sex` via the authenticated browser client (`up_member_update` RLS allows the user to update their own row). Pre-fills from `user_personalisation` if the answer is already known (e.g., from a future settings UI). Soft-fails so form state and branching still work if the persistence call hiccups.
+- **Gating changed**: `cycle_patterns`, `menstrual_status`, `menstrual_cycle_length`, `menstrual_flow_heaviness` all now require `form.biological_sex === 'female'`. The `hormonal_symptoms` chip cloud stays sex-agnostic (Section 2 hormonal still applies to any sex with hormonal concerns — low testosterone, thyroid).
+
+**Scope kept deliberately tight**: this is the targeted bug fix, not the full intake redesign. The fix does **not**:
+- Make `biological_sex` required to advance the form (the user can skip; they then don't see the menstrual section, which is the safe outcome — better than the prior trust break)
+- Add a male-pattern parallel section
+- Refactor the `hormonal_symptoms` chip options (still include "PMS or PMDD", "Irregular periods", "Heavy bleeding" — these will be addressed in the journey redesign)
+
+These follow-ups remain queued for Sprint B (intake journey architecture).
+
+### Status after Tier 1 decisions
+
+| # | Topic | Status |
+|---|---|---|
+| 1 | ACE capture | ❌ Deferred — clinical context not yet ready |
+| 2 | Suicidality / risk pathway | ❌ Out of scope; safety signposting flagged for future work |
+| 3 | Medications "🔒 Encrypted" banner | ✅ Removed (`bb3016d`) — claim was aspirational |
+| 4 | Menstrual gating bug | ✅ Fixed (`d3172f5`) — `biological_sex` captured in Section 1, menstrual block gated on `biological_sex='female'` |
+
+Tier 2 and Tier 3 questions from §5 remain open. Sprint B (intake journey architecture) is the next phase; it will address those questions in the context of the redesign.
