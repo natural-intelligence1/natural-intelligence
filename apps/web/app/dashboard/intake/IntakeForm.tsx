@@ -1056,9 +1056,6 @@ function Section5({
       </div>
       <div>
         <p className="text-sm font-medium text-text-primary mb-2">Current medications</p>
-        <div className="bg-[#F8F1E4] border border-[#D4B07A] rounded-lg px-3 py-2 mb-2 flex items-center gap-2">
-          <span className="text-xs text-[#633806]">🔒 Encrypted · Never shared without consent</span>
-        </div>
         <WarmTextarea
           value={form.current_medications}
           onChange={v => setForm(f => ({ ...f, current_medications: v }))}
