@@ -190,11 +190,9 @@ Format: use plain paragraphs. You may use short bullet lists (starting with -) f
     return { status: 'success', summaryId: inserted?.id }
 
   } catch (err) {
-    const errorCode = err instanceof Error ? err.message : String(err)
-    const errorStack = err instanceof Error ? (err.stack ?? '').slice(0, 600) : ''
+    const errAny = err as { message?: string }
+    const errorCode = errAny?.message ?? (err instanceof Error ? err.message : String(err))
     console.log(JSON.stringify({ event: 'health_synopsis.failure', user_id: memberId, error_code: errorCode, duration_ms: Date.now() - startMs }))
-    // TEMP DEBUG — Sprint B closure diagnostic. Remove before final commit.
-    console.log(JSON.stringify({ event: 'health_synopsis.debug.failure_detail', user_id: memberId, error_code_full: errorCode, error_stack_head: errorStack }))
     console.error('[generateHealthSynopsis] error:', err)
     return { status: 'error' }
   }

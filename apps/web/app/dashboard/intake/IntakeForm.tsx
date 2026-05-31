@@ -177,11 +177,18 @@ function ChapterIntro({ chapter }: { chapter: ChapterDef }) {
 function SectionHeader({
   name, heading, subtitle,
 }: { section?: number; name: string; heading: string; subtitle: string }) {
+  // B1-F1 — Sprint B closure. Suppress the chapter pill here when the
+  // section sits at a chapter start (name begins with "Chapter "), because
+  // ChapterIntro already renders that pill above. Mid-chapter sections
+  // (name="Deeper dive", "Daily life", "Medical" etc.) keep their pill.
+  const suppressNamePill = /^chapter\s/i.test(name)
   return (
     <div className="mb-6">
-      <p className="text-[10px] uppercase tracking-[0.14em] text-[#B8935A] font-medium mb-2">
-        {name}
-      </p>
+      {!suppressNamePill && (
+        <p className="text-[10px] uppercase tracking-[0.14em] text-[#B8935A] font-medium mb-2">
+          {name}
+        </p>
+      )}
       <h2 className="font-display text-2xl font-light text-text-primary leading-snug mb-1">
         {heading}
       </h2>

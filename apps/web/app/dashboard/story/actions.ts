@@ -96,25 +96,6 @@ export async function generateBodyStory(
     const mostWantToUnderstand = (intake as { most_want_to_understand?: string | null } | null)?.most_want_to_understand ?? null
     const systemPrompt = buildBodyStorySystemPrompt(p, mostWantToUnderstand)
 
-    // TEMP DEBUG — Sprint B closure diagnostic. Remove before final commit.
-    console.log(JSON.stringify({
-      event:                     'body_story.debug.prompt_head',
-      user_id:                   memberId,
-      most_want_present:         !!mostWantToUnderstand,
-      most_want_chars:           (mostWantToUnderstand ?? '').length,
-      system_prompt_head_250:    systemPrompt.slice(0, 250),
-    }))
-    // TEMP DEBUG — write to audit_logs so we can SELECT it back via Supabase MCP.
-    await adminClient.from('audit_logs').insert({
-      action:        'body_story.debug.prompt_head',
-      resource_type: 'reasoning_trace',
-      metadata:      {
-        most_want_present:      !!mostWantToUnderstand,
-        most_want_chars:        (mostWantToUnderstand ?? '').length,
-        system_prompt_head_500: systemPrompt.slice(0, 500),
-      },
-    })
-
     const message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
       max_tokens: 4096,
@@ -229,32 +210,9 @@ export async function generateBodyStory(
     return { status: 'success' }
 
   } catch (err) {
-    const errorCode = err instanceof Error ? err.message : String(err)
-    const errorStack = err instanceof Error ? (err.stack ?? '').slice(0, 600) : ''
+    const errAny = err as { message?: string }
+    const errorCode = errAny?.message ?? (err instanceof Error ? err.message : String(err))
     console.log(JSON.stringify({ event: 'body_story.failure', user_id: memberId, error_code: errorCode, duration_ms: Date.now() - startMs }))
-    // TEMP DEBUG — Sprint B closure diagnostic. Remove before final commit.
-    console.log(JSON.stringify({ event: 'body_story.debug.failure_detail', user_id: memberId, error_code_full: errorCode, error_stack_head: errorStack }))
-    try {
-      const errAny = err as { name?: string; status?: number; message?: string; error?: unknown; cause?: unknown }
-      let serialised = ''
-      try {
-        serialised = JSON.stringify(err, Object.getOwnPropertyNames(errAny ?? {})).slice(0, 1200)
-      } catch { serialised = '[serialise failed]' }
-      await adminClient.from('audit_logs').insert({
-        action:        'body_story.debug.failure_detail',
-        resource_type: 'reasoning_trace',
-        metadata:      {
-          error_code_full:  errorCode,
-          error_stack_head: errorStack,
-          err_name:         errAny?.name ?? null,
-          err_status:       errAny?.status ?? null,
-          err_message:      errAny?.message ?? null,
-          err_serialised:   serialised,
-          err_cause_str:    errAny?.cause ? String(errAny.cause).slice(0, 400) : null,
-          duration_ms:      Date.now() - startMs,
-        },
-      })
-    } catch {/* swallow */}
     console.error('[generateBodyStory] error:', err)
     return { status: 'error' }
   }
