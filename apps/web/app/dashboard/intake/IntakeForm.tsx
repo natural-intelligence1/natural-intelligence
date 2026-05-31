@@ -412,6 +412,8 @@ function WarmTextarea({
 function initialState(
   e: Record<string, unknown> | null,
   biologicalSex: 'male' | 'female' | null,
+  religion: FormState['religion'],
+  religiousContentPreference: FormState['religious_content_preference'],
 ): FormState {
   const arr = (k: string) => (e?.[k] as string[] | null) ?? []
   const str = (k: string) => (e?.[k] as string | null) ?? ''
@@ -434,6 +436,10 @@ function initialState(
     // Sprint B Phase 1 — signature question. Read from intake_responses if
     // present (resume case); else empty string.
     most_want_to_understand:   str('most_want_to_understand'),
+    // Sprint B Phase 1 — PS.1 substrate. Read from user_personalisation via
+    // the server page; passed in as initial props (resume / pre-fill case).
+    religion:                  religion,
+    religious_content_preference: religiousContentPreference,
     primary_concerns:          arr('primary_concerns'),
     concern_duration:          str('concern_duration'),
     symptom_pattern:           str('symptom_pattern'),
@@ -681,29 +687,44 @@ function WordChipRow({
   )
 }
 
+// Sprint B Phase 1 — religion enum options for the optional question.
+const RELIGION_OPTIONS: { key: FormState['religion']; label: string }[] = [
+  { key: 'muslim',            label: 'Muslim'             },
+  { key: 'christian',         label: 'Christian'          },
+  { key: 'jewish',            label: 'Jewish'             },
+  { key: 'hindu',             label: 'Hindu'              },
+  { key: 'buddhist',          label: 'Buddhist'           },
+  { key: 'sikh',              label: 'Sikh'               },
+  { key: 'secular',           label: 'Secular'            },
+  { key: 'other',             label: 'Other'              },
+  { key: 'prefer_not_to_say', label: 'Prefer not to say'  },
+]
+
 function Section1({
-  form, setForm, persist, setBiologicalSex,
+  form, setForm, persist, setBiologicalSex, setReligion, setReligiousContentPreference,
 }: {
   form: FormState
   setForm: React.Dispatch<React.SetStateAction<FormState>>
   persist: PersistFn
-  setBiologicalSex: (v: 'male' | 'female') => void
+  setBiologicalSex:               (v: 'male' | 'female') => void
+  setReligion:                    (v: FormState['religion']) => void
+  setReligiousContentPreference:  (v: FormState['religious_content_preference']) => void
 }) {
   return (
     <div className="space-y-8">
-      <SectionHeader section={1} name="Your story" heading="What's been on your mind most lately?" subtitle="Select everything that resonates." />
+      <SectionHeader name="Chapter 1 — Your Story" heading="What's been on your mind most lately?" subtitle="Select everything that resonates." />
 
       {/* Decision 4 — biological_sex captured before the hormonal branch.
           Drives sex-specific question visibility downstream. Stored on
-          user_personalisation, not intake_responses. */}
+          user_personalisation, not intake_responses.
+          Sprint B Phase 1 — caption locked per founder approval. */}
       <div>
         <p className="text-sm font-medium text-text-primary mb-2">
           Biological sex
         </p>
         <p className="text-xs text-text-muted mb-3">
-          We ask because biological sex changes how the body responds to symptoms,
-          medications, and reference ranges. This is captured once and stays with
-          your account.
+          We use this to ensure health information and reference ranges are
+          interpreted correctly.
         </p>
         <WordChipRow
           options={[
@@ -714,6 +735,76 @@ function Section1({
           onChange={v => { if (v === 'female' || v === 'male') setBiologicalSex(v) }}
         />
       </div>
+
+      {/* Sprint B Phase 1 — signature question. The "this is different" moment.
+          Quoted verbatim in practitioner workspace, body story opening, and
+          synopsis opening (HARD DEPENDENCY satisfied by commits 2b511ce +
+          ff55895). Optional — absence is itself signal. */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-2">
+          If we get this right, what would you most want to understand about
+          what&apos;s happening to you?
+        </p>
+        <p className="text-xs text-text-muted mb-3">
+          Most intake forms skip this. We don&apos;t — what you came here to
+          understand shapes everything we do next.
+        </p>
+        <WarmTextarea
+          value={form.most_want_to_understand}
+          onChange={v => setForm(f => ({ ...f, most_want_to_understand: v }))}
+          onBlur={v => persist('most_want_to_understand', v, 1, { clinicalObjective: 'signature_intent' })}
+          placeholder="There's no right answer. It might be a question you've been carrying. Something that doesn't add up. A thing you can't explain. Or just where you'd like to feel different."
+          rows={4}
+        />
+      </div>
+
+      {/* Sprint B Phase 1 — religion (optional). PS.1 substrate field; written
+          to user_personalisation. Frames AI synopsis tone. Default is
+          prefer_not_to_say. */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-2">
+          Religion <span className="text-text-muted font-normal">(optional)</span>
+        </p>
+        <p className="text-xs text-text-muted mb-3">
+          We ask so we can frame your synopsis in a way that feels right to you.
+          We default to secular framing; you can opt into other framings if
+          you&apos;d like.
+        </p>
+        <WordChipRow
+          options={RELIGION_OPTIONS.map(o => ({ key: o.key, label: o.label }))}
+          selected={form.religion}
+          onChange={v => {
+            if (RELIGION_OPTIONS.some(o => o.key === v)) setReligion(v as FormState['religion'])
+          }}
+        />
+      </div>
+
+      {/* Sprint B Phase 1 — religious_content_preference. Conditional on
+          religion='muslim' (v1 — other religions have no framed content yet).
+          Per architectural rule: Islamic framing renders IFF religion='muslim'
+          AND religious_content_preference='show'. Default is 'hide'. */}
+      {form.religion === 'muslim' && (
+        <div style={{ animation: 'fadeSlideIn 200ms ease-out' }}>
+          <p className="text-sm font-medium text-text-primary mb-2">
+            Would you like Islamic framing in your synopsis?
+          </p>
+          <p className="text-xs text-text-muted mb-3">
+            We can reference Islamic concepts (such as ihsan or amanah) where
+            they enrich clinical reflection. Clinical recommendations stay
+            evidence-based either way.
+          </p>
+          <WordChipRow
+            options={[
+              { key: 'show', label: 'Yes, show this framing' },
+              { key: 'hide', label: 'No, keep it secular'    },
+            ]}
+            selected={form.religious_content_preference}
+            onChange={v => {
+              if (v === 'show' || v === 'hide') setReligiousContentPreference(v)
+            }}
+          />
+        </div>
+      )}
 
       <div>
         <BigChipCloud
@@ -1572,10 +1663,14 @@ export function IntakeForm({
   existing,
   memberId,
   initialBiologicalSex,
+  initialReligion,
+  initialReligiousContentPreference,
 }: {
-  existing:              Record<string, unknown> | null
-  memberId:              string
-  initialBiologicalSex:  'male' | 'female' | null
+  existing:                          Record<string, unknown> | null
+  memberId:                          string
+  initialBiologicalSex:              'male' | 'female' | null
+  initialReligion:                   FormState['religion']
+  initialReligiousContentPreference: FormState['religious_content_preference']
 }) {
   const router  = useRouter()
   // Sprint B Phase 1 — 11 steps (0–10) mapping to 6 chapters via chapterForStep().
@@ -1601,7 +1696,10 @@ export function IntakeForm({
     resumeSection,
     saveStatus,
     retryLastSave,
-  } = useIntakeAnswers({ supabase, memberId, initialForm: initialState(existing, initialBiologicalSex) })
+  } = useIntakeAnswers({
+    supabase, memberId,
+    initialForm: initialState(existing, initialBiologicalSex, initialReligion, initialReligiousContentPreference),
+  })
 
   // Decision 4 — persist biological_sex directly to user_personalisation.
   // Member up_member_update RLS allows the user to update their own row.
@@ -1625,6 +1723,46 @@ export function IntakeForm({
       // Soft fail — keep the answer in form state so branching works
       // even if the persistence call had a transient issue.
       console.error('[IntakeForm] biological_sex persist exception:', err)
+    }
+  }
+
+  // Sprint B Phase 1 — religion + religious_content_preference persistence.
+  // Same pattern as setBiologicalSex: write to user_personalisation via the
+  // authenticated client (member up_member_update RLS). Soft-fails so the
+  // form continues to work if the persistence call hiccups.
+  async function setReligion(value: FormState['religion']) {
+    setForm(f => ({
+      ...f,
+      religion: value,
+      // If the user backs off muslim, force preference to 'hide' to keep
+      // the PS gate (religion='muslim' AND preference='show') correct.
+      religious_content_preference: value === 'muslim' ? f.religious_content_preference : 'hide',
+    }))
+    try {
+      const payload: { religion: string; religious_content_preference?: 'hide' } =
+        value === 'muslim'
+          ? { religion: value }
+          : { religion: value, religious_content_preference: 'hide' }
+      const { error } = await supabase
+        .from('user_personalisation' as 'profiles')
+        .update(payload as never)
+        .eq('id' as 'id', memberId)
+      if (error) console.error('[IntakeForm] religion persist failed:', error.message)
+    } catch (err) {
+      console.error('[IntakeForm] religion persist exception:', err)
+    }
+  }
+
+  async function setReligiousContentPreference(value: FormState['religious_content_preference']) {
+    setForm(f => ({ ...f, religious_content_preference: value }))
+    try {
+      const { error } = await supabase
+        .from('user_personalisation' as 'profiles')
+        .update({ religious_content_preference: value } as never)
+        .eq('id' as 'id', memberId)
+      if (error) console.error('[IntakeForm] preference persist failed:', error.message)
+    } catch (err) {
+      console.error('[IntakeForm] preference persist exception:', err)
     }
   }
 
@@ -1759,7 +1897,12 @@ export function IntakeForm({
               step 9  = Chapter 4  Readiness stub    → Section8 (will shrink after Phase 1 deletions)
               step 10 = Chapter 5  What We Heard     → Section9 + consent */}
         {section === 0  && <Section0       form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 1  && <Section1       form={form} setForm={setForm} persist={setAnswer} setBiologicalSex={setBiologicalSex} />}
+        {section === 1  && <Section1
+          form={form} setForm={setForm} persist={setAnswer}
+          setBiologicalSex={setBiologicalSex}
+          setReligion={setReligion}
+          setReligiousContentPreference={setReligiousContentPreference}
+        />}
         {section === 2  && <ChapterBest    form={form} setForm={setForm} persist={setAnswer} />}
         {section === 3  && <ChapterChanged form={form} setForm={setForm} persist={setAnswer} />}
         {section === 4  && <Section2       branch={section2Branch} form={form} setForm={setForm} persist={setAnswer} />}

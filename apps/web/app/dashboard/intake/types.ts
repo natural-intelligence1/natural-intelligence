@@ -26,6 +26,10 @@ export interface FormState {
   // practitioner workspace + body story opening + synopsis opening.
   // Empty string = not yet answered (the question is not required).
   most_want_to_understand:   string
+  // Sprint B Phase 1 — PS.1 substrate fields captured by intake. Persisted
+  // to user_personalisation (NOT intake_responses).
+  religion:                  'muslim' | 'christian' | 'jewish' | 'hindu' | 'buddhist' | 'sikh' | 'secular' | 'prefer_not_to_say' | 'other'
+  religious_content_preference: 'show' | 'hide'
   primary_concerns:          string[]
   concern_duration:          string
   symptom_pattern:           string
