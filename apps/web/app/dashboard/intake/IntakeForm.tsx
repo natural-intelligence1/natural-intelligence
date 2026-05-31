@@ -1538,44 +1538,124 @@ function Section8({
   )
 }
 
-// ─── Section 9 — Consent & complete ──────────────────────────────────────────
+// ─── Sprint B Phase 1 — What We Heard pattern → copy mapping ─────────────────
+//
+// Rule-based (NOT AI-generated) per architecture §9. Each flag from the
+// branching engine maps to a single observation sentence. Maximum 3 bullets
+// rendered (architecture §9). Copy register:
+//   • Address user in second person, present tense
+//   • Quote the user back where possible
+//   • NEVER use: symptoms / condition / syndrome / diagnose / suggest /
+//                indicate / possibly / "you may have"
+//   • USE: mentioned, noticed, said, fit a pattern, worth a closer look
+//
+// Block 2 returns empty list when no flags fire — better silent than padded.
 
-const COMPLETE_CHECKS = [
-  'Your story & main concerns',
-  'A deeper look at key symptoms',
-  'Your timeline',
-  'Daily life & lifestyle',
-  'Medical background',
-  'Mind & emotional health',
-  'Your goals',
-  'Your readiness',
-]
+const WHAT_WE_HEARD_FLAG_COPY: Record<string, string> = {
+  flag_severity_high:             "You said this is affecting your daily life heavily — that's worth flagging.",
+  flag_post_exertional_pattern:   "You mentioned feeling worse the day after exertion — that's a pattern worth examining specifically.",
+  flag_menstrual_flow_high:       "You mentioned very heavy menstrual flow — that's worth a clinical conversation.",
+}
 
-function Section9({ consent, setConsent }: { consent: boolean; setConsent: (v: boolean) => void }) {
+function whatWeHeardBullets(flags: string[]): string[] {
+  // Up to 3 bullets, in flag-priority order they fire.
+  return flags
+    .map(f => WHAT_WE_HEARD_FLAG_COPY[f])
+    .filter((s): s is string => typeof s === 'string')
+    .slice(0, 3)
+}
+
+// Format the temporal-arc sentence from intake_responses fields. Returns
+// empty string when neither field is populated — block omitted cleanly.
+function whatWeHeardTemporalArc(timelineLastWell: string, timelineTrigger: string): string {
+  const LAST_WELL_LABEL: Record<string, string> = {
+    last_year:    'in the last year',
+    '1_3_years':  '1–3 years ago',
+    '3_5_years':  '3–5 years ago',
+    over_5_years: 'more than 5 years ago',
+    not_sure:     'a long time ago',
+  }
+  const whenLabel = LAST_WELL_LABEL[timelineLastWell] ?? ''
+  const hasTrigger = timelineTrigger.trim().length > 0
+  if (!whenLabel && !hasTrigger) return ''
+  if (whenLabel && hasTrigger) {
+    return `You said you last felt well ${whenLabel}, and that things shifted around then.`
+  }
+  if (whenLabel) {
+    return `You said you last felt well ${whenLabel}.`
+  }
+  return "You shared what was happening when things shifted."
+}
+
+// ─── Section 9 — What We Heard + consent (Sprint B Phase 1) ──────────────────
+
+// Sprint B Phase 1 — Chapter 5 (What We Heard) replaces the prior
+// congratulatory header + 8-item checklist with a rule-generated 3-block
+// reflection. Per architecture §9: NOT AI-generated (rules only), warm/
+// intelligent/not-clinical register, no diagnosis language. Followed by
+// the consent gate (unchanged in mechanism, kept as the explicit ask).
+
+function Section9({
+  consent, setConsent, flags, timelineLastWell, timelineTrigger,
+}: {
+  consent:          boolean
+  setConsent:       (v: boolean) => void
+  flags:            string[]
+  timelineLastWell: string
+  timelineTrigger:  string
+}) {
+  // Block 1 — the temporal arc, one sentence. Omitted if neither field
+  // was answered.
+  const arc = whatWeHeardTemporalArc(timelineLastWell, timelineTrigger)
+
+  // Block 2 — up to 3 pattern bullets. Empty list when nothing fires.
+  const bullets = whatWeHeardBullets(flags)
+
   return (
     <div className="space-y-7">
-      <div className="bg-[#F8F1E4] border border-[#D4B07A] rounded-2xl p-7">
-        <h2 className="font-display text-[28px] font-light text-[#633806] mb-4 leading-tight">
-          You&apos;ve done something important today.
+      {/* Block header — quiet, not a "results" headline */}
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.14em] text-[#B8935A] font-medium mb-2">
+          Chapter 5 — What We Heard
+        </p>
+        <h2 className="font-display text-2xl font-light text-text-primary leading-snug mb-1">
+          A short reflection.
         </h2>
-        <p className="text-sm text-[#633806] leading-relaxed">
-          Most people spend years managing symptoms without ever sitting down to look at the full picture.
-          You&apos;ve just done that. We&apos;re now going to make sense of everything you&apos;ve shared.
+        <p className="text-sm italic text-text-secondary">
+          Not a diagnosis. Not a verdict. Just our way of showing we were listening.
         </p>
       </div>
-      <div>
-        <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-4">What you&apos;ve covered</p>
-        <div className="space-y-2">
-          {COMPLETE_CHECKS.map((item, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className="w-5 h-5 rounded-full bg-[#B8935A] flex items-center justify-center flex-shrink-0">
-                <span className="text-text-inverted text-[10px]">✓</span>
-              </div>
-              <span className="text-sm text-text-primary">{item}</span>
-            </div>
-          ))}
+
+      {/* Block 1 — temporal arc */}
+      {arc && (
+        <p className="text-base text-text-primary leading-relaxed">
+          {arc}
+        </p>
+      )}
+
+      {/* Block 2 — pattern bullets (max 3). Silent when no flags fire. */}
+      {bullets.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-text-muted uppercase tracking-[0.08em] mb-3">
+            What we noticed
+          </p>
+          <ul className="space-y-2">
+            {bullets.map((b, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="text-[#B8935A] mt-1 flex-shrink-0">•</span>
+                <span className="text-sm text-text-primary leading-relaxed">{b}</span>
+              </li>
+            ))}
+          </ul>
         </div>
-      </div>
+      )}
+
+      {/* Block 3 — what happens next */}
+      <p className="text-sm text-text-secondary leading-relaxed">
+        Your full picture goes to a practitioner with your synopsis. We&apos;ll begin generating that now.
+      </p>
+
+      {/* Consent — explicit ask, framed after the reflection (not before). */}
       <div className="bg-surface-muted border border-border-default rounded-xl p-5">
         <h3 className="text-sm font-semibold text-text-primary mb-2">AI analysis consent</h3>
         <p className="text-xs text-text-secondary leading-relaxed mb-4">
@@ -1849,7 +1929,12 @@ export function IntakeForm({
         {section === 7  && <Section6       form={form} setForm={setForm} persist={setAnswer} />}
         {section === 8  && <Section7 />}
         {section === 9  && <Section8       form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 10 && <Section9       consent={consent} setConsent={setConsent} />}
+        {section === 10 && <Section9
+          consent={consent} setConsent={setConsent}
+          flags={ruleResult.flags}
+          timelineLastWell={form.timeline_last_well}
+          timelineTrigger={form.timeline_trigger}
+        />}
       </div>
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
@@ -1893,7 +1978,21 @@ export function IntakeForm({
               <button type="button" onClick={retryLastSave} className="underline hover:no-underline">Retry</button>
             </span>
           )}
-          {saveStatus === 'idle' && 'Your progress is saved automatically as you move between sections.'}
+          {saveStatus === 'idle' && (
+            <>
+              Your progress is saved automatically.{' '}
+              {/* Sprint B Phase 1 — explicit Save & resume affordance. The
+                  auto-save mechanism (useIntakeAnswers) already persists
+                  per-answer to intake_answers + per-section to
+                  intake_responses; this link simply makes the "close and
+                  come back" option visible from every chapter past Arrival.
+                  When the user returns to /dashboard/intake, the resume
+                  logic jumps them to their furthest-answered step. */}
+              <a href="/dashboard" className="underline hover:no-underline text-text-secondary">
+                Save and continue later
+              </a>
+            </>
+          )}
         </p>
       )}
 
