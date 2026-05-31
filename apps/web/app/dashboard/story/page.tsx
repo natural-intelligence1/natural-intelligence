@@ -4,6 +4,7 @@ import type { Metadata }            from 'next'
 import { createAdminClient, createServerSupabaseClient } from '@natural-intelligence/db'
 import { getClientStory }           from '@natural-intelligence/db/crt'
 import { generateBodyStory }        from './actions'
+import { GeneratingState }          from '../_components/GeneratingState'
 
 export const metadata: Metadata = {
   title: "My Body’s Story",
@@ -105,10 +106,13 @@ export default async function StoryPage() {
 
   const adminClient = createAdminClient()
 
-  // Check intake completion — include created_at for generation timeout check (M1)
+  // Check intake completion. M1 timeout no longer keyed to created_at —
+  // that proxy was unreliable for returning users (intake completed weeks
+  // ago → immediately past the 5-minute window). Timeout now lives in
+  // GeneratingState (client-side, sessionStorage-anchored).
   const { data: intake } = await adminClient
     .from('intake_responses')
-    .select('is_complete, created_at')
+    .select('is_complete')
     .eq('member_id', user.id)
     .eq('is_complete', true)
     .order('created_at', { ascending: false })
@@ -157,69 +161,26 @@ export default async function StoryPage() {
       await generateBodyStory(user!.id)
     }
 
-    // Option B timeout: if intake completed > 5 min ago and no story exists,
-    // treat as failed. No schema change — uses intake_responses.created_at
-    // as the generation-trigger timestamp proxy.
-    const GENERATION_TIMEOUT_MS = 5 * 60 * 1000
-    const intakeCompletedAt = intake?.created_at ? new Date(intake.created_at).getTime() : Date.now()
-    const generationTimedOut = Date.now() - intakeCompletedAt > GENERATION_TIMEOUT_MS
-
-    if (generationTimedOut) {
-      // ── Failed state — show calm error + retry ──────────────────────────
-      return (
-        <div className="max-w-[720px] mx-auto px-4 py-12">
-          <FadeStyles />
-          <div className="story-section mb-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">My Body&apos;s Story</p>
-            <h1 className="text-3xl font-medium text-text-primary leading-tight">
-              We couldn&apos;t put your story together this time.
-            </h1>
-          </div>
-          <div className="story-section space-y-5 text-[17px] leading-[1.75] text-text-secondary">
-            <p>You can try again, or come back later.</p>
-          </div>
-          <div className="story-section mt-10">
-            <form action={regenerate}>
-              <button
-                type="submit"
-                className="px-6 py-3 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
-              >
-                Try again
-              </button>
-            </form>
-          </div>
-        </div>
-      )
-    }
-
-    // ── Generating state — auto-refresh while within timeout window ───────
     return (
       <div className="max-w-[720px] mx-auto px-4 py-12">
         <FadeStyles />
-        {/* Auto-refresh every 10 seconds while generating */}
-        <meta httpEquiv="refresh" content="10" />
         <div className="story-section mb-10">
           <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">My Body&apos;s Story</p>
           <h1 className="text-3xl font-medium text-text-primary leading-tight">
             Building your health story…
           </h1>
         </div>
-        <div className="story-section space-y-5 text-[17px] leading-[1.75] text-text-secondary">
-          <p>
-            We&apos;re analysing your intake and constructing a picture of what&apos;s happening
-            in your body. This takes about 30 seconds.
-          </p>
-          <p className="text-sm text-text-muted">This page refreshes automatically.</p>
-        </div>
-        <div className="story-section mt-10">
-          <form action={regenerate}>
-            <button
-              type="submit"
-              className="px-5 py-2.5 rounded-lg border border-border-default text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors"
-            >
-              Generate now
-            </button>
-          </form>
+        <div className="story-section">
+          <GeneratingState
+            storageKey="gen.story"
+            title="Building your health story…"
+            description="We're reading the signals you've shared and constructing a picture of what's happening in your body."
+            failureHeading="We couldn't put your story together this time."
+            failureBody="You can try again, or come back later."
+            retryLabel="Try again"
+            generateLabel="Generate now"
+            regenerateAction={regenerate}
+          />
         </div>
       </div>
     )

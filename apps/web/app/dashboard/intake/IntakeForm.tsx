@@ -1666,7 +1666,7 @@ function Section9({
       <div className="bg-surface-muted border border-border-default rounded-xl p-5">
         <h3 className="text-sm font-semibold text-text-primary mb-2">AI analysis consent</h3>
         <p className="text-xs text-text-secondary leading-relaxed mb-4">
-          Natural Intelligence will use the information you&apos;ve provided — along with any lab report data and root cause analysis results — to generate a personalised health synopsis using Claude (by Anthropic).
+          Natural Intelligence will use the information you&apos;ve provided — along with any lab report data and root cause analysis results — to generate a personalised health synopsis using AI.
           This synopsis is for informational purposes only and does not constitute medical advice.
         </p>
         <label className="flex items-start gap-3 cursor-pointer">

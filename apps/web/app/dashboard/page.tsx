@@ -160,7 +160,7 @@ export default async function DashboardPage() {
             <section className="rounded-xl border border-[#D4B07A] bg-[#F8F1E4] p-6 mb-8">
               <p className="text-xs font-semibold text-[#633806] uppercase tracking-wider mb-1">Health synopsis</p>
               <p className="text-sm text-[#633806] leading-relaxed mb-3">
-                Your intake is complete. Claude is generating your personalised health overview…
+                Your intake is complete. We&apos;re reading the signals you&apos;ve shared and building your personalised health overview…
               </p>
               <Link
                 href="/dashboard/synopsis"
@@ -177,7 +177,7 @@ export default async function DashboardPage() {
                   <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">Health synopsis</p>
                   <h3 className="text-sm font-semibold text-text-primary mb-1">Get your personalised health overview</h3>
                   <p className="text-sm text-text-secondary leading-relaxed">
-                    Complete a 5-minute health intake and Claude will synthesise your symptoms, labs, and root causes into a clear health picture.
+                    Complete a 5-minute health intake and we&apos;ll synthesise your symptoms, labs, and root causes into a clear health picture.
                   </p>
                 </div>
               </div>
