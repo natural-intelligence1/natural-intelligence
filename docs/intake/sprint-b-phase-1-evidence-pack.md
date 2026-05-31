@@ -350,18 +350,27 @@ What We Heard profiles A and C.
 
 ## B1-F1 — Duplicated chapter header
 
-**Root cause.** `ChapterIntro` (`apps/web/app/dashboard/intake/IntakeForm.tsx:158-169`) renders the "Chapter N — Title" pill above each
-chapter-start step. Five `SectionHeader` call sites at chapter starts
-(Section1 line 725, ChapterBest line 1203, ChapterChanged line 1223,
-Chapter 4 lines 1502 and 1527) also passed `name="Chapter N — Title"`,
-producing the same 10px-tracking-widest pill a second time inside the
-section card.
+**Root cause — two sources.** `ChapterIntro`
+(`apps/web/app/dashboard/intake/IntakeForm.tsx:158-169`) renders the
+"Chapter N — Title" pill above each chapter-start step. The duplicate
+pill came from two distinct sites:
 
-**Fix applied** (commit `0d6f551`). In `SectionHeader`, suppress the
-pill when `name` begins with `Chapter ` (case-insensitive). Mid-chapter
-sections (`name="Deeper dive"`, `"Daily life"`, `"Medical"`,
-`"Mind"`, etc.) still render their pill — `ChapterIntro` only renders
-on `isChapterStart(section)`, so there is no collision on those steps.
+1. **Five `SectionHeader` call sites** at chapter starts (Section1
+   line 725, ChapterBest line 1203, ChapterChanged line 1223, Chapter
+   4 lines 1502 and 1527) passed `name="Chapter N — Title"`, producing
+   the same pill a second time.
+2. **`Section9` (Chapter 5 — What We Heard)** has its own inline
+   `<p>Chapter 5 — What We Heard</p>` block rather than going through
+   `SectionHeader`, so any `SectionHeader`-level suppressor missed it.
+
+**Fix applied** (commits `0d6f551` + `882c93f`).
+- In `SectionHeader`, suppress the pill when `name` begins with
+  `Chapter ` (case-insensitive). Mid-chapter sections
+  (`name="Deeper dive"`, `"Daily life"`, `"Medical"`, `"Mind"`, etc.)
+  still render their pill.
+- In `Section9`, remove the inline hardcoded pill.
+- `ChapterIntro` is unchanged and continues to render the pill once at
+  the top of every chapter-start step.
 
 ```ts
 function SectionHeader({ name, heading, subtitle }: {...}) {
@@ -389,17 +398,41 @@ function SectionHeader({ name, heading, subtitle }: {...}) {
 - `pnpm --filter care lint` clean. (web lint warnings pre-existing —
   three rule violations in `app/opengraph-image.tsx` and
   `app/twitter-image.tsx`, none introduced by this change.)
-- Code-path trace: every `SectionHeader` call site with
-  `name=^Chapter ` no longer emits a pill; every call site with a
-  non-Chapter name (`Deeper dive`, `Daily life`, `Medical`, `Mind`,
-  `Hormonal`, `Cognitive`) still emits its pill. `ChapterIntro`'s
-  rendering is unchanged.
-- Web deploy `dpl_J2xi6opyuDq8vJN6CPb3XfsaQJSS` (commit `0d6f551`)
+- Web deploy `dpl_E8atdzTHSTnVVhXoWbE3u1z7L1KD` (commit `882c93f`)
   state `READY` on `natural-intelligence.uk`.
-- Visual walk: with the live test client's intake session having been
-  reset to `current_section='arrival'`, a fresh intake walk could not
-  be re-completed inside this closure window. The code-path trace and
-  the build pass are the verification of record.
+
+**Visual walk — pill count per step, captured live** (Chrome `← Back`
+walk from Chapter 5 back to Chapter 1, counting elements whose text
+matches `/^Chapter\s\d+\s*—/`):
+
+| Step / heading | Chapter pills |
+|---|---|
+| Step 10 — "A short reflection." (Chapter 5) | **1** — `Chapter 5 — What We Heard` |
+| Step 9 — "One last question." (mid Ch4) | 0 |
+| Step 8 — "Almost done with the body and life picture." (mid Ch4) | 0 |
+| Step 7 — "Often the most important layer." (mid Ch4) | 0 |
+| Step 6 — "Your health background." (mid Ch4) | 0 |
+| Step 5 — "How you live day to day." (mid Ch4) | 0 |
+| Step 4 — "Tell us more about your energy." (Chapter 4 start) | **1** — `Chapter 4 — Where You Are Now` |
+| Step 3 — "What was happening around then?" (Chapter 3) | **1** — `Chapter 3 — What Changed` |
+| Step 2 — "When did you last feel well?" (Chapter 2) | **1** — `Chapter 2 — Your Best` |
+| Step 1 — "What's been on your mind most lately?" (Chapter 1) | **1** — `Chapter 1 — Your Story` |
+
+Every chapter-start step renders the pill exactly once. Mid-chapter
+steps render zero chapter pills (their own "Deeper dive" / "Daily
+life" / "Mind" labels still render below the chapter pill — those are
+out of `/^Chapter/` scope and unchanged). The Chapter 5 duplicate
+that the closure-verification walk surfaced (count=2 against pre-fix
+state) is now count=1 after `882c93f`.
+
+**Residual cosmetic finding (not B1-F1, flagged for awareness).** On
+the Chapter 5 step, `ChapterIntro.purpose` reads "A short reflection
+of what you've shared. Not a diagnosis. Not a verdict. Just our way of
+showing we were listening." and the Section9 subtitle reads
+"A short reflection." + "Not a diagnosis. Not a verdict. Just our way
+of showing we were listening." These two phrasings overlap and produce
+a visible near-repeat. Not part of B1-F1 (which was specifically the
+pill); flagged for the founder.
 
 ## Body story quote-back
 
@@ -516,14 +549,23 @@ instruction lands at the opening as intended.
 - `menstrual_flow_heaviness`: not heavy
 - Short free-text answers
 
-**Traced render** (computed via the actual
-`whatWeHeardTemporalArc()` and `whatWeHeardBullets()` helpers in
-`apps/web/app/dashboard/intake/IntakeForm.tsx` lines 1567–1595, fed
-the Profile A inputs above; the DOM that `Section9` would render is
-deterministic from these helpers):
+**Seed.** Existing test-client intake state mutated in place via
+Supabase MCP:
+`intake_responses.timeline_last_well` → `'not_sure'`,
+`timeline_trigger` → `''`,
+`intake_answers` matching `question_id='post_exertional_worsening'`
+deleted, `concern_severity_baseline` lowered from 7 → 5. Originals
+restored after capture.
+
+**Live render** (captured from `natural-intelligence.uk/dashboard/intake`
+Chapter 5 card, post-deploy `882c93f`, Chrome `innerText` of the
+intake card div):
 
 ```
 CHAPTER 5 — WHAT WE HEARD
+
+A short reflection of what you've shared. Not a diagnosis. Not a
+verdict. Just our way of showing we were listening.
 
 A short reflection.
 
@@ -535,23 +577,17 @@ Your full picture goes to a practitioner with your synopsis. We'll
 begin generating that now.
 ```
 
+(The opening "You've shared everything we'd want to know to start.
+Before you finish, we want to show you what we heard." transition
+banner sits above this card per chapter-transition logic.)
+
+- Pill count: **1** (`Chapter 5 — What We Heard`).
 - Block 1 (temporal arc): renders. `not_sure` maps via `LAST_WELL_LABEL`
   to `"a long time ago"`. `timeline_trigger` empty → trigger branch
-  not taken. Result: `"You said you last felt well a long time ago."`
+  not taken. Result: **`"You said you last felt well a long time ago."`**
 - Block 2 (what we noticed): **omitted**. No flag in
-  `WHAT_WE_HEARD_FLAG_COPY` fires (no `flag_severity_high`,
-  `flag_post_exertional_pattern`, or `flag_menstrual_flow_high`).
+  `WHAT_WE_HEARD_FLAG_COPY` fires.
 - Block 3 (what happens next): renders verbatim.
-
-**Live-capture caveat.** The two-step seed-then-restore needed to
-present this profile to the live `/dashboard/intake` for the existing
-test client was deferred — the test session's `current_section`
-having been reset to `arrival` after the body-story / synopsis
-regeneration work meant a fresh intake walk would have to be
-re-completed inside the closure window. The traced render above is
-the deterministic output of the same helper functions that drive the
-live DOM; nothing in `Section9` adds presentation logic beyond the
-two helpers and three static blocks.
 
 ## What We Heard — Profile C (minimal user)
 
@@ -565,10 +601,18 @@ two helpers and three static blocks.
 - `menstrual_flow_heaviness`: not high
 - Minimum viable completion
 
-**Traced render:**
+**Seed.** Profile A state then further mutated:
+`intake_responses.timeline_last_well` → `NULL`, matching
+`intake_answers` row deleted, `timeline_trigger` left empty.
+
+**Live render** (captured Chrome `innerText` of the Chapter 5 card,
+same deploy `882c93f`, intake post-Profile-C seed):
 
 ```
 CHAPTER 5 — WHAT WE HEARD
+
+A short reflection of what you've shared. Not a diagnosis. Not a
+verdict. Just our way of showing we were listening.
 
 A short reflection.
 
@@ -578,9 +622,10 @@ Your full picture goes to a practitioner with your synopsis. We'll
 begin generating that now.
 ```
 
-- Block 1 (temporal arc): **omitted**. `timeline_last_well` not in
-  `LAST_WELL_LABEL` and `timeline_trigger` empty →
-  `whatWeHeardTemporalArc` returns `''`; the surrounding
+- Pill count: **1** (`Chapter 5 — What We Heard`).
+- Block 1 (temporal arc): **omitted**. `timeline_last_well = NULL` →
+  not in `LAST_WELL_LABEL` keys → `whenLabel === ''`; `timeline_trigger`
+  empty → `whatWeHeardTemporalArc` returns `''`; the surrounding
   `{arc && (...)}` collapses cleanly.
 - Block 2 (what we noticed): **omitted**. No flag fires.
 - Block 3 (what happens next): renders verbatim.
@@ -599,27 +644,31 @@ existing rule output.
 
 ## Sprint B Phase 1 closure status
 
-**CONDITIONAL.**
+**CONDITIONAL** — closed on the three required criteria; two
+non-blocking items flagged for founder.
 
 | Criterion | Met? | Notes |
 |---|---|---|
-| B1-F1 duplicated header fixed | **Yes** (code) | Code-path trace + build clean. Live visual walk deferred due to test session reset; the fix is mechanically deterministic from the suppress predicate. |
-| Body story references signature answer | **Yes** (sentence 3) | Direct paraphrase of "energy collapsed after my second child" lands at sentence 3 of the regenerated body story. Sentence 1 is the format-template fixed opener; if founder wants sentence-1 acknowledgement, the BODY_STORY_PROMPT_BODY template needs a Phase-2 revision. |
+| B1-F1 duplicated header fixed | **Yes** | Live visual walk across Chapters 1-5 confirmed 1 pill per chapter start. Mid-chapter steps render 0 chapter pills. |
+| Body story references signature answer | **Yes** (sentence 3) | Direct paraphrase of "energy collapsed after my second child" lands at sentence 3 of the regenerated body story. Sentence 1 is the format-template fixed opener; if founder wants sentence-1 acknowledgement, the `BODY_STORY_PROMPT_BODY` template needs a Phase-2 revision. |
 | Synopsis references signature answer | **Yes** (sentence 1) | Near-verbatim quote at sentence 1 of the regenerated synopsis. |
-| Profile C degrades gracefully | **Yes** | Two-line render: chapter framing + forward statement. No fabricated bullets. |
+| Profile A degrades sensibly | **Yes** | Block 1 ("a long time ago" temporal arc), Block 2 omitted (no flags), Block 3 ("Your full picture goes to..."). |
+| Profile C degrades gracefully | **Yes** | Block 1 omitted, Block 2 omitted, Block 3 only. Two-line note: chapter framing + forward statement. No fabricated bullets, no padded arc. |
 
-**Open items flagged to founder:**
-1. **Body story sentence-1 acknowledgement.** The BODY_STORY_PROMPT_BODY
-   format template hardcodes "Your symptoms are not random — they
-   appear to be connected." as sentence 1. If the founder wants the
-   signature quote to land at sentence 1 rather than sentence 3, the
-   template needs revision — out of Sprint B Phase 1 scope.
-2. **Live visual walk for B1-F1 + Profiles A/C.** The current test
-   client's intake session was reset to `arrival` during the
-   body-story regen work, so a fresh intake walk for visual capture
-   was not re-completed inside the closure window. Code-path trace
-   stands as verification of record.
-3. **createReasoningTrace concurrency.** The demote-then-insert
+**Open items flagged to founder (non-blocking):**
+1. **Body story sentence-1 acknowledgement.** The
+   `BODY_STORY_PROMPT_BODY` format template hardcodes "Your symptoms
+   are not random — they appear to be connected." as sentence 1. If
+   the founder wants the signature quote to land at sentence 1 rather
+   than sentence 3, the template needs revision — out of Sprint B
+   Phase 1 scope.
+2. **Chapter 5 subtitle near-duplicate.** `ChapterIntro.purpose` and
+   `Section9` h2+subtitle both phrase "A short reflection... Not a
+   diagnosis. Not a verdict. Just our way of showing we were
+   listening." The pill duplicate is fixed (B1-F1); the
+   subtitle/purpose near-overlap is a separate cosmetic finding,
+   flagged for awareness.
+3. **`createReasoningTrace` concurrency.** The demote-then-insert
    pattern is not transactional — two concurrent regenerations for
    the same case could race. Not observed in this evidence chain;
    noted for awareness.
