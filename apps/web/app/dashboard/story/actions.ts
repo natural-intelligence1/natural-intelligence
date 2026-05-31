@@ -104,6 +104,16 @@ export async function generateBodyStory(
       most_want_chars:           (mostWantToUnderstand ?? '').length,
       system_prompt_head_250:    systemPrompt.slice(0, 250),
     }))
+    // TEMP DEBUG — write to audit_logs so we can SELECT it back via Supabase MCP.
+    await adminClient.from('audit_logs').insert({
+      action:        'body_story.debug.prompt_head',
+      resource_type: 'reasoning_trace',
+      metadata:      {
+        most_want_present:      !!mostWantToUnderstand,
+        most_want_chars:        (mostWantToUnderstand ?? '').length,
+        system_prompt_head_500: systemPrompt.slice(0, 500),
+      },
+    })
 
     const message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
@@ -224,6 +234,17 @@ export async function generateBodyStory(
     console.log(JSON.stringify({ event: 'body_story.failure', user_id: memberId, error_code: errorCode, duration_ms: Date.now() - startMs }))
     // TEMP DEBUG — Sprint B closure diagnostic. Remove before final commit.
     console.log(JSON.stringify({ event: 'body_story.debug.failure_detail', user_id: memberId, error_code_full: errorCode, error_stack_head: errorStack }))
+    try {
+      await adminClient.from('audit_logs').insert({
+        action:        'body_story.debug.failure_detail',
+        resource_type: 'reasoning_trace',
+        metadata:      {
+          error_code_full:  errorCode,
+          error_stack_head: errorStack,
+          duration_ms:      Date.now() - startMs,
+        },
+      })
+    } catch {/* swallow */}
     console.error('[generateBodyStory] error:', err)
     return { status: 'error' }
   }
