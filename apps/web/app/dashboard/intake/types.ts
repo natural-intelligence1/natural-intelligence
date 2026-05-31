@@ -73,18 +73,23 @@ export interface FormState {
   current_medications:    string
   current_supplements:    string
   past_treatments:        string
-  practitioner_types:     string[]
-  surgeries_or_injuries:  string
+  // Sprint B Phase 1 deletions (founder-approved):
+  //   practitioner_types  — chip list with no outcomes; low signal
+  //   surgeries_or_injuries — storage field with no UI; never captured
+  //   health_goals        — wellness-quiz chip cloud; redundant w/ signature q
+  //   timeline_expectation — patient can't honestly predict; not theirs to give
+  //   biggest_barrier     — fatigue-point optional text; low completion
+  //   readiness_time / readiness_change — directly asked behaviour-change
+  //                         questions are the wrong instrument; infer instead
+  // Removed from FormState. Existing column data in intake_responses is
+  // retained (no DROP COLUMN); rows simply stop writing these fields.
   family_history:         string[]
   psychosocial_impact:    string
   psychosocial_worry:     string
   psychosocial_supported: string
-  health_goals:           string[]
-  timeline_expectation:   string
-  biggest_barrier:        string
-  readiness_time:         string
+  // readiness_budget kept for now; architecture §10 recommends moving to
+  // onboarding in a later phase (factual constraint, not health-intake content).
   readiness_budget:       string
-  readiness_change:       string
 }
 
 // ─── Persist types ────────────────────────────────────────────────────────────

@@ -358,10 +358,9 @@ function buildStoryPrompt(
   field('psychosocial_worry',       'Main worry/stress')
   field('psychosocial_impact',      'Emotional/social impact')
   field('working_with_practitioners','Currently working with practitioners')
-  field('practitioner_types',       'Practitioner types seen')
-  field('health_goals',             'Health goals')
-  field('readiness_change',         'Readiness to change (1–5)')
-  field('timeline_expectation',     'Timeline expectation')
+  // Sprint B Phase 1 deletions — practitioner_types, health_goals,
+  // readiness_change, timeline_expectation removed from intake; references
+  // in the prompt builder dropped accordingly.
 
   lines.push('')
   lines.push('Generate the Clinical Reasoning Trace JSON for this member.')

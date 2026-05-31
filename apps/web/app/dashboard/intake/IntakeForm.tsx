@@ -481,18 +481,15 @@ function initialState(
     current_medications:       str('current_medications'),
     current_supplements:       str('current_supplements'),
     past_treatments:           str('past_treatments'),
-    practitioner_types:        arr('practitioner_types'),
-    surgeries_or_injuries:     str('surgeries_or_injuries'),
+    // Sprint B Phase 1 deletions: practitioner_types, surgeries_or_injuries,
+    // health_goals, timeline_expectation, biggest_barrier, readiness_time,
+    // readiness_change all removed from FormState. Existing column data
+    // preserved in the DB (no DROP COLUMN); rows simply stop writing them.
     family_history:            arr('family_history'),
     psychosocial_impact:       str('psychosocial_impact'),
     psychosocial_worry:        str('psychosocial_worry'),
     psychosocial_supported:    '',
-    health_goals:              arr('health_goals'),
-    timeline_expectation:      str('timeline_expectation'),
-    biggest_barrier:           str('biggest_barrier'),
-    readiness_time:            str('readiness_time'),
     readiness_budget:          str('readiness_budget'),
-    readiness_change:          str('readiness_change'),
   }
 }
 
@@ -528,10 +525,23 @@ function getSectionData(f: FormState, s: number, primarySystem: string): Record<
     case 4: return { timeline_trigger:   f.timeline_trigger   || null }
     case 5: return { systems_reviewed:   f.systems_reviewed,   primary_system: primarySystem }
     case 6: return { sleep_hours: f.sleep_hours, sleep_quality: f.sleep_quality, stress_level: f.stress_level, energy_level: f.energy_level, exercise_frequency: f.exercise_frequency || null, diet_description: f.diet_description || null }
-    case 7: return { diagnosed_conditions: f.diagnosed_conditions, current_medications: f.current_medications || null, current_supplements: f.current_supplements || null, past_treatments: f.past_treatments || null, practitioner_types: f.practitioner_types, surgeries_or_injuries: f.surgeries_or_injuries || null, family_history: f.family_history }
+    case 7: return {
+      // Sprint B Phase 1 — practitioner_types + surgeries_or_injuries removed.
+      diagnosed_conditions: f.diagnosed_conditions,
+      current_medications:  f.current_medications || null,
+      current_supplements:  f.current_supplements || null,
+      past_treatments:      f.past_treatments || null,
+      family_history:       f.family_history,
+    }
     case 8: return { psychosocial_impact: f.psychosocial_impact || null, psychosocial_worry: f.psychosocial_worry || null, psychosocial_supported: f.psychosocial_supported ? ['alone', 'not_really'].includes(f.psychosocial_supported) ? false : true : null }
-    case 9: return { health_goals: f.health_goals, timeline_expectation: f.timeline_expectation || null, biggest_barrier: f.biggest_barrier || null }
-    case 10: return { readiness_time: f.readiness_time || null, readiness_budget: f.readiness_budget || null, readiness_change: f.readiness_change || null }
+    // Sprint B Phase 1 — case 9 (Goals stub) is now empty after the
+    // health_goals / timeline_expectation / biggest_barrier deletions.
+    // Returns {} so the section transition still saves completed_sections.
+    case 9: return {}
+    // Sprint B Phase 1 — case 10 (Readiness stub): readiness_time and
+    // readiness_change removed; only readiness_budget remains for now
+    // (architecture §10 recommends moving to onboarding later).
+    case 10: return { readiness_budget: f.readiness_budget || null }
     default: return {}
   }
 }
@@ -1342,10 +1352,7 @@ const FAMILY_HISTORY_OPTIONS = [
   'Cancer', 'Mental health conditions', 'Hormonal conditions', 'Gut disease',
 ]
 
-const PRACTITIONER_OPTIONS = [
-  'GP', 'Nutritionist', 'Naturopath', 'Acupuncturist',
-  'Therapist', 'Osteopath', 'Chiropractor', 'Functional medicine doctor', 'Other',
-]
+// PRACTITIONER_OPTIONS removed — Sprint B Phase 1 deletion (practitioner_types).
 
 function Section5({
   form, setForm, persist, isDigestive,
@@ -1386,14 +1393,10 @@ function Section5({
           presets={SUPPLEMENT_PRESETS}
         />
       </div>
-      <div>
-        <p className="text-sm font-medium text-text-primary mb-2">Practitioners you&apos;ve worked with</p>
-        <BigChipCloud
-          options={PRACTITIONER_OPTIONS}
-          selected={form.practitioner_types}
-          onChange={v => persist('practitioner_types', v, 5, { clinicalObjective: 'care_history' })}
-        />
-      </div>
+      {/* Sprint B Phase 1 deletion — practitioner_types chip cloud removed.
+          Architecture §11: "Names types of practitioner without outcomes,
+          helpfulness, or what was learned. A list of practitioner types tells
+          the practitioner nothing actionable." */}
       <div>
         <p className="text-sm font-medium text-text-primary mb-2">Treatments or approaches you&apos;ve tried</p>
         <WarmTextarea
@@ -1488,67 +1491,27 @@ function Section6({
 
 // ─── Section 7 — Goals ────────────────────────────────────────────────────────
 
-const GOAL_OPTIONS = [
-  'More consistent energy', 'Better sleep quality', 'Reduce inflammation',
-  'Understand my lab results', 'Lose weight sustainably', 'Improve mood',
-  'Reduce medication dependency', 'Better gut health', 'Clearer skin',
-  'Improve fertility', 'Reduce pain', 'Better hormonal balance',
-  'More mental clarity', 'Something else',
-]
-
-const TIMELINE_EMOJIS: EmojiOption[] = [
-  { key: 'months',    icon: '⚡', label: 'In months'      },
-  { key: 'year',      icon: '🌱', label: 'Within a year'  },
-  { key: 'long_term', icon: '🏔', label: 'Long-term'      },
-  { key: 'not_sure',  icon: '💭', label: 'Not sure yet'   },
-]
-
-function Section7({
-  form, setForm, persist,
-}: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; persist: PersistFn }) {
+// Sprint B Phase 1 — Section 7 (Goals) is now a placeholder pass-through
+// after the deletion of health_goals, timeline_expectation, and
+// biggest_barrier. The chapter framework still includes this step inside
+// Chapter 4; Phase 2 may either remove the step entirely or repopulate it
+// with rewritten content (architecture §10–§13).
+function Section7() {
   return (
     <div className="space-y-7">
-      <SectionHeader section={7} name="Goals" heading="What does getting well look like for you?" subtitle="Let's finish by looking forward." />
-      <AcknowledgementBanner text="Thank you — that helps us understand the pattern more clearly. We'll take this step by step." />
-      <div>
-        <p className="text-sm font-medium text-text-primary mb-3">What do you most want to achieve?</p>
-        <BigChipCloud
-          options={GOAL_OPTIONS}
-          selected={form.health_goals}
-          onChange={v => persist('health_goals', v, 7, { clinicalObjective: 'patient_goals' })}
-        />
-      </div>
-      <div>
-        <p className="text-sm font-medium text-text-primary mb-3">What timeframe feels realistic to you?</p>
-        <EmojiCardGrid
-          options={TIMELINE_EMOJIS}
-          selected={form.timeline_expectation ? [form.timeline_expectation] : []}
-          onChange={v => persist('timeline_expectation', v[0] ?? '', 7, { clinicalObjective: 'timeline_expectation' })}
-          cols={4}
-        />
-      </div>
-      <div>
-        <p className="text-sm font-medium text-text-primary mb-2">What has got in the way before? <span className="text-text-muted font-normal">(optional)</span></p>
-        <WarmTextarea
-          value={form.biggest_barrier}
-          onChange={v => setForm(f => ({ ...f, biggest_barrier: v }))}
-          onBlur={v => persist('biggest_barrier', v, 7, { clinicalObjective: 'barriers' })}
-          placeholder="e.g. Cost, not knowing where to start, lack of time, conflicting advice…"
-          rows={3}
-        />
-      </div>
+      <SectionHeader name="Chapter 4 — Where You Are Now" heading="Almost done with the body and life picture." subtitle="One more short step and we'll show you what we heard." />
+      <p className="text-sm text-text-secondary leading-relaxed">
+        You&apos;ve shared most of what we&apos;d want to know. Keep going — the next page is brief, and the one after that is our reflection back to you.
+      </p>
     </div>
   )
 }
 
 // ─── Section 8 — Readiness ────────────────────────────────────────────────────
-
-const TIME_EMOJIS: EmojiOption[] = [
-  { key: 'few_mins', icon: '⏱', label: 'A few mins/day'  },
-  { key: '20_30',    icon: '🕐', label: '20–30 mins'      },
-  { key: 'hours',    icon: '📆', label: 'Hours per week'  },
-  { key: 'all_in',   icon: '💪', label: 'All in'          },
-]
+// Sprint B Phase 1 — readiness_time and readiness_change deleted (per
+// founder approval; philosophy is "infer, don't ask"). readiness_budget
+// retained for now as the sole question; architecture §10 recommends
+// moving to onboarding in a later phase.
 
 const BUDGET_EMOJIS: EmojiOption[] = [
   { key: 'tight',    icon: '💷', label: 'Tight right now' },
@@ -1556,28 +1519,12 @@ const BUDGET_EMOJIS: EmojiOption[] = [
   { key: 'flexible', icon: '💰', label: 'Flexible'         },
 ]
 
-const CHANGE_EMOJIS: EmojiOption[] = [
-  { key: 'small_steps',   icon: '🌱', label: 'Small steps'     },
-  { key: 'with_guidance', icon: '🔄', label: 'With guidance'    },
-  { key: 'all_in',        icon: '⚡', label: 'All in'           },
-  { key: 'not_sure',      icon: '💭', label: 'Not sure'         },
-]
-
 function Section8({
-  form, setForm, persist,
+  form, persist,
 }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; persist: PersistFn }) {
   return (
     <div className="space-y-7">
-      <SectionHeader section={8} name="Readiness" heading="Three honest questions." subtitle="What's realistic for you right now?" />
-      <div>
-        <p className="text-sm font-medium text-text-primary mb-3">How much time could you realistically invest in your health each day?</p>
-        <EmojiCardGrid
-          options={TIME_EMOJIS}
-          selected={form.readiness_time ? [form.readiness_time] : []}
-          onChange={v => persist('readiness_time', v[0] ?? '', 8, { clinicalObjective: 'readiness_time' })}
-          cols={4}
-        />
-      </div>
+      <SectionHeader name="Chapter 4 — Where You Are Now" heading="One last question." subtitle="What's realistic for you right now?" />
       <div>
         <p className="text-sm font-medium text-text-primary mb-3">How would you describe your health budget right now?</p>
         <EmojiCardGrid
@@ -1585,15 +1532,6 @@ function Section8({
           selected={form.readiness_budget ? [form.readiness_budget] : []}
           onChange={v => persist('readiness_budget', v[0] ?? '', 8, { clinicalObjective: 'readiness_budget' })}
           cols={3}
-        />
-      </div>
-      <div>
-        <p className="text-sm font-medium text-text-primary mb-3">How ready do you feel to make changes?</p>
-        <EmojiCardGrid
-          options={CHANGE_EMOJIS}
-          selected={form.readiness_change ? [form.readiness_change] : []}
-          onChange={v => persist('readiness_change', v[0] ?? '', 8, { clinicalObjective: 'readiness_change' })}
-          cols={4}
         />
       </div>
     </div>
@@ -1909,7 +1847,7 @@ export function IntakeForm({
         {section === 5  && <Section4       form={form} setForm={setForm} persist={setAnswer} />}
         {section === 6  && <Section5       form={form} setForm={setForm} persist={setAnswer} isDigestive={isDigestive} />}
         {section === 7  && <Section6       form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 8  && <Section7       form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 8  && <Section7 />}
         {section === 9  && <Section8       form={form} setForm={setForm} persist={setAnswer} />}
         {section === 10 && <Section9       consent={consent} setConsent={setConsent} />}
       </div>

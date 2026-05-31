@@ -243,7 +243,8 @@ function buildSynopsisPrompt(params: {
     if (i.digestion_level)         lines.push(`Digestion (1–10): ${i.digestion_level}`)
     if (i.cognitive_level)         lines.push(`Cognitive function (1–10): ${i.cognitive_level}`)
     if (i.family_history)          lines.push(`Family history: ${i.family_history}`)
-    if (i.health_goals)            lines.push(`Health goals: ${JSON.stringify(i.health_goals)}`)
+    // Sprint B Phase 1 deletion — health_goals removed from intake; the
+    // line above for the synopsis prompt is dropped.
     if (i.additional_notes)        lines.push(`Additional notes: ${i.additional_notes}`)
     lines.push('')
   } else {
