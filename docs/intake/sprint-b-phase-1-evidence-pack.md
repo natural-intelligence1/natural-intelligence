@@ -673,3 +673,124 @@ non-blocking items flagged for founder.
    the same case could race. Not observed in this evidence chain;
    noted for awareness.
 
+---
+
+# Sprint B Phase 1 closure — re-verification
+
+Re-run requested by founder after the `e6f9e92` generating-state +
+Claude-name fix landed. Goal: confirm body story + synopsis still
+generate and still quote the signature answer.
+
+## Step 1 — Vercel runtime logs for body_story.failure
+
+Window: last 2 hours (2026-05-31 21:11Z → 2026-05-31 23:11Z) for
+`prj_5EvNA6FYJKh2apVXRITdI9xO9kvK` (production, deployment
+`dpl_E8tHtd8bUBRRcwzCNNZRNUCEUJ5i`).
+
+Result: **No logs found for the specified criteria.** No
+`body_story.failure` event has fired in the last two hours.
+
+The historical failure was diagnosed and root-caused in commit
+`7e8d96b`: the unique partial index
+`idx_reasoning_traces_one_active_per_case_type` rejected the second
+`client_visible` insert with `code=23505`. `createReasoningTrace`
+now demotes the prior `client_visible` trace to `reviewed` before
+inserting the new one, so regenerations succeed. No fresh failure
+to diagnose.
+
+## Step 2 — intake_answers for the Natural Intelligence test client
+
+```sql
+SELECT question_id, answer
+FROM   intake_answers
+WHERE  member_id = (SELECT id FROM profiles WHERE full_name = 'Natural Intelligence')
+ORDER  BY question_id;
+```
+
+18 rows. All `question_id`s shown verbatim:
+
+```
+arrival_emotion              "hopeful"
+concern_severity_baseline    7
+diet_description             "Keto or low-carb"
+energy_level                 3
+exercise_frequency           "1_2x"
+family_history               ["Cancer"]
+health_goals                 ["More consistent energy"]
+post_exertional_worsening    true
+psychosocial_supported       "alone"
+readiness_budget             "some"
+readiness_change             "with_guidance"
+readiness_time               "hours"
+sleep_hours                  8
+sleep_quality                3
+stress_level                 3
+symptom_pattern              "improving"
+systems_reviewed             ["Nervous system"]
+timeline_last_well           "over_5_years"
+```
+
+`generateBodyStory` short-circuits with `insufficient_data` only when
+`answers.length === 0`. 18 ≫ 0 → not insufficient_data.
+
+## Step 3 — Diagnosis
+
+Not insufficient_data. Not a current code regression. The last
+`generateBodyStory` invocation **succeeded** (the regen at
+2026-05-31 12:51:44 inserted a fresh `client_visible` trace; the
+prior `client_visible` row was demoted to `reviewed`). The last
+`generateHealthSynopsis` invocation **succeeded** (the regen at
+2026-05-31 12:53:29 wrote `ai_summaries` with `is_current=true` and
+demoted the prior).
+
+**Nothing to seed. Nothing to fix.** Closure proceeds on the existing
+generated artefacts.
+
+## Step 4 — Body story opening (verbatim)
+
+Source: `reasoning_trace_entries.content` for trace
+`5fbf151c-f415-41f0-8fb2-4db1cd576d15`,
+`case_id='cccccccc-0000-4000-8000-000000000003'`,
+`system_area='body_story'`, `visibility='client'`,
+`status='client_visible'`, created 2026-05-31 12:51:44.
+
+> 1. "Your symptoms are not random — they appear to be connected."
+> 2. "The pattern we see centres around your hormonal and energy systems."
+> 3. "From the timing you've described — energy collapsing after your second child — it looks like your body went through the significant physiological demands of a second pregnancy without fully recovering the resources it needed."
+
+**Signature answer referenced: Yes** — sentence 3 directly
+paraphrases the user's signature ("energy collapsing after your
+second child"; user's exact words were "I want to understand why my
+energy collapsed after my second child"). Sentence 1 is the
+format-template-fixed opener mandated by `BODY_STORY_PROMPT_BODY`.
+For sentence-1 acknowledgement, the template would need a Phase 2
+revision (already flagged as a non-blocking open item above).
+
+## Step 5 — Synopsis opening (verbatim)
+
+Source: `ai_summaries.content` for `member_id='1854aa09-…'`,
+`summary_type='health_synopsis'`, `is_current=true`,
+`generated_at='2026-05-31 12:53:29.29+00'`.
+
+> 1. "You asked about understanding why your energy collapsed after your second child, and your data offers some meaningful clues worth exploring together."
+> 2. "Your overall picture suggests someone managing a known thyroid condition while experiencing persistent fatigue that isn't explained by sleep quantity alone — you're getting eight hours yet rating your energy just 3 out of 10."
+> 3. "This mismatch, combined with your biomarker patterns and root cause analysis, points toward a few interconnected systems that may need attention."
+
+**Signature answer referenced: Yes** — sentence 1, near-verbatim
+quote ("You asked about understanding why your energy collapsed
+after your second child").
+
+## Closure
+
+| Criterion | Verified |
+|---|---|
+| Body story generates without failure | Yes — no `body_story.failure` events in trailing 2h window |
+| Body story references signature answer | Yes — sentence 3 paraphrase |
+| Synopsis generates without failure | Yes — last write 2026-05-31 12:53:29, `is_current=true` |
+| Synopsis references signature answer | Yes — sentence 1 near-verbatim |
+
+Sprint B Phase 1 — **CLOSED** on quote-back. The three non-blocking
+open items above (body-story sentence-1 template; Chapter 5 subtitle
+near-duplicate; createReasoningTrace transactionality) stand for the
+founder to decide whether to move into Phase 2.
+
