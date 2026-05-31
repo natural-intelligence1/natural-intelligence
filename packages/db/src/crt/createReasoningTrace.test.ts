@@ -24,16 +24,32 @@ const SAMPLE_ENTRY: TraceEntry = {
 
 // ─── Unit tests ───────────────────────────────────────────────────────────────
 
+// Helper — a builder that satisfies the .update().eq().eq().eq() chain used
+// to demote any previously-client_visible trace before insert. Returns a
+// no-op success by default.
+function demoteOk() {
+  const chain: { eq: () => typeof chain; then: (r: (v: { error: null }) => unknown) => unknown } = {
+    eq: () => chain,
+    then: (r) => r({ error: null }),
+  }
+  return { update: () => chain }
+}
+
 describe('createReasoningTrace — unit', () => {
   it('throws when the trace insert errors', async () => {
+    let callCount = 0
     const fakeClient = {
-      from: () => ({
-        insert: () => ({
-          select: () => ({
-            single: async () => ({ data: null, error: { message: 'FK violation', code: '23503' } }),
+      from: () => {
+        callCount++
+        if (callCount === 1) return demoteOk()
+        return {
+          insert: () => ({
+            select: () => ({
+              single: async () => ({ data: null, error: { message: 'FK violation', code: '23503' } }),
+            }),
           }),
-        }),
-      }),
+        }
+      },
     } as unknown as ReturnType<typeof createClient<Database>>
 
     await expect(
@@ -48,12 +64,12 @@ describe('createReasoningTrace — unit', () => {
 
   it('skips the entries insert when entries array is empty', async () => {
     let entriesInsertCalled = false
-    // Return a valid trace id from trace insert; second from() call would be entries
     let callCount = 0
     const fakeClient = {
       from: () => {
         callCount++
-        if (callCount === 1) {
+        if (callCount === 1) return demoteOk()
+        if (callCount === 2) {
           return {
             insert: () => ({
               select: () => ({
@@ -62,7 +78,6 @@ describe('createReasoningTrace — unit', () => {
             }),
           }
         }
-        // Should not reach here for empty entries
         entriesInsertCalled = true
         return { insert: () => ({ then: async () => ({ error: null }) }) }
       },
@@ -83,7 +98,8 @@ describe('createReasoningTrace — unit', () => {
     const fakeClient = {
       from: () => {
         callCount++
-        if (callCount === 1) {
+        if (callCount === 1) return demoteOk()
+        if (callCount === 2) {
           return {
             insert: () => ({
               select: () => ({

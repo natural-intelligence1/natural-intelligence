@@ -18,6 +18,21 @@ export async function createReasoningTrace(
     entries:     TraceEntry[]
   },
 ): Promise<string> {
+  // Demote any existing client_visible trace for this (case_id, trace_type)
+  // to 'reviewed' — the unique index idx_reasoning_traces_one_active_per_case_type
+  // permits only one client_visible row per (case_id, trace_type). Without
+  // this, regeneration of body story / synopsis hit a 23505 unique
+  // violation. Demotion preserves history (the row is still queryable) while
+  // making room for the new trace.
+  const { error: demoteErr } = await supabase
+    .from('reasoning_traces')
+    .update({ status: 'reviewed' })
+    .eq('case_id',    opts.caseId)
+    .eq('trace_type', opts.traceType)
+    .eq('status',     'client_visible')
+
+  if (demoteErr) throw demoteErr
+
   const { data: trace, error: traceErr } = await supabase
     .from('reasoning_traces')
     .insert({
