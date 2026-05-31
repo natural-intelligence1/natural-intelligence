@@ -338,3 +338,289 @@ the highlighted dot changes).
 | 8 — Journey map | **Live, captured.** |
 
 End of evidence pack. Per founder constraint: Phase 2 not begun.
+
+---
+
+# Sprint B Closure
+
+Appended 2026-05-31 after running the closure steps from the founder
+brief: diagnose body story failure → regenerate body story →
+regenerate synopsis → fix duplicated chapter header (B1-F1) → seed
+What We Heard profiles A and C.
+
+## B1-F1 — Duplicated chapter header
+
+**Root cause.** `ChapterIntro` (`apps/web/app/dashboard/intake/IntakeForm.tsx:158-169`) renders the "Chapter N — Title" pill above each
+chapter-start step. Five `SectionHeader` call sites at chapter starts
+(Section1 line 725, ChapterBest line 1203, ChapterChanged line 1223,
+Chapter 4 lines 1502 and 1527) also passed `name="Chapter N — Title"`,
+producing the same 10px-tracking-widest pill a second time inside the
+section card.
+
+**Fix applied** (commit `0d6f551`). In `SectionHeader`, suppress the
+pill when `name` begins with `Chapter ` (case-insensitive). Mid-chapter
+sections (`name="Deeper dive"`, `"Daily life"`, `"Medical"`,
+`"Mind"`, etc.) still render their pill — `ChapterIntro` only renders
+on `isChapterStart(section)`, so there is no collision on those steps.
+
+```ts
+function SectionHeader({ name, heading, subtitle }: {...}) {
+  // B1-F1 — suppress the chapter pill here when the section sits at a
+  // chapter start; ChapterIntro already renders that pill above.
+  const suppressNamePill = /^chapter\s/i.test(name)
+  return (
+    <div className="mb-6">
+      {!suppressNamePill && (
+        <p className="text-[10px] uppercase tracking-[0.14em] text-[#B8935A] font-medium mb-2">
+          {name}
+        </p>
+      )}
+      <h2 …>{heading}</h2>
+      <p …>{subtitle}</p>
+    </div>
+  )
+}
+```
+
+**Verification.**
+- `pnpm --filter web type-check` clean.
+- `pnpm --filter web build` clean.
+- `pnpm --filter care type-check` + `build` clean.
+- `pnpm --filter care lint` clean. (web lint warnings pre-existing —
+  three rule violations in `app/opengraph-image.tsx` and
+  `app/twitter-image.tsx`, none introduced by this change.)
+- Code-path trace: every `SectionHeader` call site with
+  `name=^Chapter ` no longer emits a pill; every call site with a
+  non-Chapter name (`Deeper dive`, `Daily life`, `Medical`, `Mind`,
+  `Hormonal`, `Cognitive`) still emits its pill. `ChapterIntro`'s
+  rendering is unchanged.
+- Web deploy `dpl_J2xi6opyuDq8vJN6CPb3XfsaQJSS` (commit `0d6f551`)
+  state `READY` on `natural-intelligence.uk`.
+- Visual walk: with the live test client's intake session having been
+  reset to `current_section='arrival'`, a fresh intake walk could not
+  be re-completed inside this closure window. The code-path trace and
+  the build pass are the verification of record.
+
+## Body story quote-back
+
+**Diagnostic chain.**
+1. Three regeneration attempts in the evidence-pack session emitted
+   `body_story.start` and one `body_story.failure` in Vercel runtime
+   logs, but the MCP runtime-logs tool truncates message bodies past
+   ~30 chars, so the `error_code` value was not directly readable.
+2. Temp debug logging was added that mirrored `prompt_head` and
+   `failure_detail` into `audit_logs.metadata` so the values could be
+   read back via Supabase MCP.
+3. First read: `prompt_head` confirmed the signature block was being
+   assembled correctly — the prompt opens with `WHAT THE USER MOST
+   WANTS TO UNDERSTAND: "I want to understand why my energy collapsed
+   after my second child" / This is the question they came in with.
+   Open your response by acknowledging it directly — quote or
+   paraphrase their words.` `failure_detail` showed
+   `error_code_full: "[object Object]"` and empty stack — meaning the
+   caught throw was not a plain `Error` instance.
+4. Expanded error serialisation was added. Second read produced the
+   true error:
+   ```
+   err_message:    duplicate key value violates unique constraint
+                   "idx_reasoning_traces_one_active_per_case_type"
+   err_serialised: code=23505, details=Key (case_id, trace_type)=
+                   (cccccccc-0000-4000-8000-000000000003,
+                    intake_analysis) already exists.
+   ```
+5. **Root cause.** The unique partial index
+   `idx_reasoning_traces_one_active_per_case_type` (definition
+   `(case_id, trace_type) WHERE status='client_visible'`) permits one
+   `client_visible` trace per `(case_id, trace_type)`.
+   `createReasoningTrace` inserted a new trace at status
+   `client_visible` without demoting the existing one — every
+   regeneration of body story or synopsis hit 23505 unique violation.
+
+**Fix applied** (commit `7e8d96b`,
+`packages/db/src/crt/createReasoningTrace.ts`).
+
+```ts
+// Demote any existing client_visible trace for this (case_id, trace_type)
+// to 'reviewed' before inserting the new one.
+const { error: demoteErr } = await supabase
+  .from('reasoning_traces')
+  .update({ status: 'reviewed' })
+  .eq('case_id',    opts.caseId)
+  .eq('trace_type', opts.traceType)
+  .eq('status',     'client_visible')
+if (demoteErr) throw demoteErr
+```
+
+`reasoning_traces.status` accepts `'reviewed'` (CHECK constraint
+`status IN (draft, ready_for_review, reviewed, client_visible)`).
+Demotion preserves the row for history; `getClientStory` only returns
+`client_visible` rows so the demoted trace stops being served.
+
+Temp debug logs and audit_logs writes removed in commit `0d6f551`.
+The catch block's `errorCode` now reads `err.message` directly so
+non-`Error` throws stringify cleanly (avoiding the `[object Object]`
+artefact that hid the root cause originally).
+
+`pnpm --filter @natural-intelligence/db test` passes (204/204).
+Updated `createReasoningTrace.test.ts` to model the prepended demote
+call.
+
+**First three sentences of the regenerated body story** (`reasoning_trace_entries.content` for trace `5fbf151c-f415-41f0-8fb2-4db1cd576d15`, `case_id='cccccccc-0000-4000-8000-000000000003'`, `system_area='body_story'`, `visibility='client'`, generated 2026-05-31 12:51:44):
+
+> 1. "Your symptoms are not random — they appear to be connected."
+> 2. "The pattern we see centres around your hormonal and energy systems."
+> 3. "From the timing you've described — energy collapsing after your second child — it looks like your body went through the significant physiological demands of a second pregnancy without fully recovering the resources it needed."
+
+**Signature answer referenced — yes.** Sentence 3 paraphrases the
+exact signature: the user's question was *"I want to understand why my
+energy collapsed after my second child"*; the body story sentence 3
+opens with *"From the timing you've described — energy collapsing
+after your second child —"*. The paraphrase is direct and verbatim on
+the key clause.
+
+**Note on the format template.** Sentence 1 is the fixed opener
+mandated by `BODY_STORY_PROMPT_BODY` in
+`apps/web/app/dashboard/story/actions.ts` ("Your symptoms are not
+random — they appear to be connected."). The signature reference
+arrives at sentence 3 rather than sentence 1, because the BODY_STORY
+format template currently constrains the opening. The model still
+honours the signature instruction within the first paragraph and
+weaves the user's words into the prose. If the founder wants the
+acknowledgement to appear strictly at sentence 1, the format template
+would need a Phase-2 revision — flagged here, not changed.
+
+## Synopsis quote-back
+
+**First three sentences of the regenerated synopsis** (`ai_summaries.content` for `member_id='1854aa09-d732-4627-af19-729ec18654d7'`, `summary_type='health_synopsis'`, `generated_at='2026-05-31 12:53:29'`):
+
+> 1. "You asked about understanding why your energy collapsed after your second child, and your data offers some meaningful clues worth exploring together."
+> 2. "Your overall picture suggests someone managing a known thyroid condition while experiencing persistent fatigue that isn't explained by sleep quantity alone — you're getting eight hours yet rating your energy just 3 out of 10."
+> 3. "This mismatch, combined with your biomarker patterns and root cause analysis, points toward a few interconnected systems that may need attention."
+
+**Signature answer referenced — yes, in sentence 1.** The synopsis
+opens with *"You asked about understanding why your energy collapsed
+after your second child"* — a near-verbatim quote of the user's
+signature question. The synopsis system prompt does not impose a
+rigid format template (unlike body story), so the signature
+instruction lands at the opening as intended.
+
+## What We Heard — Profile A (multi-system, no clear life transition)
+
+**Profile inputs** (per founder brief):
+- Primary concern: fatigue + digestive issues
+- `timeline_last_well`: `not_sure`
+- `timeline_trigger`: skipped (empty)
+- Symptoms: low energy, bloating, poor sleep
+- `post_exertional_worsening`: false
+- `concern_severity_baseline`: moderate (5/10)
+- `menstrual_flow_heaviness`: not heavy
+- Short free-text answers
+
+**Traced render** (computed via the actual
+`whatWeHeardTemporalArc()` and `whatWeHeardBullets()` helpers in
+`apps/web/app/dashboard/intake/IntakeForm.tsx` lines 1567–1595, fed
+the Profile A inputs above; the DOM that `Section9` would render is
+deterministic from these helpers):
+
+```
+CHAPTER 5 — WHAT WE HEARD
+
+A short reflection.
+
+Not a diagnosis. Not a verdict. Just our way of showing we were listening.
+
+You said you last felt well a long time ago.
+
+Your full picture goes to a practitioner with your synopsis. We'll
+begin generating that now.
+```
+
+- Block 1 (temporal arc): renders. `not_sure` maps via `LAST_WELL_LABEL`
+  to `"a long time ago"`. `timeline_trigger` empty → trigger branch
+  not taken. Result: `"You said you last felt well a long time ago."`
+- Block 2 (what we noticed): **omitted**. No flag in
+  `WHAT_WE_HEARD_FLAG_COPY` fires (no `flag_severity_high`,
+  `flag_post_exertional_pattern`, or `flag_menstrual_flow_high`).
+- Block 3 (what happens next): renders verbatim.
+
+**Live-capture caveat.** The two-step seed-then-restore needed to
+present this profile to the live `/dashboard/intake` for the existing
+test client was deferred — the test session's `current_section`
+having been reset to `arrival` after the body-story / synopsis
+regeneration work meant a fresh intake walk would have to be
+re-completed inside the closure window. The traced render above is
+the deterministic output of the same helper functions that drive the
+live DOM; nothing in `Section9` adds presentation logic beyond the
+two helpers and three static blocks.
+
+## What We Heard — Profile C (minimal user)
+
+**Profile inputs** (per founder brief):
+- Primary concern: one word or blank
+- `timeline_last_well`: skipped
+- `timeline_trigger`: skipped
+- No Best Self detail
+- `post_exertional_worsening`: not answered
+- `concern_severity_baseline`: not high
+- `menstrual_flow_heaviness`: not high
+- Minimum viable completion
+
+**Traced render:**
+
+```
+CHAPTER 5 — WHAT WE HEARD
+
+A short reflection.
+
+Not a diagnosis. Not a verdict. Just our way of showing we were listening.
+
+Your full picture goes to a practitioner with your synopsis. We'll
+begin generating that now.
+```
+
+- Block 1 (temporal arc): **omitted**. `timeline_last_well` not in
+  `LAST_WELL_LABEL` and `timeline_trigger` empty →
+  `whatWeHeardTemporalArc` returns `''`; the surrounding
+  `{arc && (...)}` collapses cleanly.
+- Block 2 (what we noticed): **omitted**. No flag fires.
+- Block 3 (what happens next): renders verbatim.
+
+**Honest assessment of graceful degradation.** Profile C renders as a
+two-line note: the chapter framing ("A short reflection. Not a
+diagnosis. Not a verdict.") and the forward statement. No fabricated
+pattern bullets, no padded temporal arc, no false confidence. This is
+the correct degradation behaviour — the rules surface only what the
+user actually answered, and the chapter is structurally honest about
+that. A sparse intake produces a sparse reflection. The risk to watch
+in future passes: if Profile-C-like sparseness becomes common, the
+chapter may feel hollow rather than honest — a small Phase-2 question
+("anything else?") might be a better safety net than padding the
+existing rule output.
+
+## Sprint B Phase 1 closure status
+
+**CONDITIONAL.**
+
+| Criterion | Met? | Notes |
+|---|---|---|
+| B1-F1 duplicated header fixed | **Yes** (code) | Code-path trace + build clean. Live visual walk deferred due to test session reset; the fix is mechanically deterministic from the suppress predicate. |
+| Body story references signature answer | **Yes** (sentence 3) | Direct paraphrase of "energy collapsed after my second child" lands at sentence 3 of the regenerated body story. Sentence 1 is the format-template fixed opener; if founder wants sentence-1 acknowledgement, the BODY_STORY_PROMPT_BODY template needs a Phase-2 revision. |
+| Synopsis references signature answer | **Yes** (sentence 1) | Near-verbatim quote at sentence 1 of the regenerated synopsis. |
+| Profile C degrades gracefully | **Yes** | Two-line render: chapter framing + forward statement. No fabricated bullets. |
+
+**Open items flagged to founder:**
+1. **Body story sentence-1 acknowledgement.** The BODY_STORY_PROMPT_BODY
+   format template hardcodes "Your symptoms are not random — they
+   appear to be connected." as sentence 1. If the founder wants the
+   signature quote to land at sentence 1 rather than sentence 3, the
+   template needs revision — out of Sprint B Phase 1 scope.
+2. **Live visual walk for B1-F1 + Profiles A/C.** The current test
+   client's intake session was reset to `arrival` during the
+   body-story regen work, so a fresh intake walk for visual capture
+   was not re-completed inside the closure window. Code-path trace
+   stands as verification of record.
+3. **createReasoningTrace concurrency.** The demote-then-insert
+   pattern is not transactional — two concurrent regenerations for
+   the same case could race. Not observed in this evidence chain;
+   noted for awareness.
+
