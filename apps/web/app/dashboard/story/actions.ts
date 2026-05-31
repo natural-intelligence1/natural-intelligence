@@ -235,12 +235,22 @@ export async function generateBodyStory(
     // TEMP DEBUG — Sprint B closure diagnostic. Remove before final commit.
     console.log(JSON.stringify({ event: 'body_story.debug.failure_detail', user_id: memberId, error_code_full: errorCode, error_stack_head: errorStack }))
     try {
+      const errAny = err as { name?: string; status?: number; message?: string; error?: unknown; cause?: unknown }
+      let serialised = ''
+      try {
+        serialised = JSON.stringify(err, Object.getOwnPropertyNames(errAny ?? {})).slice(0, 1200)
+      } catch { serialised = '[serialise failed]' }
       await adminClient.from('audit_logs').insert({
         action:        'body_story.debug.failure_detail',
         resource_type: 'reasoning_trace',
         metadata:      {
           error_code_full:  errorCode,
           error_stack_head: errorStack,
+          err_name:         errAny?.name ?? null,
+          err_status:       errAny?.status ?? null,
+          err_message:      errAny?.message ?? null,
+          err_serialised:   serialised,
+          err_cause_str:    errAny?.cause ? String(errAny.cause).slice(0, 400) : null,
           duration_ms:      Date.now() - startMs,
         },
       })
