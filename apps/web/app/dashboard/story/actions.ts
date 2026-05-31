@@ -96,6 +96,15 @@ export async function generateBodyStory(
     const mostWantToUnderstand = (intake as { most_want_to_understand?: string | null } | null)?.most_want_to_understand ?? null
     const systemPrompt = buildBodyStorySystemPrompt(p, mostWantToUnderstand)
 
+    // TEMP DEBUG — Sprint B closure diagnostic. Remove before final commit.
+    console.log(JSON.stringify({
+      event:                     'body_story.debug.prompt_head',
+      user_id:                   memberId,
+      most_want_present:         !!mostWantToUnderstand,
+      most_want_chars:           (mostWantToUnderstand ?? '').length,
+      system_prompt_head_250:    systemPrompt.slice(0, 250),
+    }))
+
     const message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
       max_tokens: 4096,
@@ -211,7 +220,10 @@ export async function generateBodyStory(
 
   } catch (err) {
     const errorCode = err instanceof Error ? err.message : String(err)
+    const errorStack = err instanceof Error ? (err.stack ?? '').slice(0, 600) : ''
     console.log(JSON.stringify({ event: 'body_story.failure', user_id: memberId, error_code: errorCode, duration_ms: Date.now() - startMs }))
+    // TEMP DEBUG — Sprint B closure diagnostic. Remove before final commit.
+    console.log(JSON.stringify({ event: 'body_story.debug.failure_detail', user_id: memberId, error_code_full: errorCode, error_stack_head: errorStack }))
     console.error('[generateBodyStory] error:', err)
     return { status: 'error' }
   }
