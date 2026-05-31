@@ -59,6 +59,27 @@ export function buildPersonalisationBlock(p: PersonalisationForGeneration): stri
   ].join('\n')
 }
 
+// Sprint B Phase 1 — signature question block.
+//
+// When the user has answered "what would you most want to understand" the
+// AI generation paths (body story, synopsis) receive this verbatim so the
+// opening sentence can quote it back. The quote-back is contractually
+// required (Sprint B Phase 1 — Part 2: "a question the platform asks and
+// then ignores is worse than not asking it").
+//
+// Returns an empty string when the user skipped the question — callers
+// concatenate with '\n\n' separators; empty block disappears cleanly.
+export function buildSignatureQuestionBlock(mostWantToUnderstand: string | null): string {
+  const quote = (mostWantToUnderstand ?? '').trim()
+  if (!quote) return ''
+  return [
+    'WHAT THE USER MOST WANTS TO UNDERSTAND:',
+    `"${quote}"`,
+    '',
+    'This is the question they came in with. Open your response by acknowledging it directly — quote or paraphrase their words. Everything you write should help answer or honour it.',
+  ].join('\n')
+}
+
 // Block variant that strips the framing line entirely — used by BioHub lab
 // interpretation (Option iii: clinical-only, no religious framing surface).
 export function buildBiologicalContextBlock(p: PersonalisationForGeneration): string {

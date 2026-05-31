@@ -11,6 +11,7 @@ import {
 }                                                       from '@natural-intelligence/db/personalisation'
 import {
   buildPersonalisationBlock,
+  buildSignatureQuestionBlock,
   isIslamicFramingEnabled,
 }                                                       from '@natural-intelligence/db/prompts'
 
@@ -42,7 +43,9 @@ export async function generateBodyStory(
         .order('answered_at', { ascending: true }),
       adminClient
         .from('intake_responses')
-        .select('primary_concerns, primary_system, is_complete')
+        // Sprint B Phase 1 — most_want_to_understand added; variable-string
+        // select bypasses the not-yet-regenerated Database types validation.
+        .select(['primary_concerns', 'primary_system', 'is_complete', 'most_want_to_understand'].join(', '))
         .eq('member_id', memberId)
         .eq('is_complete', true)
         .order('created_at', { ascending: false })
@@ -87,7 +90,11 @@ export async function generateBodyStory(
     // ── 3. Call Claude ────────────────────────────────────────────────────────
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-    const systemPrompt = buildBodyStorySystemPrompt(p)
+    // Sprint B Phase 1 — quote the user's signature-question answer back in
+    // the opening of the body story. Empty string when the user skipped, so
+    // the prompt joins cleanly.
+    const mostWantToUnderstand = (intake as { most_want_to_understand?: string | null } | null)?.most_want_to_understand ?? null
+    const systemPrompt = buildBodyStorySystemPrompt(p, mostWantToUnderstand)
 
     const message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
@@ -107,8 +114,12 @@ export async function generateBodyStory(
       ? (answerMap['primary_concerns'] as string[])[0]
       : (answerMap['primary_concerns'] as string | undefined)
 
+    // intake typed loosely because the select string is a variable (needed
+    // to include most_want_to_understand before generated DB types are
+    // regenerated).
+    const intakeRow = intake as { primary_concerns?: string[] | null; most_want_to_understand?: string | null } | null
     const caseId = await getOrCreateClientCase(adminClient, memberId, {
-      primaryConcern: primaryConcern ?? intake?.primary_concerns?.[0] ?? undefined,
+      primaryConcern: primaryConcern ?? intakeRow?.primary_concerns?.[0] ?? undefined,
     })
 
     // ── 6. Build trace entries ────────────────────────────────────────────────
@@ -213,8 +224,18 @@ export async function generateBodyStory(
 // FIRST so the model has client context before reading its role/task. The
 // existing role/task/format/tone content follows unchanged.
 
-function buildBodyStorySystemPrompt(p: PersonalisationForGeneration): string {
-  return [buildPersonalisationBlock(p), BODY_STORY_PROMPT_BODY].join('\n\n')
+function buildBodyStorySystemPrompt(
+  p: PersonalisationForGeneration,
+  mostWantToUnderstand: string | null,
+): string {
+  // Sprint B Phase 1 — signature block prepended when the user answered the
+  // "what would you most want to understand" question. Empty string when
+  // skipped (the .filter(Boolean) drops it cleanly).
+  return [
+    buildSignatureQuestionBlock(mostWantToUnderstand),
+    buildPersonalisationBlock(p),
+    BODY_STORY_PROMPT_BODY,
+  ].filter(Boolean).join('\n\n')
 }
 
 const BODY_STORY_PROMPT_BODY = `You are a clinical reasoning engine for Natural Intelligence, a UK integrative health platform.

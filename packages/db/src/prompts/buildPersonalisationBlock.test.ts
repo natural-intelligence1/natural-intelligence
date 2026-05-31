@@ -12,6 +12,7 @@ import type { PersonalisationForGeneration } from '../personalisation/getPersona
 import {
   buildPersonalisationBlock,
   buildBiologicalContextBlock,
+  buildSignatureQuestionBlock,
   isIslamicFramingEnabled,
 } from './buildPersonalisationBlock'
 
@@ -99,6 +100,30 @@ describe('buildPersonalisationBlock — 5-case matrix (PS.4 Part 3)', () => {
     // Clinical safety preserved even with religious framing on
     expect(out).not.toContain('female-pattern')
     expect(out).not.toContain('male-pattern')
+  })
+})
+
+describe('buildSignatureQuestionBlock (Sprint B Phase 1 — signature quote-back)', () => {
+  it('returns empty string when quote is null', () => {
+    expect(buildSignatureQuestionBlock(null)).toBe('')
+  })
+
+  it('returns empty string when quote is empty/whitespace', () => {
+    expect(buildSignatureQuestionBlock('')).toBe('')
+    expect(buildSignatureQuestionBlock('   ')).toBe('')
+  })
+
+  it('includes the verbatim quote and an opening-acknowledgement instruction', () => {
+    const out = buildSignatureQuestionBlock('Whether my fatigue is the thyroid medication')
+    expect(out).toContain('WHAT THE USER MOST WANTS TO UNDERSTAND:')
+    expect(out).toContain('"Whether my fatigue is the thyroid medication"')
+    expect(out).toContain('Open your response by acknowledging it directly')
+  })
+
+  it('trims surrounding whitespace from the quote', () => {
+    const out = buildSignatureQuestionBlock('  what is going on  ')
+    expect(out).toContain('"what is going on"')
+    expect(out).not.toContain('"  what is going on  "')
   })
 })
 

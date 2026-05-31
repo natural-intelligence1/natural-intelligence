@@ -8,6 +8,7 @@ import {
 }                              from '@natural-intelligence/db/personalisation'
 import {
   buildPersonalisationBlock,
+  buildSignatureQuestionBlock,
   isIslamicFramingEnabled,
 }                              from '@natural-intelligence/db/prompts'
 
@@ -104,7 +105,14 @@ export async function generateHealthSynopsis(memberId: string): Promise<{
 
     // PS.4 — prepend personalisation block. CLIENT CONTEXT sits first so the
     // model has demographic/framing context before reading its role/task.
-    const systemPrompt = buildPersonalisationBlock(personalisation) + '\n\n' + `You are a clinical health intelligence analyst working for Natural Intelligence, a UK-based integrative health platform. Your role is to synthesise a member's health data — including their self-reported intake form, any biomarker results from uploaded lab reports, and root cause analysis outputs — into a clear, personalised health synopsis.
+    // Sprint B Phase 1 — additionally prepend the signature-question block
+    // when populated, so the synopsis opens by acknowledging the question
+    // the user came in with.
+    const mostWantToUnderstand = (intake as { most_want_to_understand?: string | null } | null)?.most_want_to_understand ?? null
+    const systemPrompt = [
+      buildSignatureQuestionBlock(mostWantToUnderstand),
+      buildPersonalisationBlock(personalisation),
+      `You are a clinical health intelligence analyst working for Natural Intelligence, a UK-based integrative health platform. Your role is to synthesise a member's health data — including their self-reported intake form, any biomarker results from uploaded lab reports, and root cause analysis outputs — into a clear, personalised health synopsis.
 
 Write in warm, plain English that a health-conscious non-clinician can understand. Do not use medical jargon without explanation. The synopsis should:
 - Open with 1–2 sentences summarising the member's overall health picture
@@ -113,7 +121,8 @@ Write in warm, plain English that a health-conscious non-clinician can understan
 - Close with 2–3 practical, evidenced-based actions the member can take
 - Be honest about data limitations (e.g. if no lab data exists, say so)
 
-Format: use plain paragraphs. You may use short bullet lists (starting with -) for action items only. Maximum 400 words. No markdown headers. No diagnosis — you are providing health intelligence, not medical advice.`
+Format: use plain paragraphs. You may use short bullet lists (starting with -) for action items only. Maximum 400 words. No markdown headers. No diagnosis — you are providing health intelligence, not medical advice.`,
+    ].filter(Boolean).join('\n\n')
 
     const userPrompt = buildSynopsisPrompt({
       intake: intake as IntakeRow,
