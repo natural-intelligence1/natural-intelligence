@@ -135,7 +135,7 @@ export function ClientSummaryPanel({ summary, clientName, memberId, personalisat
             In their own words
           </div>
           <div style={{ fontSize: '13px', color: '#1A1917', lineHeight: '1.5', fontStyle: 'italic' }}>
-            "{summary.mostWantToUnderstand}"
+            &ldquo;{summary.mostWantToUnderstand}&rdquo;
           </div>
         </div>
       )}
