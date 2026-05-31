@@ -21,6 +21,11 @@ export interface FormState {
   // Persisted to user_personalisation.biological_sex (NOT intake_responses).
   // null = not yet answered. 'male'|'female' = answered.
   biological_sex:            'male' | 'female' | null
+  // Sprint B Phase 1 — signature question. Persisted to
+  // intake_responses.most_want_to_understand. Quoted verbatim in
+  // practitioner workspace + body story opening + synopsis opening.
+  // Empty string = not yet answered (the question is not required).
+  most_want_to_understand:   string
   primary_concerns:          string[]
   concern_duration:          string
   symptom_pattern:           string

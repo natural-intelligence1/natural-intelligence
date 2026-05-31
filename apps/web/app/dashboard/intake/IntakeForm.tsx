@@ -14,34 +14,137 @@ import { evaluateRules, BRANCHING_RULES } from '@natural-intelligence/db/intake'
 import { useIntakeAnswers } from './hooks/useIntakeAnswers'
 import type { FormState, PersistMeta, PersistFn } from './types'
 
-// ─── Journey nodes ────────────────────────────────────────────────────────────
+// ─── Sprint B Phase 1 — Chapter framework ────────────────────────────────────
+//
+// Six-moment journey replacing the prior 10-section linear flow:
+//   Chapter 0 — Arrival             (tone-set)
+//   Chapter 1 — Your Story          (context + intention)
+//   Chapter 2 — Your Best           (temporal anchor — backward)
+//   Chapter 3 — What Changed        (temporal pivot)
+//   Chapter 4 — Where You Are Now   (current symptoms + life + medical + mind)
+//   Chapter 5 — What We Heard       (rule-generated reflection + consent)
+//
+// The internal step counter (0–11) maps to chapters via chapterForSection().
+// Chapter 4 contains multiple internal steps (Deeper dive / Daily life /
+// Medical / Mind / Goals stub / Readiness stub) — the journey map shows
+// chapter-level progress only.
+//
+// Step → chapter mapping:
+//   step 0  → chapter 0   Arrival
+//   step 1  → chapter 1   Your Story
+//   step 2  → chapter 2   Your Best        (timeline_last_well — moved from old Section 3)
+//   step 3  → chapter 3   What Changed     (timeline_trigger — moved from old Section 3)
+//   step 4  → chapter 4   Deeper dive      (old Section 2)
+//   step 5  → chapter 4   Daily life       (old Section 4)
+//   step 6  → chapter 4   Medical          (old Section 5)
+//   step 7  → chapter 4   Mind             (old Section 6)
+//   step 8  → chapter 4   Goals stub       (old Section 7 — mostly empty after deletions)
+//   step 9  → chapter 4   Readiness stub   (old Section 8 — mostly empty after deletions)
+//   step 10 → chapter 5   What We Heard + consent (old Section 9, reframed)
+//
+// Editorial copy below — chapter titles, purpose statements, transition
+// copy — drafted in the Sprint B architecture document §4–5 and approved
+// by founder for Phase 1 substrate use. Content rewrite is Phase 2.
 
-const JOURNEY_NODES = [
-  'Arrival', 'Your story', 'Deeper dive', 'Timeline',
-  'Daily life', 'Medical', 'Mind', 'Goals', 'Readiness', 'Complete',
+interface ChapterDef {
+  id:         number
+  title:      string
+  purpose:    string      // shown at chapter start
+  transition: string      // shown when entering this chapter from the previous one (empty for chapter 0)
+}
+
+const CHAPTERS: ChapterDef[] = [
+  {
+    id:    0,
+    title: 'Arrival',
+    purpose:    "Before we start, just one question: how are you feeling, arriving here? There's no wrong answer. We ask because it changes how we want to talk to you.",
+    transition: '',
+  },
+  {
+    id:    1,
+    title: 'Your Story',
+    purpose:    "This part is about you, not your symptoms. Who you are, and what you'd most want to understand about what's happening. The rest of the intake builds from here.",
+    transition: 'Thank you for telling us. Let’s start with you.',
+  },
+  {
+    id:    2,
+    title: 'Your Best',
+    purpose:    "Most people remember a time they felt well, even if it was a while ago. We're going to look at that — not because it's painful, but because what was different then often tells us more than what's different now.",
+    transition: 'You’ve given us the frame. Now we’d like to look backwards before we look at where you are now — back to the last time you remember feeling well.',
+  },
+  {
+    id:    3,
+    title: 'What Changed',
+    purpose:    "Now the harder part. When things shifted, what was happening in your life. Sometimes there's a clear trigger. Sometimes there isn't. Either is useful.",
+    transition: 'We’d like to understand what was happening around then — and what shifted.',
+  },
+  {
+    id:    4,
+    title: 'Where You Are Now',
+    purpose:    "The fullest part of the intake. We'll ask about your body, your sleep, your food, your environment, your relationships, your stress, and your medical history. Take your time. Skip anything that feels uncertain — we'd rather have an honest gap than a guess.",
+    transition: 'That’s the part of the picture that takes the most. You’ve done it. The next part is more practical — your body, your life, your medical history.',
+  },
+  {
+    id:    5,
+    title: 'What We Heard',
+    purpose:    "A short reflection of what you've shared. Not a diagnosis. Not a verdict. Just our way of showing we were listening.",
+    transition: 'You’ve shared everything we’d want to know to start. Before you finish, we want to show you what we heard.',
+  },
 ]
 
-function JourneyMap({ current }: { current: number }) {
+// Map internal step index (0–10) → chapter id (0–5). Steps 4–9 all sit
+// inside chapter 4. The "isChapterStart" check uses this to render the
+// transition + chapter intro only at chapter boundaries (not on every step).
+export function chapterForStep(step: number): number {
+  if (step <= 0) return 0
+  if (step === 1) return 1
+  if (step === 2) return 2
+  if (step === 3) return 3
+  if (step >= 4 && step <= 9) return 4
+  return 5
+}
+
+// True when the step is the first step of a new chapter — used to gate
+// chapter transition + intro rendering.
+function isChapterStart(step: number): boolean {
+  return step === 0 || step === 1 || step === 2 || step === 3 || step === 4 || step === 10
+}
+
+const TOTAL_STEPS = 11   // steps 0–10
+
+// 5 chapter dots (Chapter 0 Arrival rendered as a small prefix dot; chapters
+// 1–5 as numbered dots). Replaces the prior 10-node JOURNEY_NODES map.
+function JourneyMap({ step }: { step: number }) {
+  const currentChapter = chapterForStep(step)
+  // Show chapters 1–5 as the main dots; chapter 0 (Arrival) is implicit
+  // and not shown in the map (the user is already past it once the map
+  // first appears — see render guard in IntakeForm).
+  const chapters = CHAPTERS.filter(c => c.id >= 1)
   return (
-    <div className="flex items-start mb-10 overflow-x-auto pb-2 -mx-1 px-1">
-      {JOURNEY_NODES.map((label, i) => {
-        const isDone    = i < current
-        const isCurrent = i === current
+    <div className="flex items-center justify-center mb-10 gap-3" aria-label="Intake progress">
+      {chapters.map((chapter, i) => {
+        const done    = currentChapter > chapter.id
+        const current = currentChapter === chapter.id
         return (
-          <div key={i} className="flex items-start flex-shrink-0" style={{ minWidth: 0 }}>
-            <div className="flex flex-col items-center gap-1">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold transition-all ${
-                isDone    ? 'bg-[#B8935A] text-text-inverted'
-                : isCurrent ? 'bg-[#0E0D0B] text-text-inverted'
-                : 'border border-border-default text-text-muted'
+          <div key={chapter.id} className="flex items-center gap-3">
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className={`w-3 h-3 rounded-full transition-all ${
+                  done    ? 'bg-[#B8935A]'
+                  : current ? 'bg-[#0E0D0B] ring-2 ring-[#B8935A]/30 ring-offset-2 ring-offset-surface-base'
+                  : 'bg-border-default'
+                }`}
+                aria-current={current ? 'step' : undefined}
+              />
+              <span className={`text-[10px] uppercase tracking-[0.08em] transition-colors ${
+                current ? 'text-[#0E0D0B] font-medium' : 'text-text-muted'
               }`}>
-                {isDone ? '✓' : i + 1}
-              </div>
-              <span className="text-[9px] text-text-muted text-center leading-tight max-w-[52px]">{label}</span>
+                {chapter.title}
+              </span>
             </div>
-            {i < JOURNEY_NODES.length - 1 && (
-              <div className={`h-px w-6 mt-3.5 flex-shrink-0 mx-0.5 transition-all ${
-                i < current ? 'bg-[#B8935A]' : 'bg-border-default'
+            {i < chapters.length - 1 && (
+              <div className={`h-px w-6 transition-all ${
+                done ? 'bg-[#B8935A]' : 'bg-border-default'
               }`} />
             )}
           </div>
@@ -51,15 +154,33 @@ function JourneyMap({ current }: { current: number }) {
   )
 }
 
+// Chapter intro — title + purpose, shown at the first step of each chapter.
+function ChapterIntro({ chapter }: { chapter: ChapterDef }) {
+  return (
+    <div className="mb-8">
+      <p className="text-[10px] uppercase tracking-[0.14em] text-[#B8935A] font-medium mb-2">
+        Chapter {chapter.id} — {chapter.title}
+      </p>
+      <p className="text-sm italic text-text-secondary leading-relaxed">
+        {chapter.purpose}
+      </p>
+    </div>
+  )
+}
+
 // ─── Section header ───────────────────────────────────────────────────────────
+// Preserved for back-compat with existing Section components (slotted as-is
+// per Sprint B Phase 1 "substrate first, content second" approach). The
+// "name" subtitle no longer references the deprecated JOURNEY_NODES count —
+// it now references the chapter the section sits within.
 
 function SectionHeader({
-  section, name, heading, subtitle,
-}: { section: number; name: string; heading: string; subtitle: string }) {
+  name, heading, subtitle,
+}: { section?: number; name: string; heading: string; subtitle: string }) {
   return (
     <div className="mb-6">
       <p className="text-[10px] uppercase tracking-[0.14em] text-[#B8935A] font-medium mb-2">
-        Section {section} of {JOURNEY_NODES.length - 1} — {name}
+        {name}
       </p>
       <h2 className="font-display text-2xl font-light text-text-primary leading-snug mb-1">
         {heading}
@@ -310,6 +431,9 @@ function initialState(
     // from the server page. Persistence on change writes back via the
     // authenticated client (member up_member_update RLS).
     biological_sex:            biologicalSex,
+    // Sprint B Phase 1 — signature question. Read from intake_responses if
+    // present (resume case); else empty string.
+    most_want_to_understand:   str('most_want_to_understand'),
     primary_concerns:          arr('primary_concerns'),
     concern_duration:          str('concern_duration'),
     symptom_pattern:           str('symptom_pattern'),
@@ -369,17 +493,39 @@ function initialState(
 // detectPrimarySystem deleted in C5 — replaced by evaluateRules + BRANCHING_RULES.
 // getSectionData now receives the derived primarySystem from the caller.
 
+// Sprint B Phase 1 — getSectionData renumbered for the new 11-step flow.
+// Called by handleNext as getSectionData(form, currentStep + 1, ...) — i.e.
+// the case argument is the destination step. Each case flushes the fields
+// that were captured in the step we are leaving.
+//   case 1  ← after step 0  (Arrival)         flushes arrival_emotion
+//   case 2  ← after step 1  (Your Story)      flushes story fields + signature
+//   case 3  ← after step 2  (Your Best)       flushes timeline_last_well
+//   case 4  ← after step 3  (What Changed)    flushes timeline_trigger
+//   case 5  ← after step 4  (Deeper dive)     flushes systems_reviewed + primary_system
+//   case 6  ← after step 5  (Daily life)
+//   case 7  ← after step 6  (Medical)
+//   case 8  ← after step 7  (Mind)
+//   case 9  ← after step 8  (Goals stub)      ← shrinks after Phase 1 deletions
+//   case 10 ← after step 9  (Readiness stub)  ← shrinks after Phase 1 deletions
 function getSectionData(f: FormState, s: number, primarySystem: string): Record<string, unknown> {
   switch (s) {
     case 1: return { arrival_emotion: f.arrival_emotion || null }
-    case 2: return { primary_concerns: f.primary_concerns, concern_duration: f.concern_duration || null, symptom_pattern: f.symptom_pattern || null, primary_system: primarySystem }
-    case 3: return { systems_reviewed: f.systems_reviewed, primary_system: primarySystem }
-    case 4: return { timeline_last_well: f.timeline_last_well || null, timeline_trigger: f.timeline_trigger || null }
-    case 5: return { sleep_hours: f.sleep_hours, sleep_quality: f.sleep_quality, stress_level: f.stress_level, energy_level: f.energy_level, exercise_frequency: f.exercise_frequency || null, diet_description: f.diet_description || null }
-    case 6: return { diagnosed_conditions: f.diagnosed_conditions, current_medications: f.current_medications || null, current_supplements: f.current_supplements || null, past_treatments: f.past_treatments || null, practitioner_types: f.practitioner_types, surgeries_or_injuries: f.surgeries_or_injuries || null, family_history: f.family_history }
-    case 7: return { psychosocial_impact: f.psychosocial_impact || null, psychosocial_worry: f.psychosocial_worry || null, psychosocial_supported: f.psychosocial_supported ? ['alone', 'not_really'].includes(f.psychosocial_supported) ? false : true : null }
-    case 8: return { health_goals: f.health_goals, timeline_expectation: f.timeline_expectation || null, biggest_barrier: f.biggest_barrier || null }
-    case 9: return { readiness_time: f.readiness_time || null, readiness_budget: f.readiness_budget || null, readiness_change: f.readiness_change || null }
+    case 2: return {
+      primary_concerns:        f.primary_concerns,
+      concern_duration:        f.concern_duration || null,
+      symptom_pattern:         f.symptom_pattern || null,
+      primary_system:          primarySystem,
+      // Sprint B Phase 1 — signature question lives on intake_responses
+      most_want_to_understand: f.most_want_to_understand || null,
+    }
+    case 3: return { timeline_last_well: f.timeline_last_well || null }
+    case 4: return { timeline_trigger:   f.timeline_trigger   || null }
+    case 5: return { systems_reviewed:   f.systems_reviewed,   primary_system: primarySystem }
+    case 6: return { sleep_hours: f.sleep_hours, sleep_quality: f.sleep_quality, stress_level: f.stress_level, energy_level: f.energy_level, exercise_frequency: f.exercise_frequency || null, diet_description: f.diet_description || null }
+    case 7: return { diagnosed_conditions: f.diagnosed_conditions, current_medications: f.current_medications || null, current_supplements: f.current_supplements || null, past_treatments: f.past_treatments || null, practitioner_types: f.practitioner_types, surgeries_or_injuries: f.surgeries_or_injuries || null, family_history: f.family_history }
+    case 8: return { psychosocial_impact: f.psychosocial_impact || null, psychosocial_worry: f.psychosocial_worry || null, psychosocial_supported: f.psychosocial_supported ? ['alone', 'not_really'].includes(f.psychosocial_supported) ? false : true : null }
+    case 9: return { health_goals: f.health_goals, timeline_expectation: f.timeline_expectation || null, biggest_barrier: f.biggest_barrier || null }
+    case 10: return { readiness_time: f.readiness_time || null, readiness_budget: f.readiness_budget || null, readiness_change: f.readiness_change || null }
     default: return {}
   }
 }
@@ -939,25 +1085,44 @@ const LAST_WELL_EMOJIS: EmojiOption[] = [
   { key: 'not_sure',        icon: '💭', label: 'Not sure I ever have' },
 ]
 
-function Section3({
+// Sprint B Phase 1 — old Section 3 (Timeline) split into two chapters:
+//   ChapterBest    (step 2) — timeline_last_well  → Chapter 2 "Your Best"
+//   ChapterChanged (step 3) — timeline_trigger    → Chapter 3 "What Changed"
+// The split serves the temporal arc of the journey (backward anchor →
+// pivot). Content slotted as-is per Phase 1 spec; per-question rewrites
+// (the new "what was different back then" narrative q, the comparative
+// sleep/energy/mood "back then" questions) are Phase 2.
+
+function ChapterBest({
   form, setForm, persist,
 }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; persist: PersistFn }) {
+  void setForm
   return (
     <div className="space-y-7">
-      <SectionHeader section={3} name="Timeline" heading="When did things change?" subtitle="Sometimes understanding when is as revealing as what." />
+      <SectionHeader name="Chapter 2 — Your Best" heading="When did you last feel well?" subtitle="Sometimes understanding when is as revealing as what." />
       <AcknowledgementBanner text="Some details may take you back through your health history. Take your time." />
       <div>
         <p className="text-sm font-medium text-text-primary mb-3">When did you last feel genuinely well?</p>
         <EmojiCardGrid
           options={LAST_WELL_EMOJIS}
           selected={form.timeline_last_well ? [form.timeline_last_well] : []}
-          onChange={v => persist('timeline_last_well', v[0] ?? '', 3, { clinicalObjective: 'symptom_onset' })}
+          onChange={v => persist('timeline_last_well', v[0] ?? '', 2, { clinicalObjective: 'symptom_onset' })}
           cols={5}
         />
       </div>
+    </div>
+  )
+}
+
+function ChapterChanged({
+  form, setForm, persist,
+}: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; persist: PersistFn }) {
+  return (
+    <div className="space-y-7">
+      <SectionHeader name="Chapter 3 — What Changed" heading="What was happening around then?" subtitle="e.g. a stressful period, a virus, a life change, or nothing obvious." />
       <div>
-        <p className="text-sm font-medium text-text-primary mb-2">What was happening around then?</p>
-        <p className="text-xs text-text-muted mb-3">e.g. a stressful period, a virus, a life change, or nothing obvious</p>
+        <p className="text-sm font-medium text-text-primary mb-2">In your own words.</p>
+        <p className="text-xs text-text-muted mb-3">There&apos;s no right answer — even &ldquo;nothing obvious&rdquo; is useful.</p>
         <WarmTextarea
           value={form.timeline_trigger}
           onChange={v => setForm(f => ({ ...f, timeline_trigger: v }))}
@@ -1413,7 +1578,8 @@ export function IntakeForm({
   initialBiologicalSex:  'male' | 'female' | null
 }) {
   const router  = useRouter()
-  const TOTAL   = 10  // sections 0–9
+  // Sprint B Phase 1 — 11 steps (0–10) mapping to 6 chapters via chapterForStep().
+  const TOTAL   = TOTAL_STEPS  // 11 steps total: 0..10
   const initial = Math.min((existing?.completed_sections as number | undefined) ?? 0, TOTAL - 1)
 
   const [section,   setSection]   = useState<number>(initial)
@@ -1527,7 +1693,9 @@ export function IntakeForm({
     setSaving(true)
     setError(null)
     try {
-      await saveIntakeSection(getSectionData(form, 9, section2Branch), 9)
+      // Sprint B Phase 1 — was case 9 in the old 10-section flow; final
+      // case is now 10 in the new 11-step (Chapter 5) flow.
+      await saveIntakeSection(getSectionData(form, 10, section2Branch), 10)
       await completeIntake({ consent_to_ai_analysis: true, consent_given_at: new Date().toISOString() })
       router.push('/dashboard/synopsis')
     } catch (err) {
@@ -1546,7 +1714,7 @@ export function IntakeForm({
       <style>{`@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }`}</style>
 
       {/* Journey map */}
-      {!isSection0 && <JourneyMap current={section} />}
+      {!isSection0 && <JourneyMap step={section} />}
 
       {/* Acknowledgement banner for section 1+ (based on arrival emotion) */}
       {section === 1 && form.arrival_emotion && (
@@ -1563,16 +1731,44 @@ export function IntakeForm({
         style={{ opacity: isHydrating ? 0.4 : opacity, transition: 'opacity 160ms ease-out' }}
         className="rounded-2xl border border-border-default bg-surface-raised p-6 mb-6"
       >
-        {section === 0 && <Section0 form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 1 && <Section1 form={form} setForm={setForm} persist={setAnswer} setBiologicalSex={setBiologicalSex} />}
-        {section === 2 && <Section2 branch={section2Branch} form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 3 && <Section3 form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 4 && <Section4 form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 5 && <Section5 form={form} setForm={setForm} persist={setAnswer} isDigestive={isDigestive} />}
-        {section === 6 && <Section6 form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 7 && <Section7 form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 8 && <Section8 form={form} setForm={setForm} persist={setAnswer} />}
-        {section === 9 && <Section9 consent={consent} setConsent={setConsent} />}
+        {/* Chapter transition copy — shown at the first step of each new
+            chapter (except Chapter 0 which has no preceding chapter). */}
+        {isChapterStart(section) && section > 0 && CHAPTERS[chapterForStep(section)]?.transition && (
+          <div className="border-l-4 border-[#B8935A] bg-[#F8F1E4] px-5 py-4 rounded-r-xl mb-6">
+            <p className="font-display italic text-base text-[#633806] leading-relaxed">
+              {CHAPTERS[chapterForStep(section)].transition}
+            </p>
+          </div>
+        )}
+
+        {/* Chapter intro — shown at the first step of each chapter. */}
+        {isChapterStart(section) && section !== 0 && (
+          <ChapterIntro chapter={CHAPTERS[chapterForStep(section)]} />
+        )}
+
+        {/* Sprint B Phase 1 — step→chapter mapping:
+              step 0  = Chapter 0  (Arrival)         → Section0
+              step 1  = Chapter 1  (Your Story)      → Section1
+              step 2  = Chapter 2  (Your Best)       → ChapterBest (timeline_last_well)
+              step 3  = Chapter 3  (What Changed)    → ChapterChanged (timeline_trigger)
+              step 4  = Chapter 4  Deeper dive       → Section2 (branched)
+              step 5  = Chapter 4  Daily life        → Section4
+              step 6  = Chapter 4  Medical           → Section5
+              step 7  = Chapter 4  Mind              → Section6
+              step 8  = Chapter 4  Goals stub        → Section7 (will shrink after Phase 1 deletions)
+              step 9  = Chapter 4  Readiness stub    → Section8 (will shrink after Phase 1 deletions)
+              step 10 = Chapter 5  What We Heard     → Section9 + consent */}
+        {section === 0  && <Section0       form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 1  && <Section1       form={form} setForm={setForm} persist={setAnswer} setBiologicalSex={setBiologicalSex} />}
+        {section === 2  && <ChapterBest    form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 3  && <ChapterChanged form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 4  && <Section2       branch={section2Branch} form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 5  && <Section4       form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 6  && <Section5       form={form} setForm={setForm} persist={setAnswer} isDigestive={isDigestive} />}
+        {section === 7  && <Section6       form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 8  && <Section7       form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 9  && <Section8       form={form} setForm={setForm} persist={setAnswer} />}
+        {section === 10 && <Section9       consent={consent} setConsent={setConsent} />}
       </div>
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
