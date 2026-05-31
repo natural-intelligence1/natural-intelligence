@@ -117,6 +117,29 @@ export function ClientSummaryPanel({ summary, clientName, memberId, personalisat
 
   return (
     <CollapsibleSection id="client-summary" title="Client Summary" defaultExpanded>
+
+      {/* Sprint B Phase 1 — signature question quoted verbatim under the
+          client name. Renders only when populated (the question is not
+          required; absence is itself signal). Read first by practitioners
+          reading the case. */}
+      {summary.mostWantToUnderstand && (
+        <div style={{
+          marginBottom:  '20px',
+          paddingLeft:   '12px',
+          borderLeft:    '3px solid #B8935A',
+          background:    '#FAFAF9',
+          padding:       '10px 14px',
+          borderRadius:  '0 6px 6px 0',
+        }}>
+          <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#B0AEA8', marginBottom: '4px' }}>
+            In their own words
+          </div>
+          <div style={{ fontSize: '13px', color: '#1A1917', lineHeight: '1.5', fontStyle: 'italic' }}>
+            "{summary.mostWantToUnderstand}"
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
 
         {/* Left column */}

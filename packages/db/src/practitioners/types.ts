@@ -137,6 +137,10 @@ export interface IntakeSummary {
   timelineLastWell:        string | null
   timelineTrigger:         string | null
   diagnosedConditions:     string[] | null
+  // Sprint B Phase 1 — signature question. Quoted verbatim under client
+  // name in the practitioner workspace; passed into AI generation prompts.
+  // null when the user skipped (the question is not required).
+  mostWantToUnderstand:    string | null
 }
 
 export interface CaseEvent {

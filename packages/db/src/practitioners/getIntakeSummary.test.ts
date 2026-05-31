@@ -105,6 +105,7 @@ describe('getIntakeSummary — unit', () => {
           timeline_last_well: '2020-06',
           timeline_trigger: 'Viral illness',
           diagnosed_conditions: ['hypothyroidism'],
+          most_want_to_understand: 'Whether my fatigue is connected to my thyroid medication',
           is_complete: true,
         },
         error: null,
@@ -120,6 +121,8 @@ describe('getIntakeSummary — unit', () => {
     const result = await getIntakeSummary(client, 'member-id')
     expect(result).not.toBeNull()
     expect(result!.arrivalEmotion).toBe('anxious')
+    // Sprint B Phase 1 — signature question quoted verbatim through the helper.
+    expect(result!.mostWantToUnderstand).toBe('Whether my fatigue is connected to my thyroid medication')
     expect(result!.primaryConcerns).toEqual(['fatigue', 'brain fog'])
     expect(result!.primarySystem).toBe('neurological')
     expect(result!.stressLevel).toBe(8)
@@ -149,6 +152,8 @@ describe('getIntakeSummary — unit', () => {
     const result = await getIntakeSummary(client, 'member-id')
     expect(result!.postExertionalWorsening).toBeNull()
     expect(result!.concernSeverity).toBeNull()
+    // Sprint B Phase 1 — signature question absent on legacy rows.
+    expect(result!.mostWantToUnderstand).toBeNull()
   })
 })
 
