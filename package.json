@@ -6,9 +6,13 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "obsidian:index": "tsx tools/obsidian-memory/index-vault.ts",
+    "obsidian:search": "tsx tools/obsidian-memory/search-vault.ts",
+    "obsidian:context": "tsx tools/obsidian-memory/build-context-pack.ts"
   },
   "devDependencies": {
+    "tsx": "^4.22.4",
     "turbo": "latest",
     "typescript": "^5"
   },

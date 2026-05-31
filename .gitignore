@@ -39,4 +39,9 @@ pnpm-debug.log*
 supabase/.branches
 supabase/.temp
 
+# Obsidian retrieval tool — local config + generated artefacts
+tools/obsidian-memory/config.json
+tools/obsidian-memory/.index/
+tools/obsidian-memory/context-packs/
+
 .vercel

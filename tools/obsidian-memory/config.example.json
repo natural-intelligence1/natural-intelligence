@@ -1,0 +1,18 @@
+{
+  "vaultPath": "",
+  "projects": {
+    "NI":       "01-Projects/NI",
+    "Zawaaj":   "01-Projects/Zawaaj",
+    "Property": "01-Projects/Property"
+  },
+  "indexing": {
+    "excludeFolders": ["_Templates", "03-Archive", ".obsidian"],
+    "excludeTypes":   ["template", "daily"],
+    "includeArchive": false
+  },
+  "contextPack": {
+    "maxWords":             4000,
+    "maxNotesReturned":     5,
+    "maxDecisionsReturned": 5
+  }
+}
