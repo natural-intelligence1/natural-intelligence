@@ -1620,11 +1620,11 @@ function Section9({
 
   return (
     <div className="space-y-7">
-      {/* Block header — quiet, not a "results" headline */}
+      {/* Block header — quiet, not a "results" headline.
+          B1-F1 — the "Chapter 5 — What We Heard" pill is rendered above by
+          ChapterIntro (gated on isChapterStart). Suppressed here to avoid
+          the duplicate that the inline pill produced. */}
       <div>
-        <p className="text-[10px] uppercase tracking-[0.14em] text-[#B8935A] font-medium mb-2">
-          Chapter 5 — What We Heard
-        </p>
         <h2 className="font-display text-2xl font-light text-text-primary leading-snug mb-1">
           A short reflection.
         </h2>
