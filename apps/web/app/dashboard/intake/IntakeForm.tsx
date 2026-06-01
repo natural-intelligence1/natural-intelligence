@@ -474,6 +474,12 @@ function initialState(
     hormonal_symptoms:         [],
     cycle_patterns:            [],
     timeline_last_well:        str('timeline_last_well'),
+    // Sprint B Phase 2 — Chapter 2 Best Self Baseline (migration 0050).
+    best_self_description:     str('best_self_description'),
+    best_self_sleep:           str('best_self_sleep'),
+    best_self_energy:          str('best_self_energy'),
+    best_self_mood:            str('best_self_mood'),
+    best_self_recovery_goal:   str('best_self_recovery_goal'),
     timeline_trigger:          str('timeline_trigger'),
     sleep_hours:               num('sleep_hours'),
     sleep_quality:             num('sleep_quality'),
@@ -528,7 +534,17 @@ function getSectionData(f: FormState, s: number, primarySystem: string): Record<
       // Sprint B Phase 1 — signature question lives on intake_responses
       most_want_to_understand: f.most_want_to_understand || null,
     }
-    case 3: return { timeline_last_well: f.timeline_last_well || null }
+    case 3: return {
+      timeline_last_well:      f.timeline_last_well || null,
+      // Sprint B Phase 2 — Best Self Baseline flushes to intake_responses
+      // when leaving Chapter 2 (step 2). Downstream (body story, synopsis,
+      // practitioner workspace, What We Heard Pattern F) reads these.
+      best_self_description:   f.best_self_description   || null,
+      best_self_sleep:         f.best_self_sleep         || null,
+      best_self_energy:        f.best_self_energy        || null,
+      best_self_mood:          f.best_self_mood          || null,
+      best_self_recovery_goal: f.best_self_recovery_goal || null,
+    }
     case 4: return { timeline_trigger:   f.timeline_trigger   || null }
     case 5: return { systems_reviewed:   f.systems_reviewed,   primary_system: primarySystem }
     case 6: return { sleep_hours: f.sleep_hours, sleep_quality: f.sleep_quality, stress_level: f.stress_level, energy_level: f.energy_level, exercise_frequency: f.exercise_frequency || null, diet_description: f.diet_description || null }
@@ -1225,6 +1241,14 @@ const LAST_WELL_EMOJIS: EmojiOption[] = [
   { key: 'not_sure',        icon: '💭', label: 'Not sure I ever have' },
 ]
 
+// Sprint B Phase 2 — Best Self Baseline comparative options (Q3/Q4/Q5).
+// Single-select. Stored verbatim as the chip key on intake_responses.
+const BEST_SELF_COMPARE: { key: string; label: string }[] = [
+  { key: 'better_than_now', label: 'Better than it is now' },
+  { key: 'about_the_same',  label: 'About the same'        },
+  { key: 'not_sure',        label: 'Hard to remember'      },
+]
+
 // Sprint B Phase 1 — old Section 3 (Timeline) split into two chapters:
 //   ChapterBest    (step 2) — timeline_last_well  → Chapter 2 "Your Best"
 //   ChapterChanged (step 3) — timeline_trigger    → Chapter 3 "What Changed"
@@ -1252,7 +1276,6 @@ const LAST_WELL_EMOJIS: EmojiOption[] = [
 function ChapterBest({
   form, setForm, persist,
 }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>>; persist: PersistFn }) {
-  void setForm
   return (
     <div className="space-y-7">
       {/* Sprint B Phase 2 — header reframed as a reflective invitation.
@@ -1265,6 +1288,8 @@ function ChapterBest({
           register; this acknowledges the question can be tender and that
           a rough memory is enough (journey architecture §6). */}
       <AcknowledgementBanner text="This one can take you back a little. Take your time — even a rough memory is useful." />
+
+      {/* Q1 — when last well (architecture §7.1, the only pre-existing field) */}
       <div>
         <p className="text-sm font-medium text-text-primary mb-3">When did you last feel genuinely well?</p>
         <EmojiCardGrid
@@ -1272,6 +1297,70 @@ function ChapterBest({
           selected={form.timeline_last_well ? [form.timeline_last_well] : []}
           onChange={v => persist('timeline_last_well', v[0] ?? '', 2, { clinicalObjective: 'symptom_onset' })}
           cols={5}
+        />
+      </div>
+
+      {/* Q2 — Best Self narrative (architecture §7.2 — the heart of the
+          chapter). Turns the timeline bucket above into a remembered
+          baseline. Tier A. Read by body story, synopsis, practitioner
+          workspace, and What We Heard Pattern F. */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-2">
+          What was different about your life back then?
+        </p>
+        <p className="text-xs text-text-muted mb-3">
+          There&apos;s no right answer. Write whatever comes to mind.
+        </p>
+        <WarmTextarea
+          value={form.best_self_description}
+          onChange={v => setForm(f => ({ ...f, best_self_description: v }))}
+          onBlur={v => persist('best_self_description', v, 2, { clinicalObjective: 'best_self_baseline' })}
+          placeholder="How you felt when you woke up. What you could do that felt easy. What your days were like. Anything that stands out — even a small detail."
+          rows={4}
+        />
+      </div>
+
+      {/* Q3/Q4/Q5 — three comparatives (architecture §7.3–§7.5). The
+          clinical instrument: each gives the practitioner a delta, not an
+          absolute. Single-select chips. */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-3">How was your sleep back then?</p>
+        <WordChipRow
+          options={BEST_SELF_COMPARE}
+          selected={form.best_self_sleep}
+          onChange={v => persist('best_self_sleep', v, 2, { clinicalObjective: 'best_self_sleep' })}
+        />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-3">How was your energy back then?</p>
+        <WordChipRow
+          options={BEST_SELF_COMPARE}
+          selected={form.best_self_energy}
+          onChange={v => persist('best_self_energy', v, 2, { clinicalObjective: 'best_self_energy' })}
+        />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-3">How was your mood back then?</p>
+        <WordChipRow
+          options={BEST_SELF_COMPARE}
+          selected={form.best_self_mood}
+          onChange={v => persist('best_self_mood', v, 2, { clinicalObjective: 'best_self_mood' })}
+        />
+      </div>
+
+      {/* Q6 — recovery goal (architecture §7.6). Motivational anchor in the
+          user's own words; informs protocol priorities + therapeutic
+          alliance. Quoted back in body story and practitioner workspace. */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-2">
+          If you could get one thing back, what would it be?
+        </p>
+        <WarmTextarea
+          value={form.best_self_recovery_goal}
+          onChange={v => setForm(f => ({ ...f, best_self_recovery_goal: v }))}
+          onBlur={v => persist('best_self_recovery_goal', v, 2, { clinicalObjective: 'best_self_recovery_goal' })}
+          placeholder="Your energy. Your sleep. Your focus. Your sense of yourself. Whatever matters most."
+          rows={2}
         />
       </div>
     </div>

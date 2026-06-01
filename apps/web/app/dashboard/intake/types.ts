@@ -58,6 +58,14 @@ export interface FormState {
   hormonal_symptoms:      string[]
   cycle_patterns:         string[]
   timeline_last_well:     string
+  // Sprint B Phase 2 — Chapter 2 Best Self Baseline (journey architecture §7).
+  // Persisted to intake_responses (migration 0050). All optional; '' = not
+  // answered. Comparatives store one of: better_than_now|about_the_same|not_sure.
+  best_self_description:     string
+  best_self_sleep:           string
+  best_self_energy:          string
+  best_self_mood:            string
+  best_self_recovery_goal:   string
   timeline_trigger:       string
   sleep_hours:            number | null
   sleep_quality:          number | null
