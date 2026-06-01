@@ -729,7 +729,12 @@ function Section1({
 }) {
   return (
     <div className="space-y-8">
-      <SectionHeader name="Chapter 1 — Your Story" heading="What's been on your mind most lately?" subtitle="Select everything that resonates." />
+      {/* Sprint B Phase 2 — Chapter 1 opening copy. Frames the chapter as
+          identity + invitation (Tier A narrative) without duplicating the
+          ChapterIntro purpose above. The chip-cloud caption that used to live
+          here ("Select everything that resonates") has moved to its proper
+          home above the primary_concerns chip cloud below. */}
+      <SectionHeader name="Chapter 1 — Your Story" heading="Tell us a little about you, and what brought you here." subtitle="Take it slow. Skip anything you'd rather not answer." />
 
       {/* Decision 4 — biological_sex captured before the hormonal branch.
           Drives sex-specific question visibility downstream. Stored on
@@ -823,7 +828,18 @@ function Section1({
         </div>
       )}
 
+      {/* Sprint B Phase 2 — primary_concerns prompt + helper. Previously the
+          BigChipCloud inherited its meaning by proximity to the SectionHeader,
+          which read as a chip caption from the top of the chapter. Tier A
+          signal per the intelligence architecture (B5 — primary concerns) —
+          frame as invitation, not categorisation. */}
       <div>
+        <p className="text-sm font-medium text-text-primary mb-2">
+          What&apos;s been on your mind most?
+        </p>
+        <p className="text-xs text-text-muted mb-3">
+          Pick anything that feels true. You can pick more than one.
+        </p>
         <BigChipCloud
           options={PRIMARY_CONCERNS}
           selected={form.primary_concerns}
@@ -831,7 +847,10 @@ function Section1({
         />
       </div>
       <div>
-        <p className="text-sm font-medium text-text-primary mb-3">How long has this been going on?</p>
+        {/* Sprint B Phase 2 — concern_duration warm rewrite. Same chip set,
+            warmer surface. "With you" recognises the experience has been
+            carried; "going on" was functional but cold. */}
+        <p className="text-sm font-medium text-text-primary mb-3">How long has this been with you?</p>
         <EmojiCardGrid
           options={DURATION_EMOJIS}
           selected={form.concern_duration ? [form.concern_duration] : []}
@@ -840,7 +859,11 @@ function Section1({
         />
       </div>
       <div>
-        <p className="text-sm font-medium text-text-primary mb-3">How does it tend to show up?</p>
+        {/* Sprint B Phase 2 — symptom_pattern. "Day to day" anchors the
+            answer to lived experience and matches the chip labels (constant /
+            comes and goes / improving / worsening), all of which describe
+            daily texture. */}
+        <p className="text-sm font-medium text-text-primary mb-3">How does it tend to show up day to day?</p>
         <WordChipRow
           options={PATTERN_WORDS}
           selected={form.symptom_pattern}
@@ -848,10 +871,13 @@ function Section1({
         />
       </div>
 
-      {/* Item 1 — Severity baseline (R2: independent of per-system severities) */}
+      {/* Sprint B Phase 2 — concern_severity_baseline (Tier A: B3 symptom
+          severity). "Shape your day" inverts the register — the experience
+          becomes a description of life, not an assessment of pathology.
+          (R2: independent of per-system severities.) */}
       <div>
         <p className="text-sm font-medium text-text-primary mb-3">
-          How much is this affecting your daily life right now?
+          How much does this shape your day right now?
         </p>
         <IntakeVisualScale
           value={form.concern_severity_baseline}
@@ -859,32 +885,38 @@ function Section1({
         />
       </div>
 
-      {/* Item 2 — Aggravating factors (R7: persist on onBlur, not onChange) */}
+      {/* Sprint B Phase 2 — aggravating_factors. Drops the "Is there anything
+          that…" hedge that makes the user feel they need to justify having an
+          answer. Placeholder shifts from "e.g." catalog to first-person
+          observation, modelling the kind of answer the system wants and
+          explicitly inviting guesses. (R7: persist on onBlur, not onChange.) */}
       <div>
         <p className="text-sm font-medium text-text-primary mb-2">
-          Is there anything that tends to make this worse?{' '}
+          What tends to make it worse, if anything?{' '}
           <span className="text-text-muted font-normal">(optional)</span>
         </p>
         <WarmTextarea
           value={form.aggravating_factors}
           onChange={v => setForm(f => ({ ...f, aggravating_factors: v }))}
           onBlur={v => persist('aggravating_factors', v, 1, { clinicalObjective: 'aggravating_factor_capture' })}
-          placeholder="e.g. After eating, when stressed, in the evenings…"
+          placeholder="Maybe after eating. Maybe when you're stressed. Maybe evenings. Whatever you've noticed — even a guess is useful."
           rows={3}
         />
       </div>
 
-      {/* Item 3 — Relieving factors (R7: persist on onBlur, not onChange) */}
+      {/* Sprint B Phase 2 — relieving_factors. Same direct-prompt + modelled-
+          placeholder pattern as aggravating_factors. "Lighter" carries
+          qualitative meaning rather than clinical "relief". (R7.) */}
       <div>
         <p className="text-sm font-medium text-text-primary mb-2">
-          Is there anything that tends to help or ease it?{' '}
+          What tends to help, if anything?{' '}
           <span className="text-text-muted font-normal">(optional)</span>
         </p>
         <WarmTextarea
           value={form.relieving_factors}
           onChange={v => setForm(f => ({ ...f, relieving_factors: v }))}
           onBlur={v => persist('relieving_factors', v, 1, { clinicalObjective: 'relieving_factor_capture' })}
-          placeholder="e.g. Rest, avoiding certain foods, heat…"
+          placeholder="Rest. Heat. Avoiding particular foods. Time alone. Anything you've noticed makes it lighter."
           rows={3}
         />
       </div>
