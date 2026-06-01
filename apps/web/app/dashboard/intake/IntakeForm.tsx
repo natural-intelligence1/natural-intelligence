@@ -1229,9 +1229,25 @@ const LAST_WELL_EMOJIS: EmojiOption[] = [
 //   ChapterBest    (step 2) — timeline_last_well  → Chapter 2 "Your Best"
 //   ChapterChanged (step 3) — timeline_trigger    → Chapter 3 "What Changed"
 // The split serves the temporal arc of the journey (backward anchor →
-// pivot). Content slotted as-is per Phase 1 spec; per-question rewrites
-// (the new "what was different back then" narrative q, the comparative
-// sleep/energy/mood "back then" questions) are Phase 2.
+// pivot).
+//
+// Sprint B Phase 2 — Chapter 2 copy rewritten into the retrospective
+// register (reflective frame, "even a rough memory is useful", no
+// clinical "health history" language).
+//
+// FINDING (surfaced to founder, not actioned here): the intake journey
+// architecture §7 specifies a SIX-question Best Self Baseline. Only
+// question 1 (timeline_last_well) is implemented. Missing — and NOT
+// added in Phase 2 because each needs a new FormState field + a new
+// intake_responses column (migration) + downstream wiring, all out of
+// Phase 2 scope:
+//   §7.2  "What was different about your life back then?" (WarmTextarea)
+//   §7.3  "How were you sleeping back then?"  (Better/Same/Worse)
+//   §7.4  "How was your energy?"              (Better/Same/Worse)
+//   §7.5  "How was your mood?"                (Better/Same/Worse)
+//   §7.6  "…one thing you'd most want to get back?" (one-line text)
+// These require explicit founder approval as a Chapter-2 expansion
+// (new questions + migration), tracked separately from copy rewrites.
 
 function ChapterBest({
   form, setForm, persist,
@@ -1239,8 +1255,16 @@ function ChapterBest({
   void setForm
   return (
     <div className="space-y-7">
-      <SectionHeader name="Chapter 2 — Your Best" heading="When did you last feel well?" subtitle="Sometimes understanding when is as revealing as what." />
-      <AcknowledgementBanner text="Some details may take you back through your health history. Take your time." />
+      {/* Sprint B Phase 2 — header reframed as a reflective invitation.
+          Previously the heading ("When did you last feel well?")
+          near-duplicated the question label below it. The heading now
+          sets the backward-looking frame; the question keeps the
+          architecture-canonical wording. */}
+      <SectionHeader name="Chapter 2 — Your Best" heading="Think back to when you felt more like yourself." subtitle="Not a medical history — just what you remember." />
+      {/* Sprint B Phase 2 — banner warmed. "health history" was clinical
+          register; this acknowledges the question can be tender and that
+          a rough memory is enough (journey architecture §6). */}
+      <AcknowledgementBanner text="This one can take you back a little. Take your time — even a rough memory is useful." />
       <div>
         <p className="text-sm font-medium text-text-primary mb-3">When did you last feel genuinely well?</p>
         <EmojiCardGrid
