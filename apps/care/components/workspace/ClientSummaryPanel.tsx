@@ -99,6 +99,81 @@ function ClinicalContext({
   )
 }
 
+// ─── Best Self Baseline subsection (Sprint B Phase 2) ─────────────────────────
+// Renders the Chapter 2 Best Self answers as a labelled "BEST SELF" block.
+// Visible only when at least one of the five Phase-2 fields is populated —
+// graceful empty state (absent) when the client skipped the chapter.
+
+function lastWellLabel(key: string | null): string | null {
+  switch ((key ?? '').trim()) {
+    case 'last_year':    return 'In the last year'
+    case '1_3_years':    return '1–3 years ago'
+    case '3_5_years':    return '3–5 years ago'
+    case 'over_5_years': return 'More than 5 years ago'
+    case 'not_sure':     return 'Not sure they ever have'
+    default:             return key && key.trim() ? key : null
+  }
+}
+
+function compareShort(key: string | null): string | null {
+  switch ((key ?? '').trim()) {
+    case 'better_than_now': return 'Better'
+    case 'about_the_same':  return 'Same'
+    case 'not_sure':        return 'Unsure'
+    default:                return null
+  }
+}
+
+function BestSelfSection({ summary }: { summary: IntakeSummary }) {
+  const hasAny =
+    !!summary.bestSelfDescription ||
+    !!summary.bestSelfSleep ||
+    !!summary.bestSelfEnergy ||
+    !!summary.bestSelfMood ||
+    !!summary.bestSelfRecoveryGoal
+  if (!hasAny) return null
+
+  const comparatives = [
+    ['Sleep',  compareShort(summary.bestSelfSleep)],
+    ['Energy', compareShort(summary.bestSelfEnergy)],
+    ['Mood',   compareShort(summary.bestSelfMood)],
+  ].filter(([, v]) => v) as [string, string][]
+
+  const whenLabel = lastWellLabel(summary.timelineLastWell)
+
+  return (
+    <div style={{
+      marginBottom:  '20px',
+      paddingLeft:   '12px',
+      borderLeft:    '3px solid #8FA68E',
+      background:    '#F6F8F5',
+      padding:       '10px 14px',
+      borderRadius:  '0 6px 6px 0',
+    }}>
+      <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#7A8A78', marginBottom: '4px' }}>
+        Best self {whenLabel ? `(${whenLabel.toLowerCase()})` : '(when last well)'}
+      </div>
+      {summary.bestSelfDescription && (
+        <div style={{ fontSize: '13px', color: '#1A1917', lineHeight: '1.5', fontStyle: 'italic', marginBottom: comparatives.length || summary.bestSelfRecoveryGoal ? '8px' : 0 }}>
+          &ldquo;{summary.bestSelfDescription}&rdquo;
+        </div>
+      )}
+      {comparatives.length > 0 && (
+        <div style={{ fontSize: '12px', color: '#4A4A46', marginBottom: summary.bestSelfRecoveryGoal ? '6px' : 0 }}>
+          {comparatives.map(([k, v]) => `${k}: ${v}`).join('  ·  ')}
+          <span style={{ color: '#9A9A94' }}>{'  '}(vs now)</span>
+        </div>
+      )}
+      {summary.bestSelfRecoveryGoal && (
+        <div style={{ fontSize: '12px', color: '#4A4A46' }}>
+          <span style={{ color: '#7A8A78' }}>Most wants back: </span>
+          <span style={{ fontStyle: 'italic', color: '#1A1917' }}>&ldquo;{summary.bestSelfRecoveryGoal}&rdquo;</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ClientSummaryPanel({ summary, clientName, memberId, personalisation }: ClientSummaryPanelProps) {
   if (!summary) {
     return (
@@ -139,6 +214,14 @@ export function ClientSummaryPanel({ summary, clientName, memberId, personalisat
           </div>
         </div>
       )}
+
+      {/* Sprint B Phase 2 — Best Self Baseline. Renders only when the client
+          answered at least one of the five Chapter 2 fields. The "when last
+          well" header line uses timelineLastWell (which predates Phase 2) but
+          the section's visibility is gated on the new fields only — a client
+          who only answered the timeline bucket still shows it under the
+          structured grid below, not here. */}
+      <BestSelfSection summary={summary} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
 

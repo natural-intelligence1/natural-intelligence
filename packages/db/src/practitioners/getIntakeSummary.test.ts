@@ -107,6 +107,12 @@ describe('getIntakeSummary — unit', () => {
           diagnosed_conditions: ['hypothyroidism'],
           most_want_to_understand: 'Whether my fatigue is connected to my thyroid medication',
           is_complete: true,
+          // Sprint B Phase 2 — Best Self Baseline
+          best_self_description: 'I had more energy and slept through the night',
+          best_self_sleep: 'better_than_now',
+          best_self_energy: 'better_than_now',
+          best_self_mood: 'about_the_same',
+          best_self_recovery_goal: 'My morning energy',
         },
         error: null,
       },
@@ -133,6 +139,12 @@ describe('getIntakeSummary — unit', () => {
     expect(result!.dietDescription).toBe('Mostly whole foods')
     expect(result!.currentMedications).toBe('Levothyroxine 50mcg')
     expect(result!.diagnosedConditions).toEqual(['hypothyroidism'])
+    // Sprint B Phase 2 — Best Self Baseline mapped through the helper.
+    expect(result!.bestSelfDescription).toBe('I had more energy and slept through the night')
+    expect(result!.bestSelfSleep).toBe('better_than_now')
+    expect(result!.bestSelfEnergy).toBe('better_than_now')
+    expect(result!.bestSelfMood).toBe('about_the_same')
+    expect(result!.bestSelfRecoveryGoal).toBe('My morning energy')
   })
 
   it('returns null for postExertionalWorsening when answer is absent', async () => {
@@ -154,6 +166,9 @@ describe('getIntakeSummary — unit', () => {
     expect(result!.concernSeverity).toBeNull()
     // Sprint B Phase 1 — signature question absent on legacy rows.
     expect(result!.mostWantToUnderstand).toBeNull()
+    // Sprint B Phase 2 — Best Self Baseline absent on legacy rows.
+    expect(result!.bestSelfDescription).toBeNull()
+    expect(result!.bestSelfRecoveryGoal).toBeNull()
   })
 })
 

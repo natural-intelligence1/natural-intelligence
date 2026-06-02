@@ -141,6 +141,14 @@ export interface IntakeSummary {
   // name in the practitioner workspace; passed into AI generation prompts.
   // null when the user skipped (the question is not required).
   mostWantToUnderstand:    string | null
+  // Sprint B Phase 2 — Best Self Baseline (intake_responses, migration 0050).
+  // Rendered as the "BEST SELF" workspace section when any is non-null.
+  // Comparatives store: better_than_now | about_the_same | not_sure.
+  bestSelfDescription:     string | null
+  bestSelfSleep:           string | null
+  bestSelfEnergy:          string | null
+  bestSelfMood:            string | null
+  bestSelfRecoveryGoal:    string | null
 }
 
 export interface CaseEvent {

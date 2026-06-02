@@ -29,6 +29,9 @@ export async function getIntakeSummary(
     'diet_description', 'current_medications', 'current_supplements',
     'symptom_onset', 'timeline_last_well', 'timeline_trigger',
     'diagnosed_conditions', 'most_want_to_understand', 'is_complete',
+    // Sprint B Phase 2 — Best Self Baseline (migration 0050).
+    'best_self_description', 'best_self_sleep', 'best_self_energy',
+    'best_self_mood', 'best_self_recovery_goal',
   ].join(', ')
 
   const { data: irRaw, error: irErr } = await client
@@ -62,6 +65,11 @@ export async function getIntakeSummary(
     diagnosed_conditions:     string[] | null
     most_want_to_understand:  string | null
     is_complete:              boolean | null
+    best_self_description:    string | null
+    best_self_sleep:          string | null
+    best_self_energy:         string | null
+    best_self_mood:           string | null
+    best_self_recovery_goal:  string | null
   }
 
   // ── Query 2: curated intake_answers ──────────────────────────────────────
@@ -103,5 +111,11 @@ export async function getIntakeSummary(
     // added in migration 0049). Generated DB types not yet regenerated;
     // accessed via the cast shape above.
     mostWantToUnderstand:    ir.most_want_to_understand ?? null,
+    // Sprint B Phase 2 — Best Self Baseline (migration 0050).
+    bestSelfDescription:     ir.best_self_description    ?? null,
+    bestSelfSleep:           ir.best_self_sleep          ?? null,
+    bestSelfEnergy:          ir.best_self_energy         ?? null,
+    bestSelfMood:            ir.best_self_mood           ?? null,
+    bestSelfRecoveryGoal:    ir.best_self_recovery_goal  ?? null,
   }
 }
