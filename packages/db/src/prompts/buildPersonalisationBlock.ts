@@ -80,6 +80,72 @@ export function buildSignatureQuestionBlock(mostWantToUnderstand: string | null)
   ].join('\n')
 }
 
+// Sprint B Phase 2 — Best Self Baseline block (journey architecture §7).
+//
+// The Best Self Baseline is the "before" the body story measures against.
+// When the user has described who they were at their best, generation
+// should contrast their current presentation with that baseline rather
+// than narrating in a vacuum.
+//
+// Returns an empty string when the user answered none of the Best Self
+// questions — callers concatenate with '\n\n' separators, so an empty
+// block disappears cleanly (same contract as buildSignatureQuestionBlock).
+
+export interface BestSelfInput {
+  timelineLastWell:     string | null
+  bestSelfDescription:  string | null
+  bestSelfSleep:        string | null
+  bestSelfEnergy:       string | null
+  bestSelfMood:         string | null
+  bestSelfRecoveryGoal: string | null
+}
+
+function lastWellLabel(key: string | null): string | null {
+  switch ((key ?? '').trim()) {
+    case 'last_year':    return 'in the last year'
+    case '1_3_years':    return '1–3 years ago'
+    case '3_5_years':    return '3–5 years ago'
+    case 'over_5_years': return 'more than 5 years ago'
+    case 'not_sure':     return 'not sure they ever have'
+    default:             return null
+  }
+}
+
+function compareLabel(key: string | null): string | null {
+  switch ((key ?? '').trim()) {
+    case 'better_than_now': return 'better than now'
+    case 'about_the_same':  return 'about the same as now'
+    case 'not_sure':        return 'hard to remember'
+    default:                return null
+  }
+}
+
+export function buildBestSelfBlock(b: BestSelfInput): string {
+  const lastWell    = lastWellLabel(b.timelineLastWell)
+  const description = (b.bestSelfDescription ?? '').trim()
+  const sleep       = compareLabel(b.bestSelfSleep)
+  const energy      = compareLabel(b.bestSelfEnergy)
+  const mood        = compareLabel(b.bestSelfMood)
+  const recovery    = (b.bestSelfRecoveryGoal ?? '').trim()
+
+  // Nothing answered → no block.
+  if (!lastWell && !description && !sleep && !energy && !mood && !recovery) {
+    return ''
+  }
+
+  return [
+    'BEST SELF BASELINE:',
+    `Last felt well: ${lastWell ?? 'not provided'}`,
+    `What was different: ${description || 'not provided'}`,
+    `Sleep then: ${sleep ?? 'not recorded'}`,
+    `Energy then: ${energy ?? 'not recorded'}`,
+    `Mood then: ${mood ?? 'not recorded'}`,
+    `What they most want back: ${recovery || 'not provided'}`,
+    '',
+    'The client has described who they were at their best. Where relevant, contrast their current presentation with that baseline. Open with what they want to understand (above) and draw a line toward who they were before.',
+  ].join('\n')
+}
+
 // Block variant that strips the framing line entirely — used by BioHub lab
 // interpretation (Option iii: clinical-only, no religious framing surface).
 export function buildBiologicalContextBlock(p: PersonalisationForGeneration): string {

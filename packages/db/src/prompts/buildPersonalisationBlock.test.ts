@@ -13,7 +13,9 @@ import {
   buildPersonalisationBlock,
   buildBiologicalContextBlock,
   buildSignatureQuestionBlock,
+  buildBestSelfBlock,
   isIslamicFramingEnabled,
+  type BestSelfInput,
 } from './buildPersonalisationBlock'
 
 const RELIGION_TERMS = [
@@ -162,5 +164,54 @@ describe('buildBiologicalContextBlock (BioHub Option iii — clinical-only)', ()
     const out = buildBiologicalContextBlock(ctx({ biologicalSex: null }))
     expect(out).toContain('not recorded')
     expect(out).toContain('avoid sex-specific reference ranges')
+  })
+})
+
+// ─── buildBestSelfBlock (Sprint B Phase 2 — Chapter 2 Best Self Baseline) ─────
+
+describe('buildBestSelfBlock', () => {
+  const empty: BestSelfInput = {
+    timelineLastWell:     null,
+    bestSelfDescription:  null,
+    bestSelfSleep:        null,
+    bestSelfEnergy:       null,
+    bestSelfMood:         null,
+    bestSelfRecoveryGoal: null,
+  }
+
+  it('returns empty string when nothing is answered', () => {
+    expect(buildBestSelfBlock(empty)).toBe('')
+    expect(buildBestSelfBlock({ ...empty, bestSelfDescription: '   ' })).toBe('')
+  })
+
+  it('renders the block header + instruction when any field is present', () => {
+    const out = buildBestSelfBlock({ ...empty, bestSelfDescription: 'I had more energy.' })
+    expect(out).toContain('BEST SELF BASELINE:')
+    expect(out).toContain('What was different: I had more energy.')
+    expect(out).toContain('contrast their current presentation with that baseline')
+  })
+
+  it('humanises the timeline key', () => {
+    const out = buildBestSelfBlock({ ...empty, timelineLastWell: 'over_5_years' })
+    expect(out).toContain('Last felt well: more than 5 years ago')
+  })
+
+  it('humanises comparative keys', () => {
+    const out = buildBestSelfBlock({
+      ...empty,
+      bestSelfSleep:  'better_than_now',
+      bestSelfEnergy: 'about_the_same',
+      bestSelfMood:   'not_sure',
+    })
+    expect(out).toContain('Sleep then: better than now')
+    expect(out).toContain('Energy then: about the same as now')
+    expect(out).toContain('Mood then: hard to remember')
+  })
+
+  it('falls back to not-provided / not-recorded for the unanswered fields', () => {
+    const out = buildBestSelfBlock({ ...empty, bestSelfRecoveryGoal: 'My sleep.' })
+    expect(out).toContain('What they most want back: My sleep.')
+    expect(out).toContain('What was different: not provided')
+    expect(out).toContain('Sleep then: not recorded')
   })
 })

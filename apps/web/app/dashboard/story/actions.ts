@@ -12,7 +12,9 @@ import {
 import {
   buildPersonalisationBlock,
   buildSignatureQuestionBlock,
+  buildBestSelfBlock,
   isIslamicFramingEnabled,
+  type BestSelfInput,
 }                                                       from '@natural-intelligence/db/prompts'
 
 // ─── generateBodyStory ────────────────────────────────────────────────────────
@@ -43,9 +45,15 @@ export async function generateBodyStory(
         .order('answered_at', { ascending: true }),
       adminClient
         .from('intake_responses')
-        // Sprint B Phase 1 — most_want_to_understand added; variable-string
-        // select bypasses the not-yet-regenerated Database types validation.
-        .select(['primary_concerns', 'primary_system', 'is_complete', 'most_want_to_understand'].join(', '))
+        // Sprint B Phase 1 — most_want_to_understand; Phase 2 — best_self_*.
+        // Variable-string select bypasses the not-yet-regenerated Database
+        // types validation for these newer columns.
+        .select([
+          'primary_concerns', 'primary_system', 'is_complete',
+          'most_want_to_understand', 'timeline_last_well',
+          'best_self_description', 'best_self_sleep', 'best_self_energy',
+          'best_self_mood', 'best_self_recovery_goal',
+        ].join(', '))
         .eq('member_id', memberId)
         .eq('is_complete', true)
         .order('created_at', { ascending: false })
@@ -93,8 +101,27 @@ export async function generateBodyStory(
     // Sprint B Phase 1 — quote the user's signature-question answer back in
     // the opening of the body story. Empty string when the user skipped, so
     // the prompt joins cleanly.
-    const mostWantToUnderstand = (intake as { most_want_to_understand?: string | null } | null)?.most_want_to_understand ?? null
-    const systemPrompt = buildBodyStorySystemPrompt(p, mostWantToUnderstand)
+    const intakeRowForPrompt = intake as {
+      most_want_to_understand?: string | null
+      timeline_last_well?:      string | null
+      best_self_description?:   string | null
+      best_self_sleep?:         string | null
+      best_self_energy?:        string | null
+      best_self_mood?:          string | null
+      best_self_recovery_goal?: string | null
+    } | null
+    const mostWantToUnderstand = intakeRowForPrompt?.most_want_to_understand ?? null
+    // Sprint B Phase 2 — Best Self Baseline block, inserted between the
+    // signature question and the clinical context.
+    const bestSelf: BestSelfInput = {
+      timelineLastWell:     intakeRowForPrompt?.timeline_last_well     ?? null,
+      bestSelfDescription:  intakeRowForPrompt?.best_self_description  ?? null,
+      bestSelfSleep:        intakeRowForPrompt?.best_self_sleep        ?? null,
+      bestSelfEnergy:       intakeRowForPrompt?.best_self_energy       ?? null,
+      bestSelfMood:         intakeRowForPrompt?.best_self_mood         ?? null,
+      bestSelfRecoveryGoal: intakeRowForPrompt?.best_self_recovery_goal ?? null,
+    }
+    const systemPrompt = buildBodyStorySystemPrompt(p, mostWantToUnderstand, bestSelf)
 
     const message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
@@ -228,12 +255,17 @@ export async function generateBodyStory(
 function buildBodyStorySystemPrompt(
   p: PersonalisationForGeneration,
   mostWantToUnderstand: string | null,
+  bestSelf: BestSelfInput,
 ): string {
   // Sprint B Phase 1 — signature block prepended when the user answered the
-  // "what would you most want to understand" question. Empty string when
-  // skipped (the .filter(Boolean) drops it cleanly).
+  // "what would you most want to understand" question.
+  // Sprint B Phase 2 — Best Self Baseline block sits AFTER the signature
+  // question and BEFORE the clinical context, so the model reads "what they
+  // want to understand" then "who they were at their best" then its role.
+  // Both blocks return '' when unanswered (.filter(Boolean) drops them).
   return [
     buildSignatureQuestionBlock(mostWantToUnderstand),
+    buildBestSelfBlock(bestSelf),
     buildPersonalisationBlock(p),
     BODY_STORY_PROMPT_BODY,
   ].filter(Boolean).join('\n\n')

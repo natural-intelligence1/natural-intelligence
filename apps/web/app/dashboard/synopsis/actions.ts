@@ -9,6 +9,7 @@ import {
 import {
   buildPersonalisationBlock,
   buildSignatureQuestionBlock,
+  buildBestSelfBlock,
   isIslamicFramingEnabled,
 }                              from '@natural-intelligence/db/prompts'
 
@@ -108,9 +109,28 @@ export async function generateHealthSynopsis(memberId: string): Promise<{
     // Sprint B Phase 1 — additionally prepend the signature-question block
     // when populated, so the synopsis opens by acknowledging the question
     // the user came in with.
-    const mostWantToUnderstand = (intake as { most_want_to_understand?: string | null } | null)?.most_want_to_understand ?? null
+    const intakeRowForPrompt = intake as {
+      most_want_to_understand?: string | null
+      timeline_last_well?:      string | null
+      best_self_description?:   string | null
+      best_self_sleep?:         string | null
+      best_self_energy?:        string | null
+      best_self_mood?:          string | null
+      best_self_recovery_goal?: string | null
+    } | null
+    const mostWantToUnderstand = intakeRowForPrompt?.most_want_to_understand ?? null
+    // Sprint B Phase 2 — Best Self Baseline block, between the signature
+    // question and the clinical context (same ordering as the body story).
     const systemPrompt = [
       buildSignatureQuestionBlock(mostWantToUnderstand),
+      buildBestSelfBlock({
+        timelineLastWell:     intakeRowForPrompt?.timeline_last_well     ?? null,
+        bestSelfDescription:  intakeRowForPrompt?.best_self_description  ?? null,
+        bestSelfSleep:        intakeRowForPrompt?.best_self_sleep        ?? null,
+        bestSelfEnergy:       intakeRowForPrompt?.best_self_energy       ?? null,
+        bestSelfMood:         intakeRowForPrompt?.best_self_mood         ?? null,
+        bestSelfRecoveryGoal: intakeRowForPrompt?.best_self_recovery_goal ?? null,
+      }),
       buildPersonalisationBlock(personalisation),
       `You are a clinical health intelligence analyst working for Natural Intelligence, a UK-based integrative health platform. Your role is to synthesise a member's health data — including their self-reported intake form, any biomarker results from uploaded lab reports, and root cause analysis outputs — into a clear, personalised health synopsis.
 
