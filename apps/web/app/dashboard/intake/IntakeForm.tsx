@@ -1717,6 +1717,24 @@ function whatWeHeardBullets(flags: string[]): string[] {
     .slice(0, 3)
 }
 
+// Sprint B Phase 2 — Pattern F (Best Self gap). Fires when the user
+// described who they were at their best AND at least one comparative says
+// they were better then than now. This is the narrative bullet that names
+// the gap the body story is built around. Not a clinical flag — computed
+// directly from the Best Self fields, like the temporal arc.
+function whatWeHeardPatternF(
+  bestSelfDescription: string,
+  bestSelfSleep:       string,
+  bestSelfEnergy:      string,
+  bestSelfMood:        string,
+): string {
+  const hasDescription = bestSelfDescription.trim().length > 0
+  const anyBetter = [bestSelfSleep, bestSelfEnergy, bestSelfMood]
+    .some(v => v === 'better_than_now')
+  if (!hasDescription || !anyBetter) return ''
+  return 'You described clearly who you were at your best — and the gap between that and where you are now. That gap is where your body story begins.'
+}
+
 // Format the temporal-arc sentence from intake_responses fields. Returns
 // empty string when neither field is populated — block omitted cleanly.
 function whatWeHeardTemporalArc(timelineLastWell: string, timelineTrigger: string): string {
@@ -1749,19 +1767,27 @@ function whatWeHeardTemporalArc(timelineLastWell: string, timelineTrigger: strin
 
 function Section9({
   consent, setConsent, flags, timelineLastWell, timelineTrigger,
+  bestSelfDescription, bestSelfSleep, bestSelfEnergy, bestSelfMood,
 }: {
-  consent:          boolean
-  setConsent:       (v: boolean) => void
-  flags:            string[]
-  timelineLastWell: string
-  timelineTrigger:  string
+  consent:             boolean
+  setConsent:          (v: boolean) => void
+  flags:               string[]
+  timelineLastWell:    string
+  timelineTrigger:     string
+  bestSelfDescription: string
+  bestSelfSleep:       string
+  bestSelfEnergy:      string
+  bestSelfMood:        string
 }) {
   // Block 1 — the temporal arc, one sentence. Omitted if neither field
   // was answered.
   const arc = whatWeHeardTemporalArc(timelineLastWell, timelineTrigger)
 
-  // Block 2 — up to 3 pattern bullets. Empty list when nothing fires.
-  const bullets = whatWeHeardBullets(flags)
+  // Block 2 — pattern bullets. Sprint B Phase 2: Pattern F (Best Self gap)
+  // leads when it fires, followed by up to 3 clinical-flag bullets. Empty
+  // list when nothing fires (block stays silent — better silent than padded).
+  const patternF = whatWeHeardPatternF(bestSelfDescription, bestSelfSleep, bestSelfEnergy, bestSelfMood)
+  const bullets = [patternF, ...whatWeHeardBullets(flags)].filter(Boolean)
 
   return (
     <div className="space-y-7">
@@ -2086,6 +2112,10 @@ export function IntakeForm({
           flags={ruleResult.flags}
           timelineLastWell={form.timeline_last_well}
           timelineTrigger={form.timeline_trigger}
+          bestSelfDescription={form.best_self_description}
+          bestSelfSleep={form.best_self_sleep}
+          bestSelfEnergy={form.best_self_energy}
+          bestSelfMood={form.best_self_mood}
         />}
       </div>
 
