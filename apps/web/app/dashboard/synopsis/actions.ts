@@ -10,6 +10,7 @@ import {
   buildPersonalisationBlock,
   buildSignatureQuestionBlock,
   buildBestSelfBlock,
+  buildEnergyTimingBlock,
   isIslamicFramingEnabled,
 }                              from '@natural-intelligence/db/prompts'
 
@@ -49,6 +50,7 @@ export async function generateHealthSynopsis(memberId: string): Promise<{
   try {
     const [
       { data: intake },
+      { data: intakeAnswers },
       { data: rootfinderResults },
       { data: biomarkerResults },
       { data: profile },
@@ -62,6 +64,15 @@ export async function generateHealthSynopsis(memberId: string): Promise<{
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      // Task 3 (expanded) — several Tier A/B signals are persisted to
+      // intake_answers, not intake_responses (PEM, severity baseline, energy
+      // timing, aggravating/relieving factors). The synopsis was blind to all
+      // of them. Fetch them here and thread into the prompt (same answerMap
+      // pattern as the body story).
+      adminClient
+        .from('intake_answers')
+        .select('question_id, answer')
+        .eq('member_id', memberId),
       adminClient
         .from('rootfinder_results')
         .select('confidence_score, root_causes(name, description, key)')
@@ -119,6 +130,21 @@ export async function generateHealthSynopsis(memberId: string): Promise<{
       best_self_recovery_goal?: string | null
     } | null
     const mostWantToUnderstand = intakeRowForPrompt?.most_want_to_understand ?? null
+    // Task 3 (expanded) — answer map from intake_answers, curated below into
+    // the user prompt. Energy timing also feeds a dedicated context block in
+    // the system prompt, mirroring the body story.
+    const answerMap: Record<string, unknown> = {}
+    for (const row of intakeAnswers ?? []) {
+      answerMap[row.question_id] = row.answer
+    }
+    const energyTiming = {
+      energyLowTimes: Array.isArray(answerMap['energy_low_times'])
+        ? (answerMap['energy_low_times'] as unknown[]).map(String)
+        : null,
+      energyCurve: typeof answerMap['energy_curve'] === 'string'
+        ? (answerMap['energy_curve'] as string)
+        : null,
+    }
     // Sprint B Phase 2 — Best Self Baseline block, between the signature
     // question and the clinical context (same ordering as the body story).
     const systemPrompt = [
@@ -131,6 +157,7 @@ export async function generateHealthSynopsis(memberId: string): Promise<{
         bestSelfMood:         intakeRowForPrompt?.best_self_mood         ?? null,
         bestSelfRecoveryGoal: intakeRowForPrompt?.best_self_recovery_goal ?? null,
       }),
+      buildEnergyTimingBlock(energyTiming),
       buildPersonalisationBlock(personalisation),
       `You are a clinical health intelligence analyst working for Natural Intelligence, a UK-based integrative health platform. Your role is to synthesise a member's health data — including their self-reported intake form, any biomarker results from uploaded lab reports, and root cause analysis outputs — into a clear, personalised health synopsis.
 
@@ -146,6 +173,7 @@ Format: use plain paragraphs. You may use short bullet lists (starting with -) f
 
     const userPrompt = buildSynopsisPrompt({
       intake: intake as IntakeRow,
+      answers: answerMap,
       rootfinderResults: (rootfinderResults ?? []) as RootfinderResult[],
       biomarkerResults:  (biomarkerResults ?? [])  as BiomarkerResult[],
       profile: profile as Profile | null,
@@ -231,11 +259,12 @@ export async function rateSynopsis(synopsisId: string, rating: number): Promise<
 
 function buildSynopsisPrompt(params: {
   intake: IntakeRow
+  answers: Record<string, unknown>
   rootfinderResults: RootfinderResult[]
   biomarkerResults:  BiomarkerResult[]
   profile:           Profile | null
 }): string {
-  const { intake, rootfinderResults, biomarkerResults, profile } = params
+  const { intake, answers, rootfinderResults, biomarkerResults, profile } = params
   const lines: string[] = []
 
   lines.push(`Member name: ${profile?.full_name ?? 'Unknown'}`)
@@ -258,6 +287,8 @@ function buildSynopsisPrompt(params: {
     // cognitive "levels" were never collected).
     if (i.primary_concerns)        lines.push(`Chief complaints: ${JSON.stringify(i.primary_concerns)}`)
     if (i.concern_duration)        lines.push(`Duration: ${i.concern_duration}`)
+    if (i.symptom_pattern)         lines.push(`Symptom pattern over time: ${i.symptom_pattern}`)
+    if (i.timeline_trigger)        lines.push(`What changed / possible trigger: ${i.timeline_trigger}`)
     if (i.diagnosed_conditions)    lines.push(`Existing conditions: ${JSON.stringify(i.diagnosed_conditions)}`)
     if (i.current_medications)     lines.push(`Medications: ${i.current_medications}`)
     if (i.current_supplements)     lines.push(`Supplements: ${i.current_supplements}`)
@@ -267,7 +298,19 @@ function buildSynopsisPrompt(params: {
     if (i.sleep_hours)             lines.push(`Avg sleep hours: ${i.sleep_hours}`)
     if (i.stress_level)            lines.push(`Stress level (1–10): ${i.stress_level}`)
     if (i.energy_level)            lines.push(`Energy (1–10): ${i.energy_level}`)
+    if (i.psychosocial_worry)      lines.push(`Main worry about their health: ${i.psychosocial_worry}`)
     if (i.family_history)          lines.push(`Family history: ${i.family_history}`)
+
+    // Task 3 (expanded) — Tier A/B signals sourced from intake_answers.
+    // These were previously collected but absent from the synopsis entirely.
+    const sev = answers['concern_severity_baseline']
+    if (typeof sev === 'number')   lines.push(`Severity impact on daily life (0–10): ${sev}`)
+    const pem = answers['post_exertional_worsening']
+    if (typeof pem === 'boolean')  lines.push(`Post-exertional worsening (worse the day after exertion): ${pem ? 'Yes' : 'No'}`)
+    const aggr = answers['aggravating_factors']
+    if (typeof aggr === 'string' && aggr.trim()) lines.push(`What makes it worse: ${aggr.trim()}`)
+    const reli = answers['relieving_factors']
+    if (typeof reli === 'string' && reli.trim()) lines.push(`What makes it better: ${reli.trim()}`)
     lines.push('')
   } else {
     lines.push('=== INTAKE FORM ===')
