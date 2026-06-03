@@ -9,7 +9,7 @@ export const copy = {
   brand: {
     name:    'Natural Intelligence',
     tagline: 'Intelligent, natural healthcare — for everyone',
-    taglineShort: 'Understanding health across time.',
+    taglineShort: 'The signs are within you.',
     copyright: `© ${new Date().getFullYear()} Natural Intelligence. All rights reserved.`,
   },
 
