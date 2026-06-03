@@ -9,9 +9,13 @@
     "clean": "turbo run clean",
     "obsidian:index": "tsx tools/obsidian-memory/index-vault.ts",
     "obsidian:search": "tsx tools/obsidian-memory/search-vault.ts",
-    "obsidian:context": "tsx tools/obsidian-memory/build-context-pack.ts"
+    "obsidian:context": "tsx tools/obsidian-memory/build-context-pack.ts",
+    "obsidian:update-state": "tsx tools/obsidian-memory/update-current-state.ts",
+    "obsidian:handover": "tsx tools/obsidian-memory/generate-handover.ts",
+    "obsidian:sync": "tsx tools/obsidian-memory/sync.ts"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
     "tsx": "^4.22.4",
     "turbo": "latest",
     "typescript": "^5"

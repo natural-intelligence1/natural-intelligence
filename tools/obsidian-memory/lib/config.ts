@@ -18,6 +18,9 @@ export interface ToolConfig {
     maxNotesReturned:     number
     maxDecisionsReturned: number
   }
+  git: {
+    recentCommits: number
+  }
 }
 
 // The tool's own root — the directory that holds index-vault.ts etc.
@@ -49,6 +52,9 @@ const DEFAULT_CONFIG: ToolConfig = {
     maxWords:             4000,
     maxNotesReturned:     5,
     maxDecisionsReturned: 5,
+  },
+  git: {
+    recentCommits: 20,
   },
 }
 

@@ -14,5 +14,8 @@
     "maxWords":             4000,
     "maxNotesReturned":     5,
     "maxDecisionsReturned": 5
+  },
+  "git": {
+    "recentCommits": 20
   }
 }

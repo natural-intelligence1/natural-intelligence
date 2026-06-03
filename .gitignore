@@ -41,6 +41,7 @@ supabase/.temp
 
 # Obsidian retrieval tool — local config + generated artefacts
 tools/obsidian-memory/config.json
+tools/obsidian-memory/.env
 tools/obsidian-memory/.index/
 tools/obsidian-memory/context-packs/
 
