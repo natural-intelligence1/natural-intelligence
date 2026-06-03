@@ -1173,29 +1173,15 @@ function Section2({
             onChange={v => persist('energy_severity', v, 2, { clinicalObjective: 'severity_assessment', mappedSystems: ['metabolic'] })}
           />
         </div>
-
-        {/* Item 9 — Post-exertional worsening (R5: exact prompt; R7: BooleanCards → onChange) */}
-        <div>
-          <p className="text-sm font-medium text-text-primary mb-3">
-            Do you feel noticeably worse the day after physical or mental exertion?
-          </p>
-          <BooleanCards
-            value={form.post_exertional_worsening}
-            onChange={v => persist('post_exertional_worsening', v, 2, {
-              clinicalObjective: 'post_exertional_pattern',
-              mappedSystems: ['metabolic'],
-            })}
-            yesLabel="Yes"
-            noLabel="Not really"
-            yesSub="Energy crashes or symptoms worsen"
-            noSub="I recover normally"
-          />
-          {form.post_exertional_worsening === true && (
-            <div className="mt-4" style={{ animation: 'fadeSlideIn 200ms ease-out' }}>
-              <AcknowledgementBanner text="This pattern is worth noting — it can point to specific physiological mechanisms worth exploring with a practitioner." />
-            </div>
-          )}
-        </div>
+        {/* Sprint B Phase 2 / Remediation Task 1 — post_exertional_worsening
+            (PEM) moved OUT of this energy sub-branch and into Chapter 3
+            (ChapterChanged), unconditional. PEM is a first-order
+            risk-stratification signal, not an energy-only symptom; gating it
+            here hid it from brain-fog / digestive / hormonal presentations
+            where a missed PEM is most consequential. Downstream consumers
+            (flag_post_exertional_pattern, body story, workspace, What We
+            Heard) are unchanged — they read form.post_exertional_worsening
+            regardless of where it is captured. */}
       </div>
     )
   }
@@ -1383,6 +1369,36 @@ function ChapterChanged({
           placeholder="e.g. A really stressful period at work. I had a virus and never quite recovered. It came on gradually with no clear trigger."
           rows={5}
         />
+      </div>
+
+      {/* Sprint B Phase 2 / Remediation Task 1 — PEM, ungated.
+          Post-exertional worsening is a universal first-order signal
+          (risk-stratification, not an energy symptom). Shown to EVERY user
+          here in Chapter 3, immediately after the temporal narrative and
+          before the Chapter 4 symptom inventory. Wording unchanged from its
+          previous home in the energy sub-branch; persist section number is 3
+          (this chapter). A 'yes' fires flag_post_exertional_pattern via
+          evaluateRules(form, …) exactly as before. */}
+      <div>
+        <p className="text-sm font-medium text-text-primary mb-3">
+          Do you feel noticeably worse the day after physical or mental exertion?
+        </p>
+        <BooleanCards
+          value={form.post_exertional_worsening}
+          onChange={v => persist('post_exertional_worsening', v, 3, {
+            clinicalObjective: 'post_exertional_pattern',
+            mappedSystems: ['metabolic'],
+          })}
+          yesLabel="Yes"
+          noLabel="Not really"
+          yesSub="Energy crashes or symptoms worsen"
+          noSub="I recover normally"
+        />
+        {form.post_exertional_worsening === true && (
+          <div className="mt-4" style={{ animation: 'fadeSlideIn 200ms ease-out' }}>
+            <AcknowledgementBanner text="This pattern is worth noting — it can point to specific physiological mechanisms worth exploring with a practitioner." />
+          </div>
+        )}
       </div>
     </div>
   )
