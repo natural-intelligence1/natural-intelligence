@@ -245,28 +245,29 @@ function buildSynopsisPrompt(params: {
   if (intake) {
     lines.push('=== INTAKE FORM ===')
     const i = intake as Record<string, unknown>
-    if (i.chief_complaints)        lines.push(`Chief complaints: ${JSON.stringify(i.chief_complaints)}`)
-    if (i.complaint_duration)      lines.push(`Duration: ${i.complaint_duration}`)
-    if (i.complaint_severity)      lines.push(`Severity (1–10): ${i.complaint_severity}`)
-    if (i.existing_conditions)     lines.push(`Existing conditions: ${JSON.stringify(i.existing_conditions)}`)
+    // Remediation Task 3 — field names repaired against the live
+    // intake_responses schema. The prompt previously read column names that
+    // do not exist (chief_complaints, complaint_duration, complaint_severity,
+    // existing_conditions, previous_practitioners, previous_treatments,
+    // diet_type, alcohol_frequency, smoking_status, mood_level,
+    // digestion_level, cognitive_level, additional_notes) — every one of
+    // those reads silently returned undefined, so the synopsis was built from
+    // a fraction of the intake. Renamed the five with a direct equivalent and
+    // dropped the eight with no current column (no substitutions invented;
+    // severity/alcohol live in intake_answers, the numeric mood/digestion/
+    // cognitive "levels" were never collected).
+    if (i.primary_concerns)        lines.push(`Chief complaints: ${JSON.stringify(i.primary_concerns)}`)
+    if (i.concern_duration)        lines.push(`Duration: ${i.concern_duration}`)
+    if (i.diagnosed_conditions)    lines.push(`Existing conditions: ${JSON.stringify(i.diagnosed_conditions)}`)
     if (i.current_medications)     lines.push(`Medications: ${i.current_medications}`)
     if (i.current_supplements)     lines.push(`Supplements: ${i.current_supplements}`)
-    if (i.previous_practitioners)  lines.push(`Practitioners seen: ${JSON.stringify(i.previous_practitioners)}`)
-    if (i.previous_treatments)     lines.push(`Previous treatments: ${i.previous_treatments}`)
-    if (i.diet_type)               lines.push(`Diet type: ${i.diet_type}`)
+    if (i.past_treatments)         lines.push(`Previous treatments: ${i.past_treatments}`)
+    if (i.diet_description)         lines.push(`Diet: ${i.diet_description}`)
     if (i.exercise_frequency)      lines.push(`Exercise frequency: ${i.exercise_frequency}`)
     if (i.sleep_hours)             lines.push(`Avg sleep hours: ${i.sleep_hours}`)
     if (i.stress_level)            lines.push(`Stress level (1–10): ${i.stress_level}`)
-    if (i.alcohol_frequency)       lines.push(`Alcohol: ${i.alcohol_frequency}`)
-    if (i.smoking_status)          lines.push(`Smoking: ${i.smoking_status}`)
     if (i.energy_level)            lines.push(`Energy (1–10): ${i.energy_level}`)
-    if (i.mood_level)              lines.push(`Mood (1–10): ${i.mood_level}`)
-    if (i.digestion_level)         lines.push(`Digestion (1–10): ${i.digestion_level}`)
-    if (i.cognitive_level)         lines.push(`Cognitive function (1–10): ${i.cognitive_level}`)
     if (i.family_history)          lines.push(`Family history: ${i.family_history}`)
-    // Sprint B Phase 1 deletion — health_goals removed from intake; the
-    // line above for the synopsis prompt is dropped.
-    if (i.additional_notes)        lines.push(`Additional notes: ${i.additional_notes}`)
     lines.push('')
   } else {
     lines.push('=== INTAKE FORM ===')

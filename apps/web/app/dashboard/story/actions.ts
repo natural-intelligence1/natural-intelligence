@@ -379,10 +379,13 @@ function buildStoryPrompt(
   field('arrival_emotion',          'Arrival emotion')
   field('primary_concerns',         'Primary concerns')
   field('concern_severity_baseline','Severity impact on daily life (0–10)')
-  field('symptom_onset',            'When symptoms started')
+  // Remediation Task 3 — removed three dead reads: symptom_onset,
+  // timeline_trigger_type, working_with_practitioners. These columns exist
+  // on intake_responses but the current intake form never writes them, so
+  // they were always empty. (timeline_last_well + timeline_trigger, which the
+  // form does write, are retained.)
   field('timeline_last_well',       'Last time felt well')
   field('timeline_trigger',         'Possible trigger event')
-  field('timeline_trigger_type',    'Trigger type')
   field('diagnosed_conditions',     'Diagnosed conditions')
   field('past_treatments',          'Past treatments tried')
   field('current_medications',      'Current medications')
@@ -405,7 +408,6 @@ function buildStoryPrompt(
   field('menstrual_flow_heaviness', 'Menstrual flow heaviness (1–5)')
   field('psychosocial_worry',       'Main worry/stress')
   field('psychosocial_impact',      'Emotional/social impact')
-  field('working_with_practitioners','Currently working with practitioners')
   // Sprint B Phase 1 deletions — practitioner_types, health_goals,
   // readiness_change, timeline_expectation removed from intake; references
   // in the prompt builder dropped accordingly.
