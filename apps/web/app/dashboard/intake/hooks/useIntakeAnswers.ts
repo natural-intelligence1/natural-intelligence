@@ -137,7 +137,7 @@ export function useIntakeAnswers({
           //   string but whose stored value is an array into a joined string.
           //   This is generic — it protects every string-typed field from an
           //   array-shaped answer, not just current_supplements.
-          const expected = (initialForm as Record<string, unknown>)[qid]
+          const expected = (initialForm as unknown as Record<string, unknown>)[qid]
           let value: unknown = row.answer
           if (typeof expected === 'string' && Array.isArray(value)) {
             value = (value as unknown[]).map(v => String(v).trim()).filter(Boolean).join(', ')
