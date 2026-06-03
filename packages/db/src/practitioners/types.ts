@@ -149,6 +149,12 @@ export interface IntakeSummary {
   bestSelfEnergy:          string | null
   bestSelfMood:            string | null
   bestSelfRecoveryGoal:    string | null
+  // Remediation Task 2 — energy timing (from intake_answers, not
+  // intake_responses). Rendered as a one-line "Energy pattern" field in the
+  // clinical context section. energyCurve stores a curve key (e.g.
+  // afternoon_crash); energyLowTimes stores the chip labels.
+  energyLowTimes:          string[] | null
+  energyCurve:             string | null
 }
 
 export interface CaseEvent {

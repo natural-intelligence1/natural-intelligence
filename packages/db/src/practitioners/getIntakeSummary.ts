@@ -73,11 +73,17 @@ export async function getIntakeSummary(
   }
 
   // ── Query 2: curated intake_answers ──────────────────────────────────────
+  // Remediation Task 2 — energy_low_times + energy_curve live in
+  // intake_answers (not intake_responses), so they are read here alongside
+  // the other curated answers.
   const { data: answers, error: answersErr } = await client
     .from('intake_answers')
     .select('question_id, answer')
     .eq('member_id', memberId)
-    .in('question_id', ['post_exertional_worsening', 'concern_severity_baseline'])
+    .in('question_id', [
+      'post_exertional_worsening', 'concern_severity_baseline',
+      'energy_low_times', 'energy_curve',
+    ])
 
   if (answersErr) {
     throw new Error(`getIntakeSummary (answers) failed [${answersErr.code}]: ${answersErr.message}`)
@@ -90,6 +96,8 @@ export async function getIntakeSummary(
 
   const rawPex = answerMap['post_exertional_worsening']
   const rawSev = answerMap['concern_severity_baseline']
+  const rawEnergyLowTimes = answerMap['energy_low_times']
+  const rawEnergyCurve    = answerMap['energy_curve']
 
   return {
     arrivalEmotion:          ir.arrival_emotion,
@@ -117,5 +125,10 @@ export async function getIntakeSummary(
     bestSelfEnergy:          ir.best_self_energy         ?? null,
     bestSelfMood:            ir.best_self_mood           ?? null,
     bestSelfRecoveryGoal:    ir.best_self_recovery_goal  ?? null,
+    // Remediation Task 2 — energy timing (from intake_answers).
+    energyLowTimes:          Array.isArray(rawEnergyLowTimes)
+                               ? (rawEnergyLowTimes as unknown[]).map(String)
+                               : null,
+    energyCurve:             typeof rawEnergyCurve === 'string' ? rawEnergyCurve : null,
   }
 }

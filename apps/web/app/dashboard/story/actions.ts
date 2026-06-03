@@ -13,8 +13,10 @@ import {
   buildPersonalisationBlock,
   buildSignatureQuestionBlock,
   buildBestSelfBlock,
+  buildEnergyTimingBlock,
   isIslamicFramingEnabled,
   type BestSelfInput,
+  type EnergyTimingInput,
 }                                                       from '@natural-intelligence/db/prompts'
 
 // ─── generateBodyStory ────────────────────────────────────────────────────────
@@ -121,7 +123,17 @@ export async function generateBodyStory(
       bestSelfMood:         intakeRowForPrompt?.best_self_mood         ?? null,
       bestSelfRecoveryGoal: intakeRowForPrompt?.best_self_recovery_goal ?? null,
     }
-    const systemPrompt = buildBodyStorySystemPrompt(p, mostWantToUnderstand, bestSelf)
+    // Remediation Task 2 — energy timing. These fields live in intake_answers
+    // (the answer map), NOT intake_responses, so they're read from answerMap.
+    const energyTiming: EnergyTimingInput = {
+      energyLowTimes: Array.isArray(answerMap['energy_low_times'])
+        ? (answerMap['energy_low_times'] as unknown[]).map(String)
+        : null,
+      energyCurve: typeof answerMap['energy_curve'] === 'string'
+        ? (answerMap['energy_curve'] as string)
+        : null,
+    }
+    const systemPrompt = buildBodyStorySystemPrompt(p, mostWantToUnderstand, bestSelf, energyTiming)
 
     const message = await anthropic.messages.create({
       model:      'claude-sonnet-4-6',
@@ -256,16 +268,19 @@ function buildBodyStorySystemPrompt(
   p: PersonalisationForGeneration,
   mostWantToUnderstand: string | null,
   bestSelf: BestSelfInput,
+  energyTiming: EnergyTimingInput,
 ): string {
   // Sprint B Phase 1 — signature block prepended when the user answered the
   // "what would you most want to understand" question.
   // Sprint B Phase 2 — Best Self Baseline block sits AFTER the signature
-  // question and BEFORE the clinical context, so the model reads "what they
-  // want to understand" then "who they were at their best" then its role.
-  // Both blocks return '' when unanswered (.filter(Boolean) drops them).
+  // question and BEFORE the clinical context.
+  // Remediation Task 2 — energy timing block sits with the other clinical
+  // context, before the role/task body. All blocks return '' when
+  // unanswered (.filter(Boolean) drops them).
   return [
     buildSignatureQuestionBlock(mostWantToUnderstand),
     buildBestSelfBlock(bestSelf),
+    buildEnergyTimingBlock(energyTiming),
     buildPersonalisationBlock(p),
     BODY_STORY_PROMPT_BODY,
   ].filter(Boolean).join('\n\n')

@@ -14,8 +14,10 @@ import {
   buildBiologicalContextBlock,
   buildSignatureQuestionBlock,
   buildBestSelfBlock,
+  buildEnergyTimingBlock,
   isIslamicFramingEnabled,
   type BestSelfInput,
+  type EnergyTimingInput,
 } from './buildPersonalisationBlock'
 
 const RELIGION_TERMS = [
@@ -213,5 +215,37 @@ describe('buildBestSelfBlock', () => {
     expect(out).toContain('What they most want back: My sleep.')
     expect(out).toContain('What was different: not provided')
     expect(out).toContain('Sleep then: not recorded')
+  })
+})
+
+// ─── buildEnergyTimingBlock (Remediation Task 2 — energy timing) ──────────────
+
+describe('buildEnergyTimingBlock', () => {
+  const empty: EnergyTimingInput = { energyLowTimes: null, energyCurve: null }
+
+  it('returns empty string when neither field is populated', () => {
+    expect(buildEnergyTimingBlock(empty)).toBe('')
+    expect(buildEnergyTimingBlock({ energyLowTimes: [], energyCurve: '' })).toBe('')
+    expect(buildEnergyTimingBlock({ energyLowTimes: [], energyCurve: 'unknown_key' })).toBe('')
+  })
+
+  it('renders header + instruction + low-times when only low-times present', () => {
+    const out = buildEnergyTimingBlock({ energyLowTimes: ['On waking', 'After lunch'], energyCurve: null })
+    expect(out).toContain('ENERGY TIMING PATTERN:')
+    expect(out).toContain('Lowest energy: On waking, After lunch')
+    expect(out).toContain('reference this pattern in the analysis')
+    expect(out).not.toContain('Daily curve:')
+  })
+
+  it('humanises the energy_curve key', () => {
+    const out = buildEnergyTimingBlock({ energyLowTimes: null, energyCurve: 'afternoon_crash' })
+    expect(out).toContain('Daily curve: good in the morning, drops after lunch')
+    expect(out).not.toContain('Lowest energy:')
+  })
+
+  it('renders both lines when both fields are present', () => {
+    const out = buildEnergyTimingBlock({ energyLowTimes: ['Evening'], energyCurve: 'evening_wired' })
+    expect(out).toContain('Lowest energy: Evening')
+    expect(out).toContain('Daily curve: alert and wired in the evening, hard to wind down')
   })
 })

@@ -56,17 +56,44 @@ interface ClientSummaryPanelProps {
   personalisation: ClientPersonalisation | null
 }
 
+// Remediation Task 2 — human-readable energy pattern for the workspace.
+// Prefers the curve name; appends lowest-energy times when present.
+// Returns null when neither field is populated (line is then hidden).
+function energyPatternLabel(
+  energyLowTimes: string[] | null,
+  energyCurve:    string | null,
+): string | null {
+  const curveName: Record<string, string> = {
+    morning_low:     'Morning low',
+    afternoon_crash: 'Afternoon crash',
+    evening_wired:   'Evening second wind',
+    all_day_fatigue: 'All-day fatigue',
+    fluctuating:     'Unpredictable',
+    generally_good:  'Generally good',
+  }
+  const curve = energyCurve ? curveName[energyCurve] ?? null : null
+  const lows  = (energyLowTimes ?? []).filter(Boolean)
+  if (!curve && lows.length === 0) return null
+  if (curve && lows.length) return `${curve} · lowest: ${lows.join(', ')}`
+  if (curve) return curve
+  return `Lowest: ${lows.join(', ')}`
+}
+
 // ─── Clinical context subsection ──────────────────────────────────────────────
 // Quiet annotation at the bottom of the panel. ONLY surfaces biological_sex
 // and clinical_notes_on_sex from practitioner_client_personalisation. religion
 // and religious_content_preference are not in this view by design (PS
 // architectural contract) — they have no path to be rendered here.
+// Remediation Task 2 — also renders the energy-timing pattern (from intake,
+// passed in via energyPattern) when present, same weight as the Sex line.
 function ClinicalContext({
   personalisation,
   memberId,
+  energyPattern,
 }: {
   personalisation: ClientPersonalisation | null
   memberId:        string
+  energyPattern?:  string | null
 }) {
   const sexLabel = personalisation?.biologicalSex === 'male'   ? 'Male'
                 : personalisation?.biologicalSex === 'female' ? 'Female'
@@ -89,6 +116,14 @@ function ClinicalContext({
           {sexLabel}
         </span>
       </div>
+
+      {/* Energy pattern line — shown only when present. Same weight as Sex. */}
+      {energyPattern && (
+        <div style={{ fontSize: '13px', color: '#1A1917', marginBottom: '14px' }}>
+          <span style={{ color: '#8A8880' }}>Energy pattern: </span>
+          <span>{energyPattern}</span>
+        </div>
+      )}
 
       {/* Clinical note — inline edit affordance */}
       <ClinicalNoteEditor
@@ -257,7 +292,11 @@ export function ClientSummaryPanel({ summary, clientName, memberId, personalisat
       </div>
 
       {/* Clinical context — quiet annotation at the bottom */}
-      <ClinicalContext personalisation={personalisation} memberId={memberId} />
+      <ClinicalContext
+        personalisation={personalisation}
+        memberId={memberId}
+        energyPattern={energyPatternLabel(summary.energyLowTimes, summary.energyCurve)}
+      />
     </CollapsibleSection>
   )
 }

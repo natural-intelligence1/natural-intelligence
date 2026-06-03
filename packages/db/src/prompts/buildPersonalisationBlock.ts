@@ -146,6 +146,45 @@ export function buildBestSelfBlock(b: BestSelfInput): string {
   ].join('\n')
 }
 
+// Sprint B Phase 2 / Remediation Task 2 — Energy timing block.
+//
+// energy_low_times (multi-select chip values) + energy_curve (single key)
+// are Tier A signals that were collected and discarded. This block passes
+// them into the body story so the model can reference the energy picture.
+// Returns '' when neither is populated (callers .filter(Boolean)).
+//
+// Source note: these fields live in intake_answers (keyed by question_id),
+// NOT intake_responses — so callers build the input from the answer map.
+
+export interface EnergyTimingInput {
+  energyLowTimes: string[] | null
+  energyCurve:    string | null
+}
+
+function energyCurveLabel(key: string | null): string | null {
+  switch ((key ?? '').trim()) {
+    case 'morning_low':     return 'worst on waking, improves through the day'
+    case 'afternoon_crash': return 'good in the morning, drops after lunch'
+    case 'evening_wired':   return 'alert and wired in the evening, hard to wind down'
+    case 'all_day_fatigue': return 'consistently low throughout the day'
+    case 'fluctuating':     return 'varies with no clear pattern'
+    case 'generally_good':  return 'not a significant concern'
+    default:                return null
+  }
+}
+
+export function buildEnergyTimingBlock(d: EnergyTimingInput): string {
+  const lowTimes = (d.energyLowTimes ?? []).filter(Boolean)
+  const curve    = energyCurveLabel(d.energyCurve)
+  if (lowTimes.length === 0 && !curve) return ''
+  const lines: string[] = ['ENERGY TIMING PATTERN:']
+  if (lowTimes.length) lines.push(`Lowest energy: ${lowTimes.join(', ')}`)
+  if (curve)           lines.push(`Daily curve: ${curve}`)
+  lines.push('')
+  lines.push('Where relevant to the energy picture, reference this pattern in the analysis.')
+  return lines.join('\n')
+}
+
 // Block variant that strips the framing line entirely — used by BioHub lab
 // interpretation (Option iii: clinical-only, no religious framing surface).
 export function buildBiologicalContextBlock(p: PersonalisationForGeneration): string {

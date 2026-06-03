@@ -1733,6 +1733,45 @@ function whatWeHeardBullets(flags: string[]): string[] {
     .slice(0, 3)
 }
 
+// Remediation Task 2 — energy timing recognition bullet for What We Heard.
+// energy_curve (single key) takes priority; energy_low_times (chip labels)
+// is the fallback. Maps to one of four recognition statements. These are
+// recognition statements, NOT diagnoses — they name a pattern the platform
+// noticed, with no clinical conclusion. Returns '' when nothing maps.
+function energyTimingBucket(
+  energyLowTimes: string[],
+  energyCurve:    string,
+): 'morning' | 'all_day' | 'afternoon' | 'evening' | null {
+  switch (energyCurve) {
+    case 'morning_low':     return 'morning'
+    case 'afternoon_crash': return 'afternoon'
+    case 'evening_wired':   return 'evening'
+    case 'all_day_fatigue': return 'all_day'
+    default:                break
+  }
+  const lt = energyLowTimes.map(s => s.toLowerCase())
+  if (lt.includes('on waking') || lt.includes('mid-morning'))     return 'morning'
+  if (lt.includes('all day'))                                     return 'all_day'
+  if (lt.includes('after lunch') || lt.includes('late afternoon')) return 'afternoon'
+  if (lt.includes('evening'))                                     return 'evening'
+  return null
+}
+
+function whatWeHeardEnergyTiming(energyLowTimes: string[], energyCurve: string): string {
+  switch (energyTimingBucket(energyLowTimes, energyCurve)) {
+    case 'morning':
+      return 'Your energy follows a pattern that often points toward how your stress hormone system is working — particularly in the early part of the day.'
+    case 'all_day':
+      return 'Your energy appears low throughout the day, which often points toward several underlying patterns we will explore further in your Body Story.'
+    case 'afternoon':
+      return 'The afternoon dip you described is one of the most informative patterns in the intake — and one of the most common.'
+    case 'evening':
+      return 'You described a pattern many people recognise — tired but unable to switch off. This is one of the most distinctive patterns we see.'
+    default:
+      return ''
+  }
+}
+
 // Sprint B Phase 2 — Pattern F (Best Self gap). Fires when the user
 // described who they were at their best AND at least one comparative says
 // they were better then than now. This is the narrative bullet that names
@@ -1784,6 +1823,7 @@ function whatWeHeardTemporalArc(timelineLastWell: string, timelineTrigger: strin
 function Section9({
   consent, setConsent, flags, timelineLastWell, timelineTrigger,
   bestSelfDescription, bestSelfSleep, bestSelfEnergy, bestSelfMood,
+  energyLowTimes, energyCurve,
 }: {
   consent:             boolean
   setConsent:          (v: boolean) => void
@@ -1794,16 +1834,20 @@ function Section9({
   bestSelfSleep:       string
   bestSelfEnergy:      string
   bestSelfMood:        string
+  energyLowTimes:      string[]
+  energyCurve:         string
 }) {
   // Block 1 — the temporal arc, one sentence. Omitted if neither field
   // was answered.
   const arc = whatWeHeardTemporalArc(timelineLastWell, timelineTrigger)
 
-  // Block 2 — pattern bullets. Sprint B Phase 2: Pattern F (Best Self gap)
-  // leads when it fires, followed by up to 3 clinical-flag bullets. Empty
-  // list when nothing fires (block stays silent — better silent than padded).
-  const patternF = whatWeHeardPatternF(bestSelfDescription, bestSelfSleep, bestSelfEnergy, bestSelfMood)
-  const bullets = [patternF, ...whatWeHeardBullets(flags)].filter(Boolean)
+  // Block 2 — pattern bullets. Order: Pattern F (Best Self gap) leads when
+  // it fires, then the energy-timing recognition bullet (Remediation Task 2),
+  // then up to 3 clinical-flag bullets. Empty list when nothing fires (block
+  // stays silent — better silent than padded).
+  const patternF    = whatWeHeardPatternF(bestSelfDescription, bestSelfSleep, bestSelfEnergy, bestSelfMood)
+  const energyBullet = whatWeHeardEnergyTiming(energyLowTimes, energyCurve)
+  const bullets = [patternF, energyBullet, ...whatWeHeardBullets(flags)].filter(Boolean)
 
   return (
     <div className="space-y-7">
@@ -2132,6 +2176,8 @@ export function IntakeForm({
           bestSelfSleep={form.best_self_sleep}
           bestSelfEnergy={form.best_self_energy}
           bestSelfMood={form.best_self_mood}
+          energyLowTimes={form.energy_low_times}
+          energyCurve={form.energy_curve}
         />}
       </div>
 

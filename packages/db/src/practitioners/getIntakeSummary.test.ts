@@ -120,6 +120,8 @@ describe('getIntakeSummary — unit', () => {
         data: [
           { question_id: 'post_exertional_worsening', answer: true },
           { question_id: 'concern_severity_baseline', answer: 7 },
+          { question_id: 'energy_low_times', answer: ['On waking', 'After lunch'] },
+          { question_id: 'energy_curve', answer: 'afternoon_crash' },
         ],
         error: null,
       },
@@ -145,6 +147,9 @@ describe('getIntakeSummary — unit', () => {
     expect(result!.bestSelfEnergy).toBe('better_than_now')
     expect(result!.bestSelfMood).toBe('about_the_same')
     expect(result!.bestSelfRecoveryGoal).toBe('My morning energy')
+    // Remediation Task 2 — energy timing mapped from intake_answers.
+    expect(result!.energyLowTimes).toEqual(['On waking', 'After lunch'])
+    expect(result!.energyCurve).toBe('afternoon_crash')
   })
 
   it('returns null for postExertionalWorsening when answer is absent', async () => {
@@ -169,6 +174,9 @@ describe('getIntakeSummary — unit', () => {
     // Sprint B Phase 2 — Best Self Baseline absent on legacy rows.
     expect(result!.bestSelfDescription).toBeNull()
     expect(result!.bestSelfRecoveryGoal).toBeNull()
+    // Remediation Task 2 — energy timing absent when not answered.
+    expect(result!.energyLowTimes).toBeNull()
+    expect(result!.energyCurve).toBeNull()
   })
 })
 
