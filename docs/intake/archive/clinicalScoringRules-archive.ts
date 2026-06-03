@@ -1,3 +1,18 @@
+// ─── ARCHIVED 2026-06-03 ──────────────────────────────────────────────────────
+// Archived 2026-06-03 — field names did not match current intake_responses
+// schema (e.g. energy_curve_pattern vs energy_curve, gi_symptom_timing vs
+// gi_timing, cycle_symptom_pattern vs cycle_patterns, hydration_colour has no
+// column). The module was imported nowhere (no test, no consumer) and was
+// never invoked. Preserved as design reference for the Phase D.0
+// scoreHypotheses() rebuild — which will return pattern confidence / signal
+// confidence / missing information / contradictions, NOT named hypothesis
+// scores (practitioners own the hypotheses; NI surfaces the patterns).
+// See docs/intake/intake-intelligence-remediation-v2.md
+//
+// This file lives under docs/ and is intentionally outside every app's
+// tsconfig include — it is a reference artefact, not compiled code.
+// ──────────────────────────────────────────────────────────────────────────────
+
 // ─── rules.ts ─────────────────────────────────────────────────────────────────
 // Clinical rules engine for the intake question system.
 // Rules fire based on answers (intake_answers.answer JSON) and produce:
