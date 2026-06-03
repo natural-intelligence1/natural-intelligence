@@ -46,6 +46,7 @@ default project / indexing / context-pack settings.
 | `contextPack.maxWords` | `4000` | Hard ceiling on context-pack size. |
 | `contextPack.maxNotesReturned` | `5` | Cap for the "Relevant Notes" section. |
 | `contextPack.maxDecisionsReturned` | `5` | Cap for the "Relevant Decisions" section. |
+| `git.recentCommits` | `20` | How many commits `update-state` / `handover` read. |
 
 ### 3. (Optional) Try it against the bundled test vault
 
@@ -161,6 +162,76 @@ floor of 100 words each).
 
 ---
 
+## End-of-session maintenance commands
+
+These three commands automate the vault upkeep that used to be manual
+editing. The first two call the Anthropic API; the third chains
+everything together.
+
+> **API key.** `update-state`, `handover`, and `sync` (its first two
+> steps) call Claude. They resolve the key from, in order:
+> `process.env.ANTHROPIC_API_KEY` → `tools/obsidian-memory/.env` →
+> `apps/web/.env.local`. Set one of those before running the live (non
+> `--dry-run`) commands.
+>
+> **`--dry-run`.** `update-state`, `handover`, and `sync` accept
+> `--dry-run`, which skips the API and produces deterministic,
+> commit-derived output. Use it to exercise the full pipeline (git →
+> file write → re-index → context pack) without a key or API cost.
+
+### `pnpm obsidian:update-state`
+
+Updates **only** three sections of `01-Projects/<project>/01-CURRENT-STATE.md`
+— "What is built and verified", "What is in progress", and "Change log"
+— from the last `git.recentCommits` commits, via Claude. Every other
+section is preserved byte-for-byte; frontmatter is preserved and only
+`updated:` is bumped to today. Prints a before/after of the Change log.
+
+```bash
+pnpm obsidian:update-state                 # project NI (default)
+pnpm obsidian:update-state --project NI
+pnpm obsidian:update-state --dry-run       # no API; refreshes Change log from commits
+```
+
+The current-state file is located via the vault index
+(`type: current-state`, matching project), falling back to
+`<project-dir>/01-CURRENT-STATE.md`. It also reads the db test count
+(`pnpm --filter @natural-intelligence/db test`) and includes it if the
+suite runs; skipped gracefully otherwise.
+
+### `pnpm obsidian:handover`
+
+Writes a session handover note to
+`00-OS/Handovers/YYYY-MM-DD-<PROJECT>-auto.md` following the vault's
+HANDOVER template (what was worked on / decided / built / blocked /
+state snapshot / context / files / stop condition). Frontmatter is
+written deterministically with `type: handover` + `project:` so the
+index and context-pack builder pick it up.
+
+```bash
+pnpm obsidian:handover
+pnpm obsidian:handover --project NI
+pnpm obsidian:handover --dry-run           # no API; body lists the recent commits
+```
+
+Inputs: the current-state doc, the last `git.recentCommits` commits,
+and the most recent context pack.
+
+### `pnpm obsidian:sync`
+
+One-shot end-of-session. Runs, in order: `update-state` → `handover` →
+`index` (so the new handover is picked up) → `context --project NI
+--task "continue from last session"`. Prints the generated context
+pack path at the end. Forwards `--dry-run` to the first two steps.
+
+```bash
+pnpm obsidian:sync
+pnpm obsidian:sync --project NI
+pnpm obsidian:sync --dry-run
+```
+
+---
+
 ## Workflow
 
 ### Daily — start of a Claude Chat session
@@ -238,17 +309,24 @@ tools/obsidian-memory/
 ├── index-vault.ts                  ← `pnpm obsidian:index`
 ├── search-vault.ts                 ← `pnpm obsidian:search`
 ├── build-context-pack.ts           ← `pnpm obsidian:context`
+├── update-current-state.ts         ← `pnpm obsidian:update-state`
+├── generate-handover.ts            ← `pnpm obsidian:handover`
+├── sync.ts                         ← `pnpm obsidian:sync`
 ├── lib/
 │   ├── config.ts                   ← config loader + CLI args
 │   ├── parser.ts                   ← frontmatter + markdown parsing
 │   ├── index-types.ts              ← IndexedNote / IndexFile types
 │   ├── scorer.ts                   ← keyword relevance scoring
-│   └── truncator.ts                ← section truncation
+│   ├── truncator.ts                ← section truncation
+│   ├── llm.ts                      ← Anthropic wrapper + key resolution
+│   └── session.ts                  ← git / vault-IO / frontmatter helpers
+├── .env                            ← optional, local API key (gitignored)
 ├── .index/                         ← generated (gitignored)
 │   └── notes.json
 ├── context-packs/                  ← generated (gitignored)
 └── test-vault/                     ← minimal fixture
 ```
 
-Phase 2 is complete. Phase 3 (vault write-back) is designed but not
-yet implemented.
+Phase 2 (read layer) and the end-of-session maintenance commands are
+complete. Phase 3 (full vault write-back automation) is designed but
+not yet implemented.
