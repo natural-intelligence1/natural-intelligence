@@ -125,7 +125,24 @@ export function useIntakeAnswers({
             console.warn(`[useIntakeAnswers] unknown questionId "${qid}" in intake_answers — skipping`)
             continue
           }
-          ;(patch as Record<string, unknown>)[qid] = row.answer
+
+          // Resume-hydration shape guard (Remediation Task 2).
+          // Some fields are persisted to intake_answers in a different shape
+          // than the FormState field expects. The known case:
+          //   current_supplements — the Section 5 TagInput persists an ARRAY,
+          //   but FormState types it as a comma-joined STRING (and Section 5
+          //   reads it with .split(',')). On resume, the raw array overwrote
+          //   the string and Section 5 crashed: "current_supplements.split is
+          //   not a function". Coerce any answer whose FormState field is a
+          //   string but whose stored value is an array into a joined string.
+          //   This is generic — it protects every string-typed field from an
+          //   array-shaped answer, not just current_supplements.
+          const expected = (initialForm as Record<string, unknown>)[qid]
+          let value: unknown = row.answer
+          if (typeof expected === 'string' && Array.isArray(value)) {
+            value = (value as unknown[]).map(v => String(v).trim()).filter(Boolean).join(', ')
+          }
+          ;(patch as Record<string, unknown>)[qid] = value
           const sn = sectionNumberFromId(String(row.section_id))
           if (sn > maxSection) maxSection = sn
         }
