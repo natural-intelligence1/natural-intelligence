@@ -1941,6 +1941,9 @@ export function IntakeForm({
 
   // C4.2 — browser Supabase client (created once, passed to hook)
   const supabase = useMemo(() => createClient(), [])
+  // user_personalisation isn't in the generated DB types; reach it through a
+  // loose client. Its PK is user_id (there is no id column).
+  const upClient = supabase as any
 
   // C4.2 — useIntakeAnswers: session bootstrap + per-answer dual-write + hydration
   const {
@@ -1966,12 +1969,10 @@ export function IntakeForm({
   async function setBiologicalSex(value: 'male' | 'female') {
     setForm(f => ({ ...f, biological_sex: value }))
     try {
-      // Same 'as profiles' cast trick used elsewhere — user_personalisation
-      // is not in the generated Database types yet.
-      const { error } = await supabase
-        .from('user_personalisation' as 'profiles')
-        .update({ biological_sex: value } as never)
-        .eq('id' as 'id', memberId)
+      const { error } = await upClient
+        .from('user_personalisation')
+        .update({ biological_sex: value })
+        .eq('user_id', memberId)
       if (error) {
         console.error('[IntakeForm] biological_sex persist failed:', error.message)
       }
@@ -1999,10 +2000,10 @@ export function IntakeForm({
         value === 'muslim'
           ? { religion: value }
           : { religion: value, religious_content_preference: 'hide' }
-      const { error } = await supabase
-        .from('user_personalisation' as 'profiles')
-        .update(payload as never)
-        .eq('id' as 'id', memberId)
+      const { error } = await upClient
+        .from('user_personalisation')
+        .update(payload)
+        .eq('user_id', memberId)
       if (error) console.error('[IntakeForm] religion persist failed:', error.message)
     } catch (err) {
       console.error('[IntakeForm] religion persist exception:', err)
@@ -2012,10 +2013,10 @@ export function IntakeForm({
   async function setReligiousContentPreference(value: FormState['religious_content_preference']) {
     setForm(f => ({ ...f, religious_content_preference: value }))
     try {
-      const { error } = await supabase
-        .from('user_personalisation' as 'profiles')
-        .update({ religious_content_preference: value } as never)
-        .eq('id' as 'id', memberId)
+      const { error } = await upClient
+        .from('user_personalisation')
+        .update({ religious_content_preference: value })
+        .eq('user_id', memberId)
       if (error) console.error('[IntakeForm] preference persist failed:', error.message)
     } catch (err) {
       console.error('[IntakeForm] preference persist exception:', err)

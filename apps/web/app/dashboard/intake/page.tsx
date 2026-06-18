@@ -26,10 +26,12 @@ export default async function IntakePage() {
   // intake can pre-fill the new Chapter 1 questions if the user already answered
   // them (e.g. resume case). Cast trick: piggy-back on 'profiles' table name to
   // bypass generated DB types not knowing about user_personalisation.
-  const personalisationQuery = await supabase
-    .from('user_personalisation' as 'profiles')
+  // user_personalisation isn't in the generated DB types; reach it through a
+  // loose client. Its PK is user_id (there is no id column).
+  const personalisationQuery = await (supabase as any)
+    .from('user_personalisation')
     .select('biological_sex, religion, religious_content_preference')
-    .eq('id' as 'id', user.id)
+    .eq('user_id', user.id)
     .maybeSingle()
   const personalisation = personalisationQuery.data as unknown as {
     biological_sex:                'male' | 'female' | null
