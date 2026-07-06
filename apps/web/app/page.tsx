@@ -1,16 +1,14 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { copy } from '@/lib/copy'
-import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
-import { Avatar, VettedBadge, Pill } from '@natural-intelligence/ui'
-import HeroDashboard from '@/components/hero-dashboard'
-import type { VitalityData } from '@/components/hero-dashboard'
+import { createServerSupabaseClient } from '@natural-intelligence/db'
+import { Avatar, Pill } from '@natural-intelligence/ui'
 
 // ─── Icon primitives ──────────────────────────────────────────────────────────
 
 function IconDirectory() {
   return (
-    <svg className="w-5 h-5 text-text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <svg aria-hidden="true" focusable="false" className="w-5 h-5 text-text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   )
@@ -18,7 +16,7 @@ function IconDirectory() {
 
 function IconWorkshops() {
   return (
-    <svg className="w-5 h-5 text-text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <svg aria-hidden="true" focusable="false" className="w-5 h-5 text-text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
     </svg>
   )
@@ -26,7 +24,7 @@ function IconWorkshops() {
 
 function IconIntelligence() {
   return (
-    <svg className="w-5 h-5 text-text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <svg aria-hidden="true" focusable="false" className="w-5 h-5 text-text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1 1 .03 2.774-1.406 2.774H4.204c-1.435 0-2.407-1.774-1.407-2.774L4.2 15.3" />
     </svg>
   )
@@ -56,29 +54,6 @@ function StepNumber({ n }: { n: number }) {
 
 export default async function HomePage() {
   const supabase = createServerSupabaseClient()
-
-  // Fetch logged-in user's latest vitality score for the hero rings
-  const { data: { user } } = await supabase.auth.getUser()
-  let vitalityData: VitalityData | null = null
-  if (user) {
-    const adminClient = createAdminClient()
-    const { data: vs } = await adminClient
-      .from('vitality_scores')
-      .select('overall_score, physical_score, cognitive_score, emotional_score, hormonal_score')
-      .eq('member_id', user.id)
-      .order('score_date', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (vs) {
-      vitalityData = {
-        overallScore:   vs.overall_score   ?? 0,
-        physicalScore:  vs.physical_score  ?? 0,
-        cognitiveScore: vs.cognitive_score ?? 0,
-        emotionalScore: vs.emotional_score ?? 0,
-        hormonalScore:  vs.hormonal_score  ?? 0,
-      }
-    }
-  }
 
   const { data: practitioners } = await supabase
     .from('practitioners')
@@ -119,8 +94,8 @@ export default async function HomePage() {
   const pillars = [
     {
       icon: <IconDirectory />,
-      title: 'Find a vetted practitioner',
-      body: 'Browse our directory of naturopathic doctors, functional medicine specialists, and integrative health practitioners — each reviewed before listing.',
+      title: 'Find a practitioner',
+      body: 'Browse our directory of naturopathic, functional, and integrative health practitioners — each with a profile reviewed before it goes live.',
     },
     {
       icon: <IconWorkshops />,
@@ -129,17 +104,10 @@ export default async function HomePage() {
     },
     {
       icon: <IconIntelligence />,
-      title: 'Personalised care intelligence',
-      body: 'An adaptive protocol engine, lab interpretation, and AI-assisted pattern recognition — built around you, guided by your practitioner.',
+      title: 'Thoughtful preparation',
+      body: 'Tools to help you reflect on your health and prepare for working with a practitioner — being developed carefully, with human expertise at the centre.',
       comingSoon: true,
     },
-  ]
-
-  const intelligenceModules = [
-    { name: 'Daily protocol', desc: 'Adaptive morning + evening' },
-    { name: 'Lab interpretation', desc: 'Plain-language results' },
-    { name: 'Pattern recognition', desc: 'Symptom timeline analysis' },
-    { name: 'Practitioner sync', desc: 'Shared notes & goals' },
   ]
 
   const formatEventTime = (dateStr: string) =>
@@ -154,93 +122,78 @@ export default async function HomePage() {
     <div>
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-surface-base pt-20 pb-0 md:pt-28 lg:pb-12 max-h-screen">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center pb-16 lg:pb-0 min-h-0">
+      <section className="relative overflow-hidden bg-surface-base pt-20 pb-16 md:pt-28 md:pb-24">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center">
 
-            {/* ── LEFT — text content ──────────────────────────────────── */}
-            <div className="flex flex-col justify-center max-w-lg lg:max-w-none">
-
-              {/* Hero brand lockup — vertical signature: symbol 88px, wordmark 13px */}
-              <div className="mb-8">
-
-                {/* Symbol */}
-                <div className="mb-3">
-                  <Image
-                    src="/images/NI_logo_thumb_transparent.png"
-                    alt="Natural Intelligence"
-                    width={88}
-                    height={88}
-                    priority
-                    className="object-contain"
-                    style={{ height: '88px', width: 'auto' }}
-                  />
-                </div>
-
-                {/* Wordmark — single line, left-aligned */}
-                <p
-                  className="font-sans font-normal text-text-primary uppercase"
-                  style={{ fontSize: '13px', letterSpacing: '0.18em' }}
-                >
-                  Natural Intelligence
-                </p>
-
-              </div>
-
-              {/* Eyebrow */}
-              <p className="text-xs font-semibold tracking-[0.16em] uppercase text-text-brand mb-5">
-                Naturopathic &amp; functional medicine
-              </p>
-
-              {/* H1 — Cormorant Garamond, italic light + semibold */}
-              <h1 className="font-display mb-6 leading-[1.08] tracking-[-0.02em]">
-                <span className="block text-[44px] md:text-[52px] lg:text-[62px] font-light text-text-primary italic">
-                  The space between
-                </span>
-                <span className="block text-[44px] md:text-[52px] lg:text-[62px] font-semibold text-text-primary">
-                  normal and thriving.
-                </span>
-              </h1>
-
-              {/* Subheadline */}
-              <p className="text-base md:text-lg text-text-secondary leading-relaxed mb-8 max-w-md">
-                Find trusted practitioners, join expert-led workshops,
-                and access evidence-based resources — built for natural health.
-              </p>
-
-              {/* CTAs */}
-              <div className="flex flex-wrap gap-3 mb-10">
-                <Link
-                  href="/directory"
-                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-brand-default text-text-inverted text-sm font-medium hover:bg-brand-hover transition-colors"
-                >
-                  Find a practitioner
-                </Link>
-                <Link
-                  href="/workshops"
-                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-border-default bg-surface-raised text-text-primary text-sm font-medium hover:bg-surface-muted transition-colors"
-                >
-                  Explore workshops
-                </Link>
-              </div>
-
-              {/* Intelligence teaser card */}
-              <div className="bg-surface-raised border border-border-default rounded-xl p-5 max-w-sm">
-                <p className="text-[10px] font-semibold tracking-[0.14em] uppercase text-text-brand mb-2">
-                  Coming to members
-                </p>
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  Personalised care intelligence — an adaptive daily
-                  protocol, lab interpretation, and pattern recognition.
-                </p>
-              </div>
-
-            </div>
-
-            {/* ── RIGHT — dashboard scene (client component, lg+ only) ── */}
-            <HeroDashboard vitalityData={vitalityData} />
-
+          {/* Hero brand lockup — symbol + wordmark */}
+          <div className="mb-8 flex flex-col items-center">
+            <Image
+              src="/images/NI_logo_thumb_transparent.png"
+              alt="Natural Intelligence"
+              width={88}
+              height={88}
+              priority
+              className="object-contain mb-3"
+              style={{ height: '88px', width: 'auto' }}
+            />
+            <p
+              className="font-sans font-normal text-text-primary uppercase"
+              style={{ fontSize: '13px', letterSpacing: '0.18em' }}
+            >
+              Natural Intelligence
+            </p>
           </div>
+
+          {/* Eyebrow */}
+          <p className="text-xs font-semibold tracking-[0.16em] uppercase text-text-brand mb-5">
+            Naturopathic &amp; functional medicine
+          </p>
+
+          {/* H1 — the founder motto, set in the display face */}
+          <h1 className="font-display mb-6 leading-[1.08] tracking-[-0.02em]">
+            <span className="block text-[40px] md:text-[52px] lg:text-[60px] font-light text-text-primary italic">
+              Beyond survival.
+            </span>
+            <span className="block text-[40px] md:text-[52px] lg:text-[60px] font-semibold text-text-primary">
+              Designed for thriving.
+            </span>
+          </h1>
+
+          {/* Subheadline — modest, truthful positioning */}
+          <p className="text-base md:text-lg text-text-secondary leading-relaxed mb-9 max-w-xl">
+            Natural Intelligence helps you find qualified natural-health practitioners and
+            begin a more personal kind of care — with thoughtful preparation, human
+            expertise, and clear boundaries.
+          </p>
+
+          {/* CTAs */}
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link
+              href="/directory"
+              className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-brand-default text-text-inverted text-sm font-medium hover:bg-brand-hover transition-colors"
+            >
+              Find a practitioner
+            </Link>
+            <Link
+              href="/apply"
+              className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-border-default bg-surface-raised text-text-primary text-sm font-medium hover:bg-surface-muted transition-colors"
+            >
+              Apply to join
+            </Link>
+            <Link
+              href="/about"
+              className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-text-brand text-sm font-medium hover:bg-surface-muted transition-colors"
+            >
+              Learn how it works
+            </Link>
+          </div>
+
+          {/* Quiet reassurance — no clinical or handoff claim */}
+          <p className="text-sm text-text-muted mt-8 max-w-md">
+            A qualified human practitioner is always responsible for clinical judgement.
+            Natural Intelligence supports care; it does not replace medical care.
+          </p>
+
         </div>
       </section>
 
@@ -317,8 +270,6 @@ export default async function HomePage() {
                         )}
                       </div>
                     </div>
-
-                    <VettedBadge vetted={p.trust_level === 'vetted'} size="sm" className="mb-3 self-start" />
 
                     {tags.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-3">
@@ -475,44 +426,39 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── INTELLIGENCE BANNER ───────────────────────────────────────────── */}
+      {/* ── CLOSING INVITATION ────────────────────────────────────────────── */}
       <section className="px-4 md:px-8 py-4 mb-16">
         <div className="max-w-6xl mx-auto">
-          <div className="bg-text-primary rounded-2xl p-10 md:p-14 text-center">
+          <div className="bg-surface-raised border border-border-default rounded-2xl p-10 md:p-14 text-center">
 
-            <p className="text-xs uppercase tracking-widest text-brand-muted font-medium mb-4">
-              Coming to members
+            <p className="text-xs uppercase tracking-widest text-text-brand font-medium mb-4">
+              Built carefully
             </p>
 
-            <h2 className="font-display text-3xl font-light text-text-inverted mb-4 max-w-md mx-auto leading-snug">
-              Care intelligence, built around you.
+            <h2 className="font-display text-3xl font-light text-text-primary mb-4 max-w-md mx-auto leading-snug">
+              A more thoughtful kind of care.
             </h2>
 
-            <p className="text-sm text-text-on-inverse max-w-md mx-auto mb-8 leading-relaxed">
-              An adaptive daily protocol, lab result interpretation, and AI-assisted
-              pattern recognition — always guided by your practitioner, never replacing them.
+            <p className="text-sm text-text-secondary max-w-md mx-auto mb-8 leading-relaxed">
+              Natural Intelligence is being built gradually, with a small base of qualified
+              practitioners. Human practitioners remain responsible for clinical decisions —
+              we simply help you find the right people and prepare well.
             </p>
 
-            {/* Module pills */}
-            <div className="flex flex-wrap justify-center gap-3 mb-8">
-              {intelligenceModules.map((mod) => (
-                <div
-                  key={mod.name}
-                  className="bg-surface-dark border border-border-inverse rounded-lg px-4 py-2.5 text-left"
-                >
-                  <p className="text-sm font-medium text-text-inverted">{mod.name}</p>
-                  <p className="text-xs text-text-on-inverse mt-0.5">{mod.desc}</p>
-                </div>
-              ))}
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link
+                href="/directory"
+                className="inline-flex items-center justify-center px-6 py-3 text-sm rounded-lg bg-brand-default text-text-inverted hover:bg-brand-hover transition-colors font-medium"
+              >
+                Find a practitioner
+              </Link>
+              <Link
+                href="/about"
+                className="inline-flex items-center justify-center px-6 py-3 text-sm rounded-lg border border-border-default bg-surface-base text-text-primary hover:bg-surface-muted transition-colors font-medium"
+              >
+                Learn how it works
+              </Link>
             </div>
-
-            {/* Waitlist CTA */}
-            <Link
-              href="/auth/signup"
-              className="inline-flex items-center justify-center px-6 py-3 text-base rounded-md bg-brand-default text-text-inverted hover:opacity-90 transition-opacity font-medium"
-            >
-              Join the waitlist
-            </Link>
 
           </div>
         </div>

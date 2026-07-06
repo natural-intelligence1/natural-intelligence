@@ -100,9 +100,19 @@ export default function SupportPage() {
 
   return (
     <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
-      <div className="mb-10">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold text-text-primary mb-2">{copy.support.heading}</h1>
         <p className="text-text-secondary">{copy.support.subheading}</p>
+      </div>
+
+      {/* Emergency / safety boundary */}
+      <div
+        role="note"
+        className="mb-10 rounded-lg border border-status-warningBorder bg-status-warningBg px-4 py-3"
+      >
+        <p className="text-sm text-status-warningText leading-relaxed">
+          {copy.brand.safetyNotice}
+        </p>
       </div>
 
       {error && (

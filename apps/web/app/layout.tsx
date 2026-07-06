@@ -78,6 +78,7 @@ const navLinks = [
   { label: copy.nav.directory, href: '/directory' },
   { label: copy.nav.workshops, href: '/workshops' },
   { label: copy.nav.resources, href: '/resources' },
+  { label: copy.nav.about,     href: '/about' },
   { label: copy.nav.apply,     href: '/apply' },
 ]
 
@@ -89,6 +90,7 @@ const footerSections = [
       { label: copy.footer.sections.platform.links[1], href: '/workshops' },
       { label: copy.footer.sections.platform.links[2], href: '/resources' },
       { label: copy.footer.sections.platform.links[3], href: '/community' },
+      { label: copy.nav.about,                          href: '/about' },
     ],
   },
   {
@@ -232,6 +234,12 @@ export default async function RootLayout({
                   </ul>
                 </div>
               ))}
+            </div>
+
+            {/* Trust + safety boundary */}
+            <div className="border-t border-border-muted pt-6 mb-6 space-y-2">
+              <p className="text-xs text-text-muted leading-relaxed max-w-3xl">{copy.brand.trustNote}</p>
+              <p className="text-xs text-text-muted leading-relaxed max-w-3xl">{copy.brand.safetyNotice}</p>
             </div>
 
             <div className="border-t border-border-muted pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

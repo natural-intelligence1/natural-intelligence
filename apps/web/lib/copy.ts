@@ -10,6 +10,12 @@ export const copy = {
     name:    'Natural Intelligence',
     tagline: 'Intelligent, natural healthcare — for everyone',
     taglineShort: 'The signs are within you.',
+    motto:   'Beyond survival. Designed for thriving.',
+    safetyNotice:
+      'Natural Intelligence is not an emergency service and does not provide urgent medical care. ' +
+      'If you are in immediate danger or need urgent medical help, call 999 or use NHS 111 / local urgent care services.',
+    trustNote:
+      'Your information should be handled with care. You choose what you share, and clinical decisions remain with qualified human practitioners.',
     copyright: `© ${new Date().getFullYear()} Natural Intelligence. All rights reserved.`,
   },
 
@@ -18,6 +24,7 @@ export const copy = {
     workshops:  'Workshops',
     resources:  'Resources',
     community:  'Community',
+    about:      'About',
     apply:      'Apply to join',
     login:      'Log in',
     signup:     'Sign up',
@@ -75,15 +82,15 @@ export const copy = {
     },
     featuredPractitioners: {
       heading:  'Featured practitioners',
-      subheading: 'Verified and trusted by our community',
+      subheading: 'Practitioners in the Natural Intelligence network',
       cta:      'View all practitioners',
-      empty:    'Practitioners joining soon.',
+      empty:    'Our practitioner directory is opening gradually. New practitioner profiles will appear here as they are approved.',
     },
     upcomingWorkshops: {
       heading:    'Upcoming workshops',
       subheading: 'Live sessions hosted by our practitioners',
       cta:        'View all workshops',
-      empty:      'Workshops being scheduled.',
+      empty:      'No workshops are currently scheduled. New sessions will be added as they are confirmed.',
     },
     howItWorks: {
       heading: 'How it works',
@@ -99,7 +106,7 @@ export const copy = {
         heading: 'For practitioners',
         steps: [
           { step: '01', title: 'Apply to join', description: 'Submit your credentials, bio, and motivation. Our team reviews every application.' },
-          { step: '02', title: 'Get verified', description: 'Approved practitioners receive a trust badge visible across the platform.' },
+          { step: '02', title: 'Get approved', description: 'Approved practitioners appear in the public directory once their profile is complete.' },
           { step: '03', title: 'Grow your practice', description: 'Host workshops, publish resources, and connect with members who need your expertise.' },
         ],
       },
@@ -108,14 +115,14 @@ export const copy = {
 
   directory: {
     heading:     'Practitioner directory',
-    subheading:  'Browse our community of verified natural health practitioners',
+    subheading:  'Browse natural-health practitioners in the Natural Intelligence network',
     searchLabel: 'Search practitioners',
     searchPlaceholder: 'Name, specialty, or location…',
     filters: {
       heading:        'Filters',
       all:            'All',
-      trustLevel:     'Trust level',
-      vetted:         'Vetted',
+      trustLevel:     'Listing status',
+      vetted:         'Approved profiles',
       unvetted:       'Community listed',
       specialties:    'Specialties',
       modalities:     'Modalities',
@@ -127,7 +134,7 @@ export const copy = {
     },
     card: {
       viewProfile:    'View profile',
-      vettedBadge:    'Vetted practitioner',
+      vettedBadge:    'Approved profile',
       years:          'years experience',
       online:         'Online',
       inPerson:       'In person',
@@ -162,7 +169,7 @@ export const copy = {
       linkedin:       'LinkedIn profile',
       instagram:      'Instagram',
     },
-    vettedBadge:           'Verified practitioner',
+    vettedBadge:           'Approved profile',
     noEvents:              'No upcoming events.',
     acceptsReferrals:      'Accepting referrals',
     notAcceptingReferrals: 'Not currently accepting referrals',
@@ -193,7 +200,7 @@ export const copy = {
       confirm:    'Confirm registration',
       cancel:     'Cancel',
     },
-    empty:   'No upcoming workshops.',
+    empty:   'No workshops are currently scheduled. New sessions will be added as they are confirmed.',
     loading: 'Loading events…',
   },
 

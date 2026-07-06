@@ -52,6 +52,9 @@ export function NavMobile({ isLoggedIn }: NavMobileProps) {
             <Link href="/resources" onClick={() => setOpen(false)} className="px-3 py-2.5 rounded-lg text-sm font-medium text-text-primary hover:bg-surface-muted transition-colors">
               {copy.nav.resources}
             </Link>
+            <Link href="/about" onClick={() => setOpen(false)} className="px-3 py-2.5 rounded-lg text-sm font-medium text-text-primary hover:bg-surface-muted transition-colors">
+              {copy.nav.about}
+            </Link>
             <Link href="/apply" onClick={() => setOpen(false)} className="px-3 py-2.5 rounded-lg text-sm font-medium text-text-primary hover:bg-surface-muted transition-colors">
               {copy.nav.apply}
             </Link>

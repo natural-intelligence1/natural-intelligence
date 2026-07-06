@@ -133,9 +133,9 @@ export default async function PractitionerProfilePage({ params }: Props) {
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 <div>
-                  <p className="text-sm font-semibold text-status-successText">Vetted practitioner</p>
+                  <p className="text-sm font-semibold text-status-successText">Approved profile</p>
                   <p className="text-xs text-status-successText opacity-80 mt-0.5 leading-relaxed">
-                    Reviewed and approved by the Natural Intelligence clinical team.
+                    This practitioner&rsquo;s profile has been reviewed and approved for listing.
                   </p>
                 </div>
               </div>

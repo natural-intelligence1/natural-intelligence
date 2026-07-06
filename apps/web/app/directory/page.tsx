@@ -163,12 +163,12 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
         {/* ── Sidebar filters ─────────────────────────────────────────────── */}
         <aside className="mb-8 md:mb-0">
 
-          <FilterGroup label="Trust level">
+          <FilterGroup label="Listing status">
             <FilterButton href={trustUrl('')} active={!trust}>
               All practitioners
             </FilterButton>
             <FilterButton href={trustUrl('vetted')} active={trust === 'vetted'}>
-              Vetted only
+              Approved profiles
             </FilterButton>
           </FilterGroup>
 
@@ -239,7 +239,7 @@ export default async function DirectoryPage({ searchParams }: DirectoryPageProps
                         )}
                         {p.trust_level === 'vetted' && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-status-successBg text-status-successText">
-                            ✓ Vetted
+                            ✓ Approved profile
                           </span>
                         )}
                       </div>
