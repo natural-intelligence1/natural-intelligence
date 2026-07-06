@@ -1,7 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
-import { assignCaseForReview }        from '@natural-intelligence/db/practitioners'
+import { routeIntakeAssignment }      from '@natural-intelligence/db/practitioners'
 import { generateHealthSynopsis }    from '../synopsis/actions'
 import { generateBodyStory }         from '../story/actions'
 
@@ -98,30 +98,23 @@ export async function completeIntake(consentData: {
 }
 
 // ─── routeCompletedCaseToPractitioner ─────────────────────────────────────────
-// Sprint 2 minimum assignment bridge (server-side, admin client). Resolves the
-// client's active practitioner from client_practitioner_links and creates a
-// case_review work item via assignCaseForReview. If the client has no linked
-// practitioner, it logs and returns — that (routing/matching for unlinked clients)
-// is the next seam, intentionally out of Sprint 2 scope.
+// Sprint 2 minimum assignment bridge (server-side, admin client), gated by the
+// INTAKE_ASSIGNMENT_ENABLED kill-switch. Routing logic (flag → link resolution →
+// assignment) lives in routeIntakeAssignment (db layer, unit-tested); this wrapper
+// just invokes it and logs the outcome. DISABLED BY DEFAULT: no assignment is
+// created unless INTAKE_ASSIGNMENT_ENABLED === "true".
 async function routeCompletedCaseToPractitioner(memberId: string): Promise<void> {
   const admin = createAdminClient()
+  const res = await routeIntakeAssignment(admin, memberId)
 
-  const { data: link, error } = await admin
-    .from('client_practitioner_links')
-    .select('practitioner_id')
-    .eq('client_id', memberId)
-    .is('ended_at', null)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle()
-  if (error) throw new Error(`assignment bridge link lookup failed [${error.code}]: ${error.message}`)
-
-  if (!link?.practitioner_id) {
+  if (res.status === 'disabled') {
+    console.log(JSON.stringify({ event: 'intake.assignment.disabled', member_id: memberId }))
+    return
+  }
+  if (res.status === 'no_linked_practitioner') {
     console.log(JSON.stringify({ event: 'intake.assignment.no_linked_practitioner', member_id: memberId }))
     return
   }
-
-  const res = await assignCaseForReview(admin, { memberId, practitionerId: link.practitioner_id })
   console.log(JSON.stringify({
     event: 'intake.assignment.created', member_id: memberId,
     case_id: res.caseId, work_id: res.workId, already_assigned: res.alreadyAssigned,
