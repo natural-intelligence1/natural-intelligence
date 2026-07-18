@@ -25,3 +25,6 @@ export { BRANCHING_RULES } from './branchingRules'
 export { saveIntakeAnswer }          from './saveIntakeAnswer'
 export { getOrCreateIntakeSession }  from './getOrCreateIntakeSession'
 export { sectionIdFromNumber, sectionNumberFromId } from './sectionCoercion'
+
+// ── Collection kill-switch (containment patch) ────────────────────────────────
+export { isIntakeCollectionEnabled, assertIntakeCollectionEnabled } from './collectionFlag'

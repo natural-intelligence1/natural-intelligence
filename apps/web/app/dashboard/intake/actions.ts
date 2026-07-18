@@ -2,16 +2,20 @@
 
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 import { routeIntakeAssignment }      from '@natural-intelligence/db/practitioners'
+import { assertIntakeCollectionEnabled } from '@natural-intelligence/db/intake'
 import { generateHealthSynopsis }    from '../synopsis/actions'
 import { generateBodyStory }         from '../story/actions'
 
 // ─── saveIntakeSection ────────────────────────────────────────────────────────
 // Upsert a partial section's data into intake_responses.
 // Uses select-first pattern (no unique constraint on member_id).
+// Guarded by the collection kill-switch: throws BEFORE any client/DB access
+// when INTAKE_COLLECTION_ENABLED !== "true", so nothing is written.
 export async function saveIntakeSection(
   sectionData: Record<string, unknown>,
   sectionNumber: number
 ): Promise<void> {
+  assertIntakeCollectionEnabled()
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthenticated')
@@ -51,6 +55,11 @@ export async function completeIntake(consentData: {
   consent_to_ai_analysis: boolean
   consent_given_at: string
 }): Promise<void> {
+  // Collection kill-switch — refuses completion before any DB access, so no
+  // intake_responses write and no AI synopsis / body-story generation runs
+  // while disabled. (Assignment routing stays separately gated downstream by
+  // INTAKE_ASSIGNMENT_ENABLED.)
+  assertIntakeCollectionEnabled()
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthenticated')

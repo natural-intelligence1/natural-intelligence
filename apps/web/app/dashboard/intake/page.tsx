@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
+import { isIntakeCollectionEnabled } from '@natural-intelligence/db/intake'
+import { copy } from '@/lib/copy'
 import { IntakeForm } from './IntakeForm'
 
 export const metadata: Metadata = {
@@ -8,7 +11,46 @@ export const metadata: Metadata = {
   description: 'Complete your health intake to receive a personalised health synopsis.',
 }
 
+// Containment patch: shown instead of the live form while intake collection is
+// disabled (INTAKE_COLLECTION_ENABLED !== "true"). No health-data fields render,
+// which also removes the client-side intake_answers write path.
+function IntakeUnavailable() {
+  return (
+    <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
+      <div className="rounded-xl border border-border-default bg-surface-raised p-8 shadow-sm">
+        <h1 className="text-2xl font-semibold text-text-primary mb-3">
+          {copy.intakeUnavailable.heading}
+        </h1>
+        <p className="text-sm text-text-secondary leading-relaxed mb-6">
+          {copy.intakeUnavailable.body}
+        </p>
+        <div className="flex flex-wrap gap-3 mb-8">
+          <Link
+            href="/support"
+            className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-brand-default text-text-inverted text-sm font-medium hover:bg-brand-hover transition-colors"
+          >
+            {copy.intakeUnavailable.supportCta}
+          </Link>
+          <Link
+            href="/legal/privacy"
+            className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-sm font-medium hover:bg-surface-muted transition-colors"
+          >
+            {copy.intakeUnavailable.privacyLink}
+          </Link>
+        </div>
+        <div role="note" className="rounded-lg border border-status-warningBorder bg-status-warningBg px-4 py-3">
+          <p className="text-sm text-status-warningText leading-relaxed">{copy.brand.safetyNotice}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default async function IntakePage() {
+  // Collection kill-switch — checked before any auth or DB access so the
+  // disabled path performs no reads and renders no health-data fields.
+  if (!isIntakeCollectionEnabled()) return <IntakeUnavailable />
+
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')

@@ -19,6 +19,15 @@ export const copy = {
     copyright: `© ${new Date().getFullYear()} Natural Intelligence. All rights reserved.`,
   },
 
+  intakeUnavailable: {
+    heading: 'Intake is currently unavailable',
+    body:
+      'Intake is currently unavailable while we finalise our safety, consent and privacy process. ' +
+      'If you are interested in support, please contact Natural Intelligence directly.',
+    supportCta:  'Contact us via Support',
+    privacyLink: 'Privacy policy',
+  },
+
   nav: {
     directory:  'Directory',
     workshops:  'Workshops',
