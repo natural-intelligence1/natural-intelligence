@@ -90,6 +90,29 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             {copy.auth.login.signup}
           </Link>
         </p>
+
+        {/* Role-aware entry clarity — same secure sign-in for everyone; account
+            role decides where you land (members → dashboard, approved
+            practitioners → practitioner workspace, admin → internal tools).
+            Informational only: no admin/practitioner URLs are exposed here. */}
+        <div className="mt-10 pt-8 border-t border-border-muted">
+          <p className="text-xs font-semibold text-text-muted uppercase tracking-wider text-center mb-4">
+            {copy.auth.login.entry.heading}
+          </p>
+          <ul className="space-y-3">
+            {copy.auth.login.entry.items.map((item) => (
+              <li key={item.title} className="text-sm leading-relaxed">
+                <span className="font-medium text-text-primary">{item.title}</span>
+                <span className="text-text-secondary"> — {item.body}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 text-center">
+            <Link href="/resources" className="text-sm font-medium text-text-brand hover:underline">
+              {copy.auth.login.entry.libraryLink}
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   )

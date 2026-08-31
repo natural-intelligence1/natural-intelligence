@@ -2,7 +2,6 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { copy } from '@/lib/copy'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
-import { Avatar, Pill } from '@natural-intelligence/ui'
 
 // ─── Icon primitives ──────────────────────────────────────────────────────────
 
@@ -55,26 +54,8 @@ function StepNumber({ n }: { n: number }) {
 export default async function HomePage() {
   const supabase = createServerSupabaseClient()
 
-  const { data: practitioners } = await supabase
-    .from('practitioners')
-    .select(`
-      id,
-      display_name,
-      practice_name,
-      tagline,
-      bio,
-      area_tags,
-      primary_professions,
-      trust_level,
-      status,
-      is_directory_ready,
-      display_order
-    `)
-    .eq('status', 'active')
-    .eq('is_directory_ready', true)
-    .order('display_order', { ascending: true })
-    .limit(3)
-
+  // Directory-truth fix: no practitioner records are fetched or displayed on the
+  // public homepage until real approved practitioners are published.
   const now = new Date().toISOString()
   const { data: events } = await supabase
     .from('events')
@@ -94,8 +75,9 @@ export default async function HomePage() {
   const pillars = [
     {
       icon: <IconDirectory />,
-      title: 'Find a practitioner',
-      body: 'Browse our directory of naturopathic, functional, and integrative health practitioners — each with a profile reviewed before it goes live.',
+      title: 'A verified practitioner network',
+      body: 'We are onboarding and reviewing naturopathic, functional, and integrative health practitioners now. The public directory opens once profiles are verified.',
+      badge: 'Directory coming soon',
     },
     {
       icon: <IconWorkshops />,
@@ -106,7 +88,7 @@ export default async function HomePage() {
       icon: <IconIntelligence />,
       title: 'Thoughtful preparation',
       body: 'Tools to help you reflect on your health and prepare for working with a practitioner — being developed carefully, with human expertise at the centre.',
-      comingSoon: true,
+      badge: 'Available to members soon',
     },
   ]
 
@@ -144,41 +126,43 @@ export default async function HomePage() {
             </p>
           </div>
 
-          {/* Eyebrow */}
-          <p className="text-xs font-semibold tracking-[0.16em] uppercase text-text-brand mb-5">
-            Naturopathic &amp; functional medicine
+          {/* Descriptor — tells a first-time visitor what NI is */}
+          <p className="text-xs sm:text-sm font-semibold tracking-[0.16em] uppercase text-text-brand mb-5">
+            Naturopathic &amp; Functional Medicine
           </p>
 
-          {/* H1 — the founder motto, set in the display face */}
-          <h1 className="font-display mb-6 leading-[1.08] tracking-[-0.02em]">
-            <span className="block text-[40px] md:text-[52px] lg:text-[60px] font-light text-text-primary italic">
-              Beyond survival.
-            </span>
-            <span className="block text-[40px] md:text-[52px] lg:text-[60px] font-semibold text-text-primary">
-              Designed for thriving.
-            </span>
+          {/* H1 — primary hero line. One unbroken sentence: nothing (logo, break,
+              span-split) may interrupt the phrase. Founder ruling. */}
+          <h1 className="font-display text-[32px] sm:text-[44px] md:text-[54px] lg:text-[60px] font-medium text-text-primary leading-[1.12] tracking-[-0.02em] mb-4 [text-wrap:balance]">
+            The signs are within you.
           </h1>
+
+          {/* Secondary campaign line */}
+          <p className="font-display text-lg sm:text-xl md:text-2xl italic font-light text-text-secondary mb-6">
+            Beyond survival. Designed for thriving.
+          </p>
 
           {/* Subheadline — modest, truthful positioning */}
           <p className="text-base md:text-lg text-text-secondary leading-relaxed mb-9 max-w-xl">
-            Natural Intelligence helps you find qualified natural-health practitioners and
-            begin a more personal kind of care — with thoughtful preparation, human
-            expertise, and clear boundaries.
+            Natural Intelligence is building a careful, human-led home for natural
+            health — education, workshops, and a verified practitioner network,
+            with thoughtful preparation and clear boundaries.
           </p>
 
-          {/* CTAs */}
+          {/* CTAs — truthful: directory is in "coming soon" state, so the primary
+              actions point at what is genuinely live today */}
           <div className="flex flex-wrap justify-center gap-3">
             <Link
-              href="/directory"
+              href="/resources"
               className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-brand-default text-text-inverted text-sm font-medium hover:bg-brand-hover transition-colors"
             >
-              Find a practitioner
+              Explore The Library
             </Link>
             <Link
-              href="/apply"
+              href="/workshops"
               className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-border-default bg-surface-raised text-text-primary text-sm font-medium hover:bg-surface-muted transition-colors"
             >
-              Apply to join
+              See workshops
             </Link>
             <Link
               href="/about"
@@ -222,83 +206,13 @@ export default async function HomePage() {
                 </div>
                 <h3 className="text-lg font-medium text-text-primary mb-2">{pillar.title}</h3>
                 <p className="text-sm text-text-secondary leading-relaxed flex-1">{pillar.body}</p>
-                {pillar.comingSoon && (
+                {pillar.badge && (
                   <p className="text-xs font-medium tracking-wide uppercase text-text-brand mt-4">
-                    Available to members soon
+                    {pillar.badge}
                   </p>
                 )}
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FEATURED PRACTITIONERS ────────────────────────────────────────── */}
-      <section className="bg-surface-raised/50 border-t border-border-default py-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <Eyebrow>Our network</Eyebrow>
-              <h2 className="text-2xl font-semibold text-text-primary mb-1">
-                {copy.home.featuredPractitioners.heading}
-              </h2>
-              <p className="text-sm text-text-secondary">{copy.home.featuredPractitioners.subheading}</p>
-            </div>
-            <Link href="/directory" className="text-sm font-medium text-text-brand hover:underline hidden sm:block flex-shrink-0">
-              {copy.home.featuredPractitioners.cta}
-            </Link>
-          </div>
-
-          {practitioners && practitioners.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {practitioners.map((p: any) => {
-                const name    = (p as any).display_name ?? 'Practitioner'
-                const tags    = (p.area_tags as string[] | null) ?? []
-
-                return (
-                  <Link
-                    key={p.id}
-                    href={`/directory/${p.id}`}
-                    className="group bg-surface-base border border-border-default rounded-2xl p-5 hover:shadow-sm transition-shadow flex flex-col"
-                  >
-                    <div className="flex items-start gap-3 mb-3">
-                      <Avatar name={name} size="md" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-text-primary truncate mb-1">{name}</p>
-                        {p.practice_name && (
-                          <p className="text-xs text-text-muted truncate">{p.practice_name}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {tags.slice(0, 3).map((tag: string) => (
-                          <Pill key={tag}>{tag}</Pill>
-                        ))}
-                        {tags.length > 3 && (
-                          <Pill>+{tags.length - 3}</Pill>
-                        )}
-                      </div>
-                    )}
-
-                    {(p as any).bio && (
-                      <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed mt-auto">
-                        {(p as any).bio}
-                      </p>
-                    )}
-                  </Link>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="text-text-muted text-sm">{copy.home.featuredPractitioners.empty}</p>
-          )}
-
-          <div className="mt-6 sm:hidden">
-            <Link href="/directory" className="text-sm font-medium text-text-brand hover:underline">
-              {copy.home.featuredPractitioners.cta}
-            </Link>
           </div>
         </div>
       </section>
@@ -447,10 +361,10 @@ export default async function HomePage() {
 
             <div className="flex flex-wrap justify-center gap-3">
               <Link
-                href="/directory"
+                href="/resources"
                 className="inline-flex items-center justify-center px-6 py-3 text-sm rounded-lg bg-brand-default text-text-inverted hover:bg-brand-hover transition-colors font-medium"
               >
-                Find a practitioner
+                Explore The Library
               </Link>
               <Link
                 href="/about"

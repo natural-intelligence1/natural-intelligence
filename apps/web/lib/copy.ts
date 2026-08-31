@@ -31,7 +31,7 @@ export const copy = {
   nav: {
     directory:  'Directory',
     workshops:  'Workshops',
-    resources:  'Resources',
+    resources:  'The Library',
     community:  'Community',
     about:      'About',
     apply:      'Apply to join',
@@ -47,7 +47,7 @@ export const copy = {
     sections: {
       platform: {
         heading: 'Platform',
-        links: ['Directory', 'Workshops', 'Resources', 'Community'],
+        links: ['Directory', 'Workshops', 'The Library', 'Community'],
       },
       practitioners: {
         heading: 'Practitioners',
@@ -123,8 +123,20 @@ export const copy = {
   },
 
   directory: {
-    heading:     'Practitioner directory',
-    subheading:  'Browse natural-health practitioners in the Natural Intelligence network',
+    heading:     'Practitioner directory coming soon',
+    subheading:  'We are currently onboarding and verifying practitioners before publishing the directory.',
+    comingSoon: {
+      heading:      'A network built carefully, not quickly',
+      body:
+        'Every practitioner profile will be reviewed before it is published, so what you see here ' +
+        'will be genuine. In the meantime, workshops and public education remain available while ' +
+        'the practitioner network is prepared.',
+      workshopsCta: 'See workshops',
+      libraryCta:   'Browse The Library',
+      note:
+        'Are you a naturopathic or functional medicine practitioner? Applications are open — ' +
+        'we would love to hear from you.',
+    },
     searchLabel: 'Search practitioners',
     searchPlaceholder: 'Name, specialty, or location…',
     filters: {
@@ -214,8 +226,8 @@ export const copy = {
   },
 
   resources: {
-    heading:    'Resource library',
-    subheading: 'Practitioner-curated articles, guides, and links',
+    heading:    'The Library',
+    subheading: 'Guides and resources on natural health — more coming soon',
     filters: {
       all:           'All types',
       article:       'Article',
@@ -373,6 +385,28 @@ export const copy = {
       noAccount: 'New to Natural Intelligence?',
       signup:    'Create an account',
       forgot:    'Forgot password?',
+      entry: {
+        heading: 'One secure sign-in — you land where you belong',
+        items: [
+          {
+            title: 'Members',
+            body:  'Your personal dashboard, workshops, and saved resources. Live intake is not yet open while we finalise our safety and consent process.',
+          },
+          {
+            title: 'Practitioners',
+            body:  'Approved practitioners are routed to the practitioner workspace after signing in.',
+          },
+          {
+            title: 'Admin',
+            body:  'Internal team access for authorised Natural Intelligence staff only.',
+          },
+          {
+            title: 'The Library',
+            body:  'Public guides and resources — no account needed.',
+          },
+        ],
+        libraryLink: 'Browse The Library',
+      },
     },
     signup: {
       heading:        'Create your account',
