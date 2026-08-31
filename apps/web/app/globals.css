@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── NI Brand System V1 — canonical palette variables ────────────────────────
+   Reference values for the public website. Tailwind token overrides in
+   tailwind.config.ts are the source used by utility classes; these variables
+   exist for plain-CSS consumers (focus ring, skip link) and documentation.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --ni-cream:      #F4ECDD;
+  --ni-warm-white: #FBF7EF;
+  --ni-sand:       #E7DAC4;
+  --ni-pine:       #2E4636;
+  --ni-botanical:  #1E2F24;
+  --ni-sage:       #8AA07E;
+  --ni-olive:      #5E6B3F;
+  --ni-gold:       #B08A3E;
+  --ni-gold-tint:  #D9BE86;
+  --ni-text:       #26302A;
+
+  /* Consumed by the focus ring / skip link below */
+  --color-brand-default: var(--ni-pine);
+  --color-surface-base:  var(--ni-cream);
+  --color-text-primary:  var(--ni-text);
+}
+
 @layer base {
   *,
   *::before,

@@ -138,9 +138,12 @@ export default async function HomePage() {
           </h1>
 
           {/* Secondary campaign line */}
-          <p className="font-display text-lg sm:text-xl md:text-2xl italic font-light text-text-secondary mb-6">
+          <p className="font-display text-lg sm:text-xl md:text-2xl italic font-light text-text-secondary mb-5">
             Beyond survival. Designed for thriving.
           </p>
+
+          {/* Rare gold accent — a single hairline, per Brand System V1 */}
+          <span aria-hidden="true" className="block w-14 h-px bg-gold-default mb-6" />
 
           {/* Subheadline — modest, truthful positioning */}
           <p className="text-base md:text-lg text-text-secondary leading-relaxed mb-9 max-w-xl">

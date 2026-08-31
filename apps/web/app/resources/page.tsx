@@ -53,7 +53,7 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
   return (
     <div className="py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
       <div className="mb-10">
-        <h1 className="text-3xl font-bold text-text-primary mb-2">{copy.resources.heading}</h1>
+        <h1 className="font-display text-3xl md:text-4xl font-semibold text-text-primary mb-2">{copy.resources.heading}</h1>
         <p className="text-text-secondary">{copy.resources.subheading}</p>
       </div>
 
