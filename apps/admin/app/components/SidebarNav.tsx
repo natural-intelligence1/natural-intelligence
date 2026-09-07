@@ -14,6 +14,7 @@ const navLinks = [
   { href: '/workshops',     label: copy.nav.workshops },
   { href: '/resources',     label: copy.nav.resources },
   { href: '/members',       label: copy.nav.members },
+  { href: '/route-map',     label: copy.nav.routeMap },
 ]
 
 const isDev = process.env.NODE_ENV !== 'production'
