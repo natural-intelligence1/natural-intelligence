@@ -123,9 +123,9 @@ export const communityWorkshops: CommunityWorkshop[] = [
     },
   },
   {
-    // Spelling "Devine Design" is intentional per Founder — do not "correct" it.
-    slug: 'devine-design',
-    title: 'Devine Design',
+    // Spelling corrected to "Divine Design" per Founder (2026-09-08).
+    slug: 'divine-design',
+    title: 'Divine Design',
     presentedBy: 'Natural Intelligence',
     tagline: 'The Signs Are Within You',
     theme: 'Natural • Holistic • Lifestyle Medicine',
@@ -137,7 +137,7 @@ export const communityWorkshops: CommunityWorkshop[] = [
     status: 'coming_soon',
     statusLabel: 'Coming soon — details to be confirmed',
     intro:
-      'Devine Design is a forthcoming Natural Intelligence community workshop exploring how women ' +
+      'Divine Design is a forthcoming Natural Intelligence community workshop exploring how women ' +
       'can understand their bodies, daily rhythms, lifestyle patterns and wellbeing through a ' +
       'natural-health lens.',
     provisionalNote:
