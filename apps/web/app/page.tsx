@@ -31,9 +31,10 @@ function IconIntelligence() {
 
 // ─── Section eyebrow ──────────────────────────────────────────────────────────
 
+// V2 eyebrow: JetBrains Mono 11px, 0.14em tracking, gold-ink (the text-safe gold).
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-medium tracking-widest uppercase text-text-brand mb-4">
+    <p className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-gold-ink mb-4">
       {children}
     </p>
   )
@@ -75,20 +76,20 @@ export default async function HomePage() {
   const pillars = [
     {
       icon: <IconDirectory />,
-      title: 'A verified practitioner network',
-      body: 'We are onboarding and reviewing naturopathic, functional, and integrative health practitioners now. The public directory opens once profiles are verified.',
+      title: 'A practitioner directory',
+      body: 'We are onboarding and reviewing naturopathic, functional, and integrative health practitioners now. The public directory opens once profiles are complete.',
       badge: 'Directory coming soon',
     },
     {
       icon: <IconWorkshops />,
-      title: 'Join expert-led workshops',
-      body: 'Live sessions, Q&As, and group programmes run by practitioners in the NI network. Attend online or find events near you.',
+      title: 'Community workshops',
+      body: 'Live sessions, Q&As, and group programmes run by practitioners in the network. Attend online or find events near you.',
     },
     {
       icon: <IconIntelligence />,
       title: 'Thoughtful preparation',
-      body: 'Tools to help you reflect on your health and prepare for working with a practitioner — being developed carefully, with human expertise at the centre.',
-      badge: 'Available to members soon',
+      body: 'Reading and reflection to help you prepare well for working with a practitioner — being developed carefully, with human expertise at the centre.',
+      badge: 'Being built carefully',
     },
   ]
 
@@ -103,86 +104,86 @@ export default async function HomePage() {
   return (
     <div>
 
-      {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-surface-base pt-20 pb-16 md:pt-28 md:pb-24">
+      {/* ── HERO — V2 rebalance: the mark anchors, the tagline shares the stage ── */}
+      <section className="relative overflow-hidden bg-surface-base pt-16 pb-16 md:pt-20 md:pb-20">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center">
 
-          {/* Hero brand lockup — symbol + wordmark */}
-          <div className="mb-8 flex flex-col items-center">
+          {/* Lockup: mark at feature scale + one-line Cormorant-caps wordmark +
+              short gold rule. The wordmark is never split; the mark never
+              interrupts the hero sentence. */}
+          <div className="mb-8 flex flex-col items-center gap-5">
             <Image
               src="/images/NI_logo_thumb_transparent.png"
               alt="Natural Intelligence"
-              width={88}
-              height={88}
+              width={176}
+              height={176}
               priority
-              className="object-contain mb-3"
-              style={{ height: '88px', width: 'auto' }}
+              className="object-contain w-[108px] sm:w-[176px] h-auto"
             />
-            <p
-              className="font-sans font-normal text-text-primary uppercase"
-              style={{ fontSize: '13px', letterSpacing: '0.18em' }}
-            >
+            <p className="font-display font-medium uppercase text-text-brand whitespace-nowrap leading-none text-[17px] tracking-[0.14em] sm:text-[30px] sm:tracking-[0.22em]">
               Natural Intelligence
             </p>
+            <span aria-hidden="true" className="block w-24 h-px bg-gold-default" />
           </div>
 
-          {/* Descriptor — tells a first-time visitor what NI is */}
-          <p className="text-xs sm:text-sm font-semibold tracking-[0.16em] uppercase text-text-brand mb-5">
+          {/* Descriptor — founder ruling: visible to a first-time visitor
+              (kept from the front-door spec; V2 eyebrow treatment) */}
+          <p className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-gold-ink mb-5">
             Naturopathic &amp; Functional Medicine
           </p>
 
-          {/* H1 — primary hero line. One unbroken sentence: nothing (logo, break,
-              span-split) may interrupt the phrase. Founder ruling. */}
-          <h1 className="font-display text-[32px] sm:text-[44px] md:text-[54px] lg:text-[60px] font-medium text-text-primary leading-[1.12] tracking-[-0.02em] mb-4 [text-wrap:balance]">
+          {/* H1 — the tagline, italic Cormorant, one unbroken sentence. */}
+          <h1 className="font-display italic font-light text-[28px] sm:text-[38px] md:text-[46px] text-text-primary leading-[1.16] tracking-[-0.016em] mb-3 [text-wrap:balance]">
             The signs are within you.
           </h1>
 
-          {/* Secondary campaign line */}
-          <p className="font-display text-lg sm:text-xl md:text-2xl italic font-light text-text-secondary mb-5">
+          {/* Secondary campaign line — gold-ink lede per V2 */}
+          <p className="text-[15px] font-medium tracking-[0.03em] text-gold-ink mb-7">
             Beyond survival. Designed for thriving.
           </p>
 
-          {/* Rare gold accent — a single hairline, per Brand System V1 */}
-          <span aria-hidden="true" className="block w-14 h-px bg-gold-default mb-6" />
-
-          {/* Subheadline — modest, truthful positioning */}
-          <p className="text-base md:text-lg text-text-secondary leading-relaxed mb-9 max-w-xl">
-            Natural Intelligence is building a careful, human-led home for natural
-            health — education, workshops, and a verified practitioner network,
-            with thoughtful preparation and clear boundaries.
+          {/* Subheadline — V2 wording: claims only what is open */}
+          <p className="text-base md:text-[16.5px] font-light text-text-secondary leading-[1.75] mb-9 max-w-xl [text-wrap:pretty]">
+            A careful, human-led home for natural health. We are building it
+            gradually — starting with The Library and community workshops, while
+            practitioners are onboarded and reviewed.
           </p>
 
-          {/* CTAs — truthful: directory is in "coming soon" state, so the primary
-              actions point at what is genuinely live today */}
+          {/* CTAs — full-round per V2; only currently-possible actions */}
           <div className="flex flex-wrap justify-center gap-3">
             <Link
               href="/resources"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-brand-default text-text-inverted text-sm font-medium hover:bg-brand-hover transition-colors"
+              className="inline-flex items-center justify-center px-6 py-3.5 rounded-full bg-brand-default text-text-inverted text-[15px] font-medium hover:bg-brand-hover transition-colors"
             >
               Explore The Library
             </Link>
             <Link
               href="/workshops"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-border-default bg-surface-raised text-text-primary text-sm font-medium hover:bg-surface-muted transition-colors"
+              className="inline-flex items-center justify-center px-6 py-3.5 rounded-full border border-border-strong bg-transparent text-text-primary text-[15px] font-medium hover:bg-surface-muted transition-colors"
             >
               See workshops
             </Link>
             <Link
               href="/about"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-text-brand text-sm font-medium hover:bg-surface-muted transition-colors"
+              className="inline-flex items-center justify-center px-6 py-3.5 rounded-full text-text-brand text-[15px] font-medium hover:bg-surface-muted transition-colors"
             >
               Learn how it works
             </Link>
           </div>
 
-          {/* Quiet reassurance — no clinical or handoff claim */}
-          <p className="text-sm text-text-muted mt-8 max-w-md">
-            A qualified human practitioner is always responsible for clinical judgement.
-            Natural Intelligence supports care; it does not replace medical care.
-          </p>
-
         </div>
       </section>
+
+      {/* ── CLINICAL BOUNDARY — canonical three-clause wording (V2) ─────────── */}
+      <div className="border-t border-b border-border-default bg-surface-sunken py-5">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-[13.5px] leading-[1.7] text-text-secondary">
+            <strong className="font-medium text-text-primary">A qualified human practitioner is always responsible for clinical judgement.</strong>{' '}
+            Natural Intelligence supports care; it does not replace medical care.
+            Technology here organises and assists — it makes no clinical decision.
+          </p>
+        </div>
+      </div>
 
       {/* ── THREE PILLARS ─────────────────────────────────────────────────── */}
       <section className="bg-surface-base border-t border-border-default pt-12 md:pt-20 pb-16">
@@ -217,6 +218,67 @@ export default async function HomePage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── THE LIBRARY — the one thing genuinely open (V2 pine section) ───── */}
+      <section className="relative overflow-hidden bg-brand-default py-16 md:py-20">
+        {/* The single permitted gradient: a near-imperceptible radial inside a pine section */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-36 -right-32 w-[480px] h-[480px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(176,138,62,0.15), transparent 68%)' }}
+        />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+
+          <div>
+            <p className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase text-gold-pale mb-4">
+              Open now
+            </p>
+            <h2 className="font-display text-[34px] md:text-[46px] font-light text-ni-cream leading-[1.08] tracking-[-0.024em] mb-4 [text-wrap:balance]">
+              Start with <em className="italic font-normal text-gold-pale">The Library</em>.
+            </h2>
+            <p className="text-base font-light text-ni-cream/80 leading-[1.8] mb-8 max-w-md [text-wrap:pretty]">
+              Reading on natural health, written and reviewed with care. No account
+              needed, nothing to submit, nothing to upload — just clear, honest
+              material to read at your own pace.
+            </p>
+            <Link
+              href="/resources"
+              className="inline-flex items-center justify-center px-6 py-3.5 rounded-full bg-ni-cream text-text-brand text-[15px] font-medium hover:bg-surface-raised transition-colors"
+            >
+              Explore The Library
+            </Link>
+          </div>
+
+          {/* Reading themes — themes, not article titles (real titles pending
+              founder ruling on Library content; V2 RECONCILIATION open Q2) */}
+          <div className="flex flex-col gap-px rounded-[14px] overflow-hidden border border-ni-cream/[0.16] bg-ni-cream/[0.14]">
+            {[
+              {
+                k: 'Foundations',
+                v: 'What naturopathic care actually is',
+                d: 'And what it is not. Scope, training, and where it sits alongside conventional medicine.',
+              },
+              {
+                k: 'Preparing well',
+                v: 'Questions worth asking a practitioner',
+                d: 'How to arrive at a first consultation ready, and what a careful practitioner will ask you.',
+              },
+              {
+                k: 'Boundaries',
+                v: 'Reading health claims critically',
+                d: 'How to tell considered practice from overreach — including ours.',
+              },
+            ].map((row) => (
+              <div key={row.k} className="bg-brand-default px-6 py-5 flex flex-col gap-1.5">
+                <span className="font-mono text-[10.5px] tracking-[0.12em] uppercase text-gold-pale">{row.k}</span>
+                <span className="font-display text-xl text-ni-cream leading-snug">{row.v}</span>
+                <span className="text-[13px] text-ni-cream/70 leading-relaxed">{row.d}</span>
+              </div>
+            ))}
+          </div>
+
         </div>
       </section>
 
@@ -365,13 +427,13 @@ export default async function HomePage() {
             <div className="flex flex-wrap justify-center gap-3">
               <Link
                 href="/resources"
-                className="inline-flex items-center justify-center px-6 py-3 text-sm rounded-lg bg-brand-default text-text-inverted hover:bg-brand-hover transition-colors font-medium"
+                className="inline-flex items-center justify-center px-6 py-3.5 text-[15px] rounded-full bg-brand-default text-text-inverted hover:bg-brand-hover transition-colors font-medium"
               >
                 Explore The Library
               </Link>
               <Link
                 href="/about"
-                className="inline-flex items-center justify-center px-6 py-3 text-sm rounded-lg border border-border-default bg-surface-base text-text-primary hover:bg-surface-muted transition-colors font-medium"
+                className="inline-flex items-center justify-center px-6 py-3.5 text-[15px] rounded-full border border-border-strong bg-transparent text-text-primary hover:bg-surface-muted transition-colors font-medium"
               >
                 Learn how it works
               </Link>

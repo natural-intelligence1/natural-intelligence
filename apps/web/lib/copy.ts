@@ -106,9 +106,9 @@ export const copy = {
       members: {
         heading: 'For members',
         steps: [
-          { step: '01', title: 'Create your account', description: 'Sign up free in under a minute. No clinical history required.' },
-          { step: '02', title: 'Browse the directory', description: 'Filter practitioners by specialty, modality, and trust level.' },
-          { step: '03', title: 'Connect and attend', description: 'Register for workshops or submit a support request for personalised matching.' },
+          { step: '01', title: 'Read The Library', description: 'Open to everyone, no account required. Start with the foundations and work at your own pace.' },
+          { step: '02', title: 'Create your account', description: 'Free, in under a minute. No clinical history required, and nothing to upload.' },
+          { step: '03', title: 'Join a workshop', description: 'Register for live sessions as dates are confirmed. The directory follows once practitioner profiles are complete.' },
         ],
       },
       practitioners: {

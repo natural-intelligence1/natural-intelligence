@@ -20,6 +20,15 @@
   --ni-gold-tint:  #D9BE86;
   --ni-text:       #26302A;
 
+  /* V2 derived tokens — measured on cream #F4ECDD (handoff RECONCILIATION §3).
+     gold/sage/border are decoration only; gold TEXT always uses gold-ink. */
+  --ni-text-secondary: #4A544C;  /* 6.72:1 */
+  --ni-text-muted:     #5F6862;  /* 4.91:1 */
+  --ni-gold-ink:       #7D6128;  /* 4.95:1 — the only text-safe gold */
+  --ni-gold-pale:      #E2D2AE;
+  --ni-positive:       #4A6B4F;
+  --ni-border:         #E0D4BE;
+
   /* Consumed by the focus ring / skip link below */
   --color-brand-default: var(--ni-pine);
   --color-surface-base:  var(--ni-cream);
