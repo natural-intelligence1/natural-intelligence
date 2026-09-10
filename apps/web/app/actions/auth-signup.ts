@@ -31,7 +31,11 @@ export async function signupWithConsent(formData: FormData) {
   // Insert consent records if user was created
   if (data.user) {
     const now = new Date().toISOString()
-    await supabase.from('consent_records').insert([
+    // Sprint 3 self-review: consent evidence writes must never fail silently.
+    // A failed write is logged loudly with a structured event so it is
+    // operationally visible; signup itself proceeds (the account exists), but
+    // the missing evidence is surfaced rather than swallowed.
+    const { error: consentError } = await supabase.from('consent_records').insert([
       {
         profile_id: data.user.id,
         email,
@@ -47,6 +51,14 @@ export async function signupWithConsent(formData: FormData) {
         consented_at: now,
       },
     ])
+    if (consentError) {
+      console.error(JSON.stringify({
+        event: 'signup.consent_record_write_failed',
+        profile_id: data.user.id,
+        code: consentError.code,
+        message: consentError.message,
+      }))
+    }
 
     // Fire-and-forget notify (best effort)
     try {

@@ -24,6 +24,19 @@ COMMENT ON COLUMN public.consent_records.consent_version IS
 COMMENT ON COLUMN public.consent_records.withdrawn_at IS
   'Set when this specific consent grant is withdrawn; the row is never deleted.';
 
+-- Overnight self-review finding: 0005's INSERT policy was WITH CHECK (true) —
+-- any authenticated user could insert consent rows for ANY profile_id
+-- (consent spoofing). Narrowed to own-row only. Note for the signup flow:
+-- signupWithConsent inserts immediately after auth.signUp using the new
+-- session, so auth.uid() = the new profile_id and the write still succeeds;
+-- if email-confirmation-before-session is ever enabled, the signup consent
+-- write must move to a service-role path.
+DROP POLICY IF EXISTS "Anyone can create consent record" ON public.consent_records;
+DROP POLICY IF EXISTS "Members create own consent records" ON public.consent_records;
+CREATE POLICY "Members create own consent records"
+  ON public.consent_records FOR INSERT TO authenticated
+  WITH CHECK (profile_id = auth.uid());
+
 -- Consent evidence is APPEND-ONLY to members: no member UPDATE policy exists.
 -- Withdrawal is the single narrow mutation allowed, exposed via a SECURITY
 -- DEFINER function that can ONLY set withdrawn_at on the caller's own rows
