@@ -54,3 +54,7 @@ export {
   acceptCurrentAgreementViaRpc, isAgreementGateEnabled,
 } from './agreements'
 export type { PractitionerCategory, AgreementRow } from './agreements'
+export {
+  isReviewPacksEnabled, getReviewPackForCase, generateAndStoreReviewPack,
+} from './reviewPackAccess'
+export type { ReviewPackRow, GenerateReviewPackResult } from './reviewPackAccess'
