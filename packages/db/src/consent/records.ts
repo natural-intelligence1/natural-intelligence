@@ -104,15 +104,18 @@ export async function hasAllConsents(
   return true
 }
 
-/** Marks the member's rows for a purpose withdrawn (rows are never deleted). */
+/**
+ * Marks the CALLER'S rows for a purpose withdrawn (rows are never deleted).
+ * Consent evidence is append-only to members: there is no member UPDATE policy
+ * on consent_records. This goes through the narrow SECURITY DEFINER RPC
+ * `withdraw_own_consent` (migration 0051), which can only set withdrawn_at on
+ * auth.uid()'s own rows. Returns the number of rows withdrawn.
+ */
 export async function withdrawConsent(
-  client: AnyClient, memberId: string, purpose: ConsentPurpose,
-): Promise<void> {
-  const { error } = await (client as AnyClient)
-    .from('consent_records')
-    .update({ withdrawn_at: new Date().toISOString() })
-    .eq('profile_id', memberId)
-    .eq('consent_type', purpose)
-    .is('withdrawn_at', null)
+  client: AnyClient, purpose: ConsentPurpose,
+): Promise<number> {
+  const { data, error } = await (client as AnyClient)
+    .rpc('withdraw_own_consent', { p_consent_type: purpose })
   if (error) throw new Error(`withdrawConsent failed [${error.code}]: ${error.message}`)
+  return typeof data === 'number' ? data : 0
 }

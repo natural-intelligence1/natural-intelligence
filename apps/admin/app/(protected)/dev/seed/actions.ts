@@ -621,3 +621,31 @@ export async function resetTestData(): Promise<{ deleted: Record<string, number>
     },
   }
 }
+
+// ─── Sprint 3: publish DRAFT practitioner agreements (controlled pathway) ─────
+// Idempotently upserts the three category agreements (AGREEMENT_VERSION) as
+// is_current=true. The care-app agreement gate CANNOT function until this has
+// been run (and migration 0051 applied) — this is the sanctioned alternative
+// to ad hoc SQL. Texts remain DRAFT until solicitor sign-off.
+export async function seedPractitionerAgreements(): Promise<{ published: number; version: string }> {
+  const { adminClient } = await requireAdmin()
+  const { AGREEMENT_TEXTS, AGREEMENT_VERSION, PRACTITIONER_CATEGORIES } =
+    await import('@natural-intelligence/db/practitioners')
+
+  // eslint-disable-next-line
+  const loose = adminClient as any
+  let published = 0
+  for (const category of PRACTITIONER_CATEGORIES) {
+    const { title, body } = AGREEMENT_TEXTS[category]
+    const { error } = await loose
+      .from('practitioner_agreements')
+      .upsert(
+        { category, version: AGREEMENT_VERSION, title, body, is_current: true },
+        { onConflict: 'category,version' },
+      )
+    if (error) throw new Error(`seedPractitionerAgreements(${category}) failed: ${error.message}`)
+    published++
+  }
+  revalidatePath('/dev/seed')
+  return { published, version: AGREEMENT_VERSION }
+}

@@ -97,16 +97,27 @@ export async function updateRightsRequestStatus(
   }
   if (input.to === 'acknowledged') patch.acknowledged_at = now
   if (['fulfilled', 'refused', 'withdrawn'].includes(input.to)) patch.resolved_at = now
-  const { error } = await (client as AnyClient)
+  const { data, error } = await (client as AnyClient)
     .from('client_rights_requests').update(patch)
     .eq('id', input.requestId).eq('status', input.from)   // optimistic-lock on current status
+    .select('id')
   if (error) throw new Error(`updateRightsRequestStatus failed [${error.code}]: ${error.message}`)
+  // Review amendment 9: a zero-row update means the request no longer holds
+  // the expected status (stale view / concurrent action) — never succeed silently.
+  if (!data || data.length === 0) {
+    throw new Error(
+      `updateRightsRequestStatus: request ${input.requestId} is no longer in status '${input.from}' — refresh and retry.`,
+    )
+  }
 }
 
+const BLOCKING_STATUSES = ['new', 'acknowledged', 'in_progress', 'fulfilled']
+
 /**
- * True when the member has an open or fulfilled RESTRICTION or
- * CONSENT-WITHDRAWAL request — used to block future AI / practitioner /
- * research processing. Notes on failure behaviour: a missing table
+ * GLOBAL processing restriction: an open/fulfilled RESTRICTION or ERASURE
+ * request, or a consent_withdrawal with NO specific purpose (deliberate
+ * "restrict all processing"). Purpose-specific withdrawals do NOT trigger this
+ * — see hasPurposeWithdrawal. Failure behaviour: a missing table
  * (pre-migration) returns false — acceptable ONLY because every processing
  * pipeline is additionally behind the default-off intake kill-switches; once
  * 0051 is applied this check is live end-to-end.
@@ -114,11 +125,47 @@ export async function updateRightsRequestStatus(
 export async function hasActiveRestriction(client: AnyClient, memberId: string): Promise<boolean> {
   const { data, error } = await (client as AnyClient)
     .from('client_rights_requests')
-    .select('id')
+    .select('id, request_type, consent_type')
     .eq('member_id', memberId)
     .in('request_type', ['restriction', 'consent_withdrawal', 'erasure'])
-    .in('status', ['new', 'acknowledged', 'in_progress', 'fulfilled'])
+    .in('status', BLOCKING_STATUSES)
+  if (error) return false
+  return (data ?? []).some(
+    (r: { request_type: string; consent_type: string | null }) =>
+      r.request_type === 'restriction' ||
+      r.request_type === 'erasure' ||
+      (r.request_type === 'consent_withdrawal' && !r.consent_type),
+  )
+}
+
+/**
+ * PURPOSE-SPECIFIC withdrawal: an open/fulfilled consent_withdrawal request
+ * naming exactly this consent purpose. Same pre-migration failure note as
+ * hasActiveRestriction.
+ */
+export async function hasPurposeWithdrawal(
+  client: AnyClient, memberId: string, purpose: string,
+): Promise<boolean> {
+  const { data, error } = await (client as AnyClient)
+    .from('client_rights_requests')
+    .select('id')
+    .eq('member_id', memberId)
+    .eq('request_type', 'consent_withdrawal')
+    .eq('consent_type', purpose)
+    .in('status', BLOCKING_STATUSES)
     .limit(1)
   if (error) return false
   return (data ?? []).length > 0
+}
+
+/**
+ * The enforcement question pipelines actually ask: is processing under this
+ * purpose blocked for this member — either globally (restriction / erasure /
+ * blanket withdrawal) or by a withdrawal naming this specific purpose?
+ */
+export async function isProcessingBlocked(
+  client: AnyClient, memberId: string, purpose: string,
+): Promise<boolean> {
+  if (await hasActiveRestriction(client, memberId)) return true
+  return hasPurposeWithdrawal(client, memberId, purpose)
 }

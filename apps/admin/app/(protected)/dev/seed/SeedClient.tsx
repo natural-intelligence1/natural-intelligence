@@ -10,6 +10,7 @@ import {
   seedShowcasePractitioners,
   fixEventTimes,
   resetTestData,
+  seedPractitionerAgreements,
 } from './actions'
 
 type Result = { type: 'success' | 'error'; msg: string } | null
@@ -98,6 +99,16 @@ export default function SeedClient() {
               run(
                 () => seedTestPractitioner(),
                 (v) => `${c.success} Practitioner created — ID: ${v.id}`,
+              )
+            }
+          />
+          <SeedButton
+            label="Publish DRAFT practitioner agreements (Sprint 3)"
+            disabled={loading}
+            onClick={() =>
+              run(
+                () => seedPractitionerAgreements(),
+                (v) => `${c.success} ${v.published} DRAFT agreements published (version ${v.version}). Solicitor review still required.`,
               )
             }
           />

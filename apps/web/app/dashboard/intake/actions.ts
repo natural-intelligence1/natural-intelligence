@@ -2,7 +2,7 @@
 
 import {
   createServerSupabaseClient, createAdminClient,
-  recordConsent, hasAllConsents, hasActiveRestriction,
+  recordConsent, hasAllConsents, isProcessingBlocked,
   REQUIRED_INTAKE_CONSENTS, OPTIONAL_INTAKE_CONSENTS, CONSENT_PURPOSES,
   type ConsentPurpose,
 } from '@natural-intelligence/db'
@@ -132,12 +132,13 @@ export async function completeIntake(consentData: {
       .insert({ member_id: user.id, ...finalData })
   }
 
-  // Sprint 3 — restriction enforcement: where the member has an open or
-  // fulfilled restriction / consent-withdrawal / erasure request, no further
-  // AI, practitioner or research processing may run. (Pre-migration the check
-  // returns false, which is acceptable only because both intake kill-switches
-  // are additionally default-off — see rights/requests.ts.)
-  const restricted = await hasActiveRestriction(createAdminClient(), user.id)
+  // Sprint 3 — restriction enforcement (purpose-aware, review amendment 1):
+  // AI processing is blocked when the member has a GLOBAL restriction
+  // (restriction / erasure / blanket withdrawal) OR has specifically withdrawn
+  // ai_assisted_processing consent. (Pre-migration the check returns false,
+  // acceptable only because both intake kill-switches are additionally
+  // default-off — see rights/requests.ts.)
+  const restricted = await isProcessingBlocked(createAdminClient(), user.id, 'ai_assisted_processing')
   if (restricted) {
     console.log(JSON.stringify({ event: 'intake.processing.blocked_by_restriction', member_id: user.id }))
     return

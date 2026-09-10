@@ -3,6 +3,7 @@ export {
   RIGHTS_REQUEST_TYPES, RIGHTS_REQUEST_STATUSES,
   isValidTransition, isRightsRequestType,
   createRightsRequest, listOwnRightsRequests, listAllRightsRequests,
-  updateRightsRequestStatus, hasActiveRestriction,
+  updateRightsRequestStatus, hasActiveRestriction, hasPurposeWithdrawal,
+  isProcessingBlocked,
 } from './requests'
 export type { RightsRequestType, RightsRequestStatus, RightsRequestRow } from './requests'

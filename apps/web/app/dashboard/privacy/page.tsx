@@ -3,8 +3,9 @@ import { redirect } from 'next/navigation'
 import {
   createServerSupabaseClient,
   getMemberConsents, listOwnRightsRequests,
-  RIGHTS_REQUEST_TYPES, type RightsRequestType,
+  RIGHTS_REQUEST_TYPES, CONSENT_PURPOSES, type RightsRequestType,
 } from '@natural-intelligence/db'
+import { PrivacyRequestForm } from './PrivacyRequestForm'
 import { submitRightsRequest } from './actions'
 
 export const metadata: Metadata = {
@@ -85,37 +86,12 @@ export default async function PrivacyPage() {
         <p className="text-xs text-text-muted mb-4">
           DRAFT wording — requires solicitor review before real-client use.
         </p>
-        <form action={submitRightsRequest} className="space-y-4">
-          <div>
-            <label htmlFor="request_type" className="block text-sm font-medium text-text-primary mb-1.5">
-              What would you like to do?
-            </label>
-            <select
-              id="request_type" name="request_type" required
-              className="w-full px-3 py-2.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-sm"
-            >
-              {RIGHTS_REQUEST_TYPES.map((t) => (
-                <option key={t} value={t}>{REQUEST_LABELS[t]}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="details" className="block text-sm font-medium text-text-primary mb-1.5">
-              Tell us more (optional)
-            </label>
-            <textarea
-              id="details" name="details" rows={3} maxLength={2000}
-              placeholder="Anything that helps us action this for you…"
-              className="w-full px-3 py-2.5 rounded-lg border border-border-default bg-surface-base text-text-primary text-sm resize-none"
-            />
-          </div>
-          <button
-            type="submit"
-            className="px-5 py-2.5 rounded-full bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
-          >
-            Submit request
-          </button>
-        </form>
+        <PrivacyRequestForm
+          submitAction={submitRightsRequest}
+          requestTypes={[...RIGHTS_REQUEST_TYPES]}
+          requestLabels={REQUEST_LABELS}
+          consentPurposes={CONSENT_PURPOSES.filter((p) => p !== 'platform_terms')}
+        />
       </section>
 
       {/* Existing requests */}

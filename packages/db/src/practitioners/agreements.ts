@@ -100,17 +100,24 @@ export async function hasAcceptedCurrentAgreement(
   return (data ?? []).length > 0
 }
 
-/** Records acceptance of a specific agreement (id + version pinned). */
+/**
+ * Records acceptance of a specific agreement. Callers must derive the
+ * agreement id/version FROM THE DATABASE (never from client input) — see
+ * acceptCurrentAgreement in the care app, which resolves the practitioner's
+ * category server-side and pins the current agreement + a hash of its exact
+ * text (review amendment 4).
+ */
 export async function acceptAgreement(
   client: AnyClient,
-  input: { practitionerId: string; agreementId: string; agreementVersion: string },
+  input: { practitionerId: string; agreementId: string; agreementVersion: string; acceptedTextHash?: string },
 ): Promise<void> {
   const { error } = await (client as AnyClient)
     .from('practitioner_agreement_acceptances')
     .insert({
-      practitioner_id:   input.practitionerId,
-      agreement_id:      input.agreementId,
-      agreement_version: input.agreementVersion,
+      practitioner_id:    input.practitionerId,
+      agreement_id:       input.agreementId,
+      agreement_version:  input.agreementVersion,
+      accepted_text_hash: input.acceptedTextHash ?? null,
     })
   if (error && error.code !== '23505') {  // unique violation = already accepted
     throw new Error(`acceptAgreement failed [${error.code}]: ${error.message}`)

@@ -91,3 +91,87 @@ describe.skipIf(!HAVE_DB)('negative RLS — cross-member and unauthorised practi
     expect(data ?? []).toHaveLength(0)
   })
 })
+
+// ─── Review-pack access vs work-item status (review amendment 7) ─────────────
+// These tests exercise the 0051 policy "Practitioners read packs for their
+// work" (active statuses only). They SELF-SKIP until migration 0051 is applied
+// (the table probe fails pre-migration), then run as live negative tests.
+describe.skipIf(!HAVE_DB)('negative RLS — review packs require an ACTIVE work item', () => {
+  let admin: ReturnType<typeof mkAdmin>
+  let member: Awaited<ReturnType<typeof createTestUser>>
+  let pract: Awaited<ReturnType<typeof createTestUser>>
+  let caseId: string | null = null
+  let packId: string | null = null
+  let workId: string | null = null
+  let tableExists = false
+
+  beforeAll(async () => {
+    admin = mkAdmin()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const probe = await (admin as any).from('practitioner_review_packs').select('id').limit(1)
+    tableExists = !probe.error
+    if (!tableExists) return
+
+    member = await createTestUser(admin, 's3-pack-member')
+    pract  = await createTestUser(admin, 's3-pack-pract')
+    await admin.from('practitioners').insert({ id: pract.id, display_name: `Test ${pract.email}`, status: 'active' })
+    const { data: c } = await admin.from('client_cases')
+      .insert({ client_id: member.id, status: 'active' } as never).select('id').single()
+    caseId = (c as { id: string } | null)?.id ?? null
+    if (!caseId) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: p } = await (admin as any).from('practitioner_review_packs')
+      .insert({ case_id: caseId, pseudonym: 'NI-TEST01', pack: { synthetic: true } })
+      .select('id').single()
+    packId = p?.id ?? null
+    // CANCELLED work item — must grant nothing
+    const { data: w } = await admin.from('case_practitioner_work')
+      .insert({ case_id: caseId, practitioner_id: pract.id, work_type: 'case_review', status: 'cancelled', assignment_source: 'admin' } as never)
+      .select('id').single()
+    workId = (w as { id: string } | null)?.id ?? null
+  })
+
+  afterAll(async () => {
+    if (!tableExists) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (packId) await (admin as any).from('practitioner_review_packs').delete().eq('id', packId)
+    if (workId) await admin.from('case_practitioner_work').delete().eq('id', workId)
+    if (caseId) await admin.from('client_cases').delete().eq('id', caseId)
+    if (pract)  { await admin.from('practitioners').delete().eq('id', pract.id); await deleteTestUser(admin, pract.id) }
+    if (member) await deleteTestUser(admin, member.id)
+  })
+
+  it('a CANCELLED work item grants no pack access', async (ctx) => {
+    if (!tableExists || !packId) return ctx.skip()
+    const p = await signInAs(pract)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (p as any).from('practitioner_review_packs').select('id').eq('id', packId)
+    expect(data ?? []).toHaveLength(0)
+  })
+
+  it('a DECLINED work item grants no pack access', async (ctx) => {
+    if (!tableExists || !packId || !workId) return ctx.skip()
+    await admin.from('case_practitioner_work').update({ status: 'declined' } as never).eq('id', workId)
+    const p = await signInAs(pract)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (p as any).from('practitioner_review_packs').select('id').eq('id', packId)
+    expect(data ?? []).toHaveLength(0)
+  })
+
+  it('an ASSIGNED work item DOES grant pack access (positive control)', async (ctx) => {
+    if (!tableExists || !packId || !workId) return ctx.skip()
+    await admin.from('case_practitioner_work').update({ status: 'assigned' } as never).eq('id', workId)
+    const p = await signInAs(pract)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (p as any).from('practitioner_review_packs').select('id, pseudonym, pack').eq('id', packId)
+    expect(data ?? []).toHaveLength(1)
+  })
+
+  it('practitioners can never read review_pack_audit', async (ctx) => {
+    if (!tableExists) return ctx.skip()
+    const p = await signInAs(pract)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (p as any).from('review_pack_audit').select('pack_id').limit(5)
+    expect(data ?? []).toHaveLength(0)
+  })
+})

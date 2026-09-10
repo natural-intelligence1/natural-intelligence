@@ -51,9 +51,10 @@ export default async function AgreementPage() {
           }}>
             {agreement.body}
           </div>
+          {/* agreement_id is a display cross-check only — the server re-derives
+              the current agreement from the DB and rejects mismatches. */}
           <form action={acceptCurrentAgreement}>
             <input type="hidden" name="agreement_id" value={agreement.id} />
-            <input type="hidden" name="agreement_version" value={agreement.version} />
             <button
               type="submit"
               style={{

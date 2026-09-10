@@ -24,12 +24,32 @@ COMMENT ON COLUMN public.consent_records.consent_version IS
 COMMENT ON COLUMN public.consent_records.withdrawn_at IS
   'Set when this specific consent grant is withdrawn; the row is never deleted.';
 
--- Members may mark their OWN consent rows withdrawn (no other update).
-DROP POLICY IF EXISTS "Members withdraw own consent" ON public.consent_records;
-CREATE POLICY "Members withdraw own consent"
-  ON public.consent_records FOR UPDATE TO authenticated
-  USING (profile_id = auth.uid())
-  WITH CHECK (profile_id = auth.uid());
+-- Consent evidence is APPEND-ONLY to members: no member UPDATE policy exists.
+-- Withdrawal is the single narrow mutation allowed, exposed via a SECURITY
+-- DEFINER function that can ONLY set withdrawn_at on the caller's own rows
+-- for one consent purpose. (Review amendment 2 — replaces an earlier broad
+-- member UPDATE policy.)
+CREATE OR REPLACE FUNCTION public.withdraw_own_consent(p_consent_type TEXT)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  affected INTEGER;
+BEGIN
+  UPDATE public.consent_records
+     SET withdrawn_at = now()
+   WHERE profile_id = auth.uid()
+     AND consent_type = p_consent_type
+     AND withdrawn_at IS NULL;
+  GET DIAGNOSTICS affected = ROW_COUNT;
+  RETURN affected;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.withdraw_own_consent(TEXT) FROM public;
+GRANT EXECUTE ON FUNCTION public.withdraw_own_consent(TEXT) TO authenticated;
 
 -- ═══ 2. client_rights_requests — withdrawal + GDPR rights channel ════════════
 
@@ -137,20 +157,33 @@ CREATE POLICY "Admin full access to acceptances"
 -- source_intake_id, generated_by). Practitioners read packs via work-item
 -- linkage — the same shape as 0048, but against de-identified content.
 
+-- Review amendments 6+7: the practitioner-readable table carries ONLY safe
+-- columns (no internal audit fields — those live in review_pack_audit, which
+-- has no authenticated policies at all), and practitioner SELECT requires an
+-- ACTIVE work item — cancelled / declined / completed work grants nothing.
+
 CREATE TABLE IF NOT EXISTS public.practitioner_review_packs (
-  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  case_id          UUID NOT NULL REFERENCES public.client_cases(id) ON DELETE CASCADE,
-  pseudonym        TEXT NOT NULL,       -- e.g. 'NI-4F7A2C' — never the client name
-  pack             JSONB NOT NULL,      -- de-identified content (buildReviewPack output)
-  pack_version     INTEGER NOT NULL DEFAULT 1,
-  source_intake_id UUID,                -- internal audit trail — NOT exposed to practitioners
-  suppressed_fields TEXT[] DEFAULT '{}',-- audit of what was suppressed and why
-  generated_by     TEXT NOT NULL DEFAULT 'system',
-  generated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id      UUID NOT NULL REFERENCES public.client_cases(id) ON DELETE CASCADE,
+  pseudonym    TEXT NOT NULL,       -- e.g. 'NI-4F7A2C' — never the client name
+  pack         JSONB NOT NULL,      -- de-identified content (buildReviewPack output)
+  pack_version INTEGER NOT NULL DEFAULT 1,
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (case_id, pack_version)
 );
 
+-- Internal audit trail — ADMIN/SERVICE ONLY. Never practitioner-readable.
+CREATE TABLE IF NOT EXISTS public.review_pack_audit (
+  pack_id            UUID PRIMARY KEY REFERENCES public.practitioner_review_packs(id) ON DELETE CASCADE,
+  source_intake_id   UUID,
+  suppressed_fields  TEXT[] DEFAULT '{}',
+  transformed_fields TEXT[] DEFAULT '{}',
+  generated_by       TEXT NOT NULL DEFAULT 'system',
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 ALTER TABLE public.practitioner_review_packs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_pack_audit         ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Practitioners read packs for their work" ON public.practitioner_review_packs;
 CREATE POLICY "Practitioners read packs for their work"
@@ -160,9 +193,16 @@ CREATE POLICY "Practitioners read packs for their work"
       SELECT 1 FROM public.case_practitioner_work cpw
       WHERE cpw.case_id = practitioner_review_packs.case_id
         AND cpw.practitioner_id = auth.uid()
+        AND cpw.status IN ('assigned', 'in_review', 'escalated')
     )
   );
 
 DROP POLICY IF EXISTS "Admin full access to review packs" ON public.practitioner_review_packs;
 CREATE POLICY "Admin full access to review packs"
   ON public.practitioner_review_packs FOR ALL USING (is_admin());
+
+-- review_pack_audit: admin only. Deliberately NO authenticated policy —
+-- practitioners can never read audit rows.
+DROP POLICY IF EXISTS "Admin full access to review pack audit" ON public.review_pack_audit;
+CREATE POLICY "Admin full access to review pack audit"
+  ON public.review_pack_audit FOR ALL USING (is_admin());

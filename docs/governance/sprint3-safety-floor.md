@@ -60,7 +60,10 @@ review. Consequences, by design:
   gracefully** (clear "not yet available" states) until the migrations are applied.
 - The care-app agreement gate ships behind `PRACTITIONER_AGREEMENT_GATE`
   (default **off**, exact-string `"true"` to enable — same semantics as the
-  intake kill-switches).
+  intake kill-switches). The gate is FAIL-CLOSED and **cannot be enabled until
+  agreements exist in the database**: publish the three DRAFT agreements via
+  the controlled admin pathway (Dev tools → "Publish DRAFT practitioner
+  agreements"), never via ad hoc SQL.
 - `0052` (narrowing) must be applied together with the review-pack rollout, per
   the coupling rule above.
 
