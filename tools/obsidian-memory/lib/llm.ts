@@ -70,7 +70,7 @@ export interface LlmRequest {
 }
 
 // Default model per the command spec.
-export const DEFAULT_MODEL = 'claude-sonnet-4-20250514'
+export const DEFAULT_MODEL = 'claude-sonnet-4-6'
 
 export async function callAnthropic(req: LlmRequest): Promise<string> {
   const apiKey = await resolveApiKey()
