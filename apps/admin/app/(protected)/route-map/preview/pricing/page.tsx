@@ -79,11 +79,14 @@ function PricingHero() {
       <h1 className={`${cormorant.className} italic font-light text-[34px] md:text-[44px] leading-[1.16] mb-4`} style={{ color: C.text }}>
         Free to learn. Paid where a practitioner gives you their time.
       </h1>
-      <p className="text-[15px] font-light leading-[1.75] max-w-xl mx-auto" style={{ color: C.text2 }}>
+      <p className="text-[15px] font-light leading-[1.75] max-w-xl mx-auto mb-5" style={{ color: C.text2 }}>
         The Library, the community and your own tracking tools stay free. You pay
         only for scarce professional value — a qualified practitioner&rsquo;s
         review, judgement and continuing care. Coordination between you and a
         practitioner is arranged by our team, person to person.
+      </p>
+      <p className="font-mono text-[11px] tracking-[0.1em] uppercase" style={{ color: C.goldInk }}>
+        Learn free → track yourself → get practitioner care → get coordinated support
       </p>
     </section>
   )
@@ -94,7 +97,7 @@ function AudiencePathCards() {
   const paths = [
     { k: 'I want to learn',            d: 'Start free with The Library, community and workshops. No account needed to read.' },
     { k: 'I want to understand my health', d: 'Track your own patterns and ranges with the self-serve tools. They show patterns; they do not diagnose.' },
-    { k: 'I want practitioner care',   d: 'Begin with First Care — a qualified practitioner, human-led from the first conversation.' },
+    { k: 'I want practitioner care',   d: 'NI Care — a qualified practitioner, human-led from the first conversation through continuing care.' },
     { k: 'I represent an organisation', d: 'Workforce and community sessions, scoped and quoted individually. See NI Corporate below.' },
   ]
   return (
@@ -119,6 +122,8 @@ interface Tier {
   priceNote?: string
   blurb: string
   features: string[]
+  /** Optional grouped stages (NI Care: one journey at two intensities). */
+  stages?: { title: string; items: string[] }[]
   featured?: boolean
   cta: string
 }
@@ -142,23 +147,24 @@ const TIERS: Tier[] = [
     cta: 'Track your health',
   },
   {
-    name: 'First Care',
+    name: 'NI Care',
     label: 'Practitioner-led',
     price: '£ —',
-    priceNote: 'Founder to set · per review',
-    blurb: 'Your first practitioner review. A qualified human practitioner considers your picture and responds — you pay for the review requested.',
-    features: ['Everything in Tracked', 'Practitioner case review', 'Written, signed response', 'Admin-routed handover — arranged by a person'],
-    featured: true,
-    cta: 'Begin First Care',
-  },
-  {
-    name: 'Ongoing Support',
-    label: 'Practitioner-led',
-    price: '£ — / month',
     priceNote: 'Founder to set',
-    blurb: 'Continuing care with your practitioner — reviews, adjustments and follow-up over time.',
-    features: ['Everything in First Care', 'Scheduled follow-up reviews', 'Protocol adjustments over time', 'Priority workshop access'],
-    cta: 'Continue with support',
+    blurb: 'One care journey with a qualified practitioner, at two intensities — begin, then continue for as long as it serves you. Everything in Tracked is included.',
+    features: [],
+    stages: [
+      {
+        title: 'Start with care',
+        items: ['Intake and consultation', 'Full case-taking', 'Your personal naturopathic plan'],
+      },
+      {
+        title: 'Continue care',
+        items: ['Follow-up reviews', 'Lab discounts and practitioner lab analysis', 'Plan updates over time', 'Consented health-story sharing with your practitioner'],
+      },
+    ],
+    featured: true,
+    cta: 'Begin NI Care',
   },
   {
     name: 'Fully Supported',
@@ -166,7 +172,7 @@ const TIERS: Tier[] = [
     price: '£ — / month',
     priceNote: 'Founder to set',
     blurb: 'The most complete arrangement: your practitioner plus our team coordinating around you.',
-    features: ['Everything in Ongoing Support', 'Named coordination contact', 'Multi-practitioner coordination', 'Care planning between reviews'],
+    features: ['Everything in NI Care', 'Named coordination contact', 'Multi-practitioner coordination', 'Care planning between reviews'],
     cta: 'Enquire',
   },
 ]
@@ -202,14 +208,33 @@ function TierCard({ tier }: { tier: Tier }) {
       <p className="text-[13px] leading-relaxed mb-5" style={{ color: tier.featured ? 'rgba(244,236,221,0.8)' : C.text2 }}>
         {tier.blurb}
       </p>
-      <ul className="space-y-2 mb-6 flex-1">
-        {tier.features.map((f) => (
-          <li key={f} className="flex gap-2 text-[13px] leading-snug" style={{ color: tier.featured ? 'rgba(244,236,221,0.85)' : C.text2 }}>
-            <span aria-hidden="true" className="mt-[7px] w-1 h-1 rounded-full flex-shrink-0" style={{ background: tier.featured ? C.goldPale : C.gold }} />
-            {f}
-          </li>
+      <div className="mb-6 flex-1 space-y-4">
+        {tier.features.length > 0 && (
+          <ul className="space-y-2">
+            {tier.features.map((f) => (
+              <li key={f} className="flex gap-2 text-[13px] leading-snug" style={{ color: tier.featured ? 'rgba(244,236,221,0.85)' : C.text2 }}>
+                <span aria-hidden="true" className="mt-[7px] w-1 h-1 rounded-full flex-shrink-0" style={{ background: tier.featured ? C.goldPale : C.gold }} />
+                {f}
+              </li>
+            ))}
+          </ul>
+        )}
+        {tier.stages?.map((stage) => (
+          <div key={stage.title}>
+            <p className="font-mono text-[10px] tracking-[0.12em] uppercase mb-2" style={{ color: tier.featured ? C.goldPale : C.goldInk }}>
+              {stage.title}
+            </p>
+            <ul className="space-y-2">
+              {stage.items.map((f) => (
+                <li key={f} className="flex gap-2 text-[13px] leading-snug" style={{ color: tier.featured ? 'rgba(244,236,221,0.85)' : C.text2 }}>
+                  <span aria-hidden="true" className="mt-[7px] w-1 h-1 rounded-full flex-shrink-0" style={{ background: tier.featured ? C.goldPale : C.gold }} />
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
-      </ul>
+      </div>
       <InertButton variant={tier.featured ? 'cream' : 'outline'}>{tier.cta}</InertButton>
     </div>
   )
@@ -218,16 +243,18 @@ function TierCard({ tier }: { tier: Tier }) {
 // ─── Comparison data ──────────────────────────────────────────────────────────
 type Cell = 'Included' | 'Add-on' | 'Not included'
 const COMPARE: { row: string; cells: Cell[] }[] = [
-  { row: 'The Library & community',            cells: ['Included', 'Included', 'Included', 'Included', 'Included'] },
-  { row: 'Free community workshops',           cells: ['Included', 'Included', 'Included', 'Included', 'Included'] },
-  { row: 'Self-serve tracking tools',          cells: ['Not included', 'Included', 'Included', 'Included', 'Included'] },
-  { row: 'Practitioner case review',           cells: ['Not included', 'Not included', 'Included', 'Included', 'Included'] },
-  { row: 'Signed practitioner response',       cells: ['Not included', 'Not included', 'Included', 'Included', 'Included'] },
-  { row: 'Scheduled follow-up reviews',        cells: ['Not included', 'Not included', 'Add-on', 'Included', 'Included'] },
-  { row: 'Named coordination contact',         cells: ['Not included', 'Not included', 'Not included', 'Add-on', 'Included'] },
-  { row: 'Multi-practitioner coordination',    cells: ['Not included', 'Not included', 'Not included', 'Not included', 'Included'] },
+  { row: 'The Library & community',                    cells: ['Included', 'Included', 'Included', 'Included'] },
+  { row: 'Free community workshops',                   cells: ['Included', 'Included', 'Included', 'Included'] },
+  { row: 'Self-serve tracking tools',                  cells: ['Not included', 'Included', 'Included', 'Included'] },
+  { row: 'Intake, consultation & case-taking',         cells: ['Not included', 'Not included', 'Included', 'Included'] },
+  { row: 'Personal naturopathic plan',                 cells: ['Not included', 'Not included', 'Included', 'Included'] },
+  { row: 'Follow-up reviews & plan updates',           cells: ['Not included', 'Not included', 'Included', 'Included'] },
+  { row: 'Lab discounts & practitioner lab analysis',  cells: ['Not included', 'Not included', 'Included', 'Included'] },
+  { row: 'Consented health-story sharing',             cells: ['Not included', 'Not included', 'Included', 'Included'] },
+  { row: 'Named coordination contact',                 cells: ['Not included', 'Not included', 'Add-on', 'Included'] },
+  { row: 'Multi-practitioner coordination',            cells: ['Not included', 'Not included', 'Not included', 'Included'] },
 ]
-const TIER_SHORT = ['Knowledge', 'Tracked', 'First Care', 'Ongoing', 'Fully Supported']
+const TIER_SHORT = ['Knowledge', 'Tracked', 'NI Care', 'Fully Supported']
 
 function CellMark({ v }: { v: Cell }) {
   const map: Record<Cell, { t: string; c: string }> = {
@@ -387,7 +414,7 @@ function FounderDecisionNotes() {
   const notes = [
     'Prices are unset on every paid tier ("£ —"). The retired 19/49/69/119 figures are not used and must not return. Founder to set launch prices.',
     'Tier names, labels and the Included/Add-on grid are proposals for review — nothing here is published.',
-    'First Care is presented as the featured tier; confirm or reorder.',
+    'Founder amendment applied: First Care and Ongoing Support are collapsed into one NI Care tier — one care journey at two intensities (Start with care / Continue care). NI Care is the featured tier; confirm the single-price treatment (one price vs start + continue pricing).',
     'Subsidised access is worded as eligibility-based with no donation, charity or charitable-structure language, per the open legal question.',
     'Corporate is by-proposal only, mirroring the Plan of Record lane (enquiry → scope → quote → deliver).',
     'All CTAs are inert. Publishing any of this requires: prices set, Stripe/billing built (currently none exists), and the Sprint 3 safety floor for the care tiers.',
@@ -427,7 +454,7 @@ export default async function PricingPreviewPage() {
       <AudiencePathCards />
 
       <section className="px-4 pb-12 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {TIERS.map((t) => <TierCard key={t.name} tier={t} />)}
         </div>
       </section>
