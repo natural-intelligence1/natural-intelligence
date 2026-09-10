@@ -30,11 +30,25 @@ export interface ReviewPack {
 
 export const ITEM_WITHHELD = '[item withheld]'
 
-/** Fields passed through unchanged: scores, booleans, enums, fixed-option tag lists. */
-const STRUCTURED_ALLOW = [
-  'arrivalEmotion', 'primaryConcerns', 'primarySystem', 'stressLevel',
-  'sleepQuality', 'energyLevel', 'concernSeverity', 'postExertionalWorsening',
-] as const
+// Second review, item 6: "structured" is enforced by TYPE and SHAPE, not
+// trust. Numeric and boolean fields pass only with the right primitive type;
+// string fields that SHOULD be fixed options (arrivalEmotion, primarySystem)
+// and tag lists (primaryConcerns) are normalised through the same short-token
+// rule as everything else, so user-entered free text cannot leak through a
+// field we expected to be an enum.
+const NUMERIC_ALLOW  = ['stressLevel', 'sleepQuality', 'energyLevel', 'concernSeverity'] as const
+const BOOLEAN_ALLOW  = ['postExertionalWorsening'] as const
+const TOKEN_ALLOW    = ['arrivalEmotion', 'primarySystem'] as const
+const TOKEN_LIST_ALLOW = ['primaryConcerns'] as const
+
+/** A single fixed-option-shaped token: ≤3 words, ≤30 chars, no identifiers. */
+export function toSafeToken(raw: unknown): string {
+  const s = String(raw).trim()
+  const scrubbed = scrubIdentifiers(s)
+  const words = scrubbed.split(/\s+/).filter(Boolean).length
+  if (scrubbed !== s || words > 3 || scrubbed.length > 30 || scrubbed.length === 0) return ITEM_WITHHELD
+  return scrubbed
+}
 
 /** Clinically necessary LIST fields — transformed to short structured items. */
 const LIST_TRANSFORM = ['currentMedications', 'currentSupplements', 'diagnosedConditions'] as const
@@ -114,8 +128,19 @@ export function buildReviewPack(
 
   for (const [key, value] of Object.entries(summary)) {
     if (value === null || value === undefined) continue
-    if ((STRUCTURED_ALLOW as readonly string[]).includes(key)) {
-      clinical[key] = value
+    if ((NUMERIC_ALLOW as readonly string[]).includes(key)) {
+      if (typeof value === 'number' && Number.isFinite(value)) clinical[key] = value
+      else suppressed.push(key)   // wrong type = untrusted shape → suppress
+    } else if ((BOOLEAN_ALLOW as readonly string[]).includes(key)) {
+      if (typeof value === 'boolean') clinical[key] = value
+      else suppressed.push(key)
+    } else if ((TOKEN_ALLOW as readonly string[]).includes(key)) {
+      clinical[key] = toSafeToken(value)
+      transformed.push(key)
+    } else if ((TOKEN_LIST_ALLOW as readonly string[]).includes(key)) {
+      const items = Array.isArray(value) ? value : [value]
+      clinical[key] = items.map(toSafeToken)
+      transformed.push(key)
     } else if ((LIST_TRANSFORM as readonly string[]).includes(key)) {
       clinical[key] = toShortItems(value as string | string[])
       transformed.push(key)

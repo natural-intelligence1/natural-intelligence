@@ -51,6 +51,6 @@ export type { ReviewPack } from './reviewPack'
 export {
   PRACTITIONER_CATEGORIES, AGREEMENT_VERSION, AGREEMENT_TEXTS,
   isPractitionerCategory, getCurrentAgreement, hasAcceptedCurrentAgreement,
-  acceptAgreement, isAgreementGateEnabled,
+  acceptCurrentAgreementViaRpc, isAgreementGateEnabled,
 } from './agreements'
 export type { PractitionerCategory, AgreementRow } from './agreements'

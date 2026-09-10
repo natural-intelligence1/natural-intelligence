@@ -21,6 +21,37 @@ DROP POLICY IF EXISTS practitioners_read_assigned_client ON public.biomarker_res
 DROP POLICY IF EXISTS practitioners_read_assigned_client ON public.biomarker_trajectory;
 DROP POLICY IF EXISTS practitioners_read_assigned_client ON public.lab_reports;
 
+-- ── 0046 audit finding (second review, item 7) ────────────────────────────────
+-- `case_practitioner_select` (F1, captured in 0046) grants a practitioner with
+-- ANY work history on a case — including cancelled and declined work — SELECT
+-- over client_cases rows, which carry client_id (identity linkage) and
+-- primary_concern (user-entered free-text HEALTH context). Two problems, two
+-- treatments:
+--   a) status: cancelled/declined work must grant nothing → recreated below
+--      with a status filter. 'completed' is retained deliberately: the care
+--      inbox's Completed Recently / clinical-continuity sections need the
+--      case row, and the row's non-concern fields (status, dates, complexity)
+--      are operational, not clinical.
+--   b) primary_concern free text: RLS cannot mask a column. The practitioner
+--      workspace repoint (the other half of this coupled workstream) must stop
+--      selecting primary_concern from client_cases — the de-identified review
+--      pack carries the concern instead. Until the repoint lands, this
+--      migration must not be applied (same coupling rule as above).
+
+DROP POLICY IF EXISTS case_practitioner_select ON public.client_cases;
+CREATE POLICY case_practitioner_select
+  ON public.client_cases FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.case_practitioner_work cpw
+      WHERE cpw.case_id         = client_cases.id
+        AND cpw.practitioner_id = auth.uid()
+        AND cpw.status IN ('assigned', 'in_review', 'escalated', 'completed')
+    )
+  );
+
 -- NOTE for the same apply-window: the practitioner_client_personalisation view
 -- and any helper still selecting raw intake/biohub rows for practitioners
 -- (getIntakeSummary, getBioHubSignals) must be repointed at review packs first

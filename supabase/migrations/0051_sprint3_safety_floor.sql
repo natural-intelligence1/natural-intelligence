@@ -116,6 +116,11 @@ CREATE TABLE IF NOT EXISTS public.practitioner_agreements (
   UNIQUE (category, version)
 );
 
+-- Review amendment (round 2, item 4): at most ONE current agreement per
+-- category, enforced in the database.
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_current_agreement_per_category
+  ON public.practitioner_agreements(category) WHERE is_current;
+
 CREATE TABLE IF NOT EXISTS public.practitioner_agreement_acceptances (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   practitioner_id UUID NOT NULL REFERENCES public.practitioners(id) ON DELETE CASCADE,
@@ -137,10 +142,12 @@ DROP POLICY IF EXISTS "Admin manage agreements" ON public.practitioner_agreement
 CREATE POLICY "Admin manage agreements"
   ON public.practitioner_agreements FOR ALL USING (is_admin());
 
+-- Review amendment (round 2, item 1): NO direct authenticated INSERT policy.
+-- Practitioners can NEVER create acceptance rows from a browser/Supabase
+-- client — acceptance happens ONLY through the SECURITY DEFINER RPC below,
+-- which resolves category → current agreement server-side and records the
+-- DB-derived version plus a sha256 hash of the exact text accepted.
 DROP POLICY IF EXISTS "Practitioners accept own agreements" ON public.practitioner_agreement_acceptances;
-CREATE POLICY "Practitioners accept own agreements"
-  ON public.practitioner_agreement_acceptances FOR INSERT TO authenticated
-  WITH CHECK (practitioner_id = auth.uid());
 
 DROP POLICY IF EXISTS "Practitioners view own acceptances" ON public.practitioner_agreement_acceptances;
 CREATE POLICY "Practitioners view own acceptances"
@@ -151,11 +158,82 @@ DROP POLICY IF EXISTS "Admin full access to acceptances" ON public.practitioner_
 CREATE POLICY "Admin full access to acceptances"
   ON public.practitioner_agreement_acceptances FOR ALL USING (is_admin());
 
+-- The ONLY acceptance write path. Verifies everything server-side; the
+-- optional p_expected_agreement_id lets the UI reject a stale page (the
+-- displayed agreement must be the current one being accepted).
+CREATE OR REPLACE FUNCTION public.accept_current_agreement(p_expected_agreement_id UUID DEFAULT NULL)
+RETURNS TABLE (agreement_id UUID, agreement_version TEXT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_category  TEXT;
+  v_agreement public.practitioner_agreements%ROWTYPE;
+BEGIN
+  SELECT p.category INTO v_category
+    FROM public.practitioners p WHERE p.id = auth.uid();
+  IF v_category IS NULL THEN
+    RAISE EXCEPTION 'No practitioner category set for this account';
+  END IF;
+
+  SELECT a.* INTO v_agreement
+    FROM public.practitioner_agreements a
+   WHERE a.category = v_category AND a.is_current;
+  IF v_agreement.id IS NULL THEN
+    RAISE EXCEPTION 'No current agreement published for category %', v_category;
+  END IF;
+
+  IF p_expected_agreement_id IS NOT NULL AND p_expected_agreement_id <> v_agreement.id THEN
+    RAISE EXCEPTION 'Displayed agreement is no longer current — reload and review the current version';
+  END IF;
+
+  INSERT INTO public.practitioner_agreement_acceptances
+    (practitioner_id, agreement_id, agreement_version, accepted_text_hash)
+  VALUES
+    (auth.uid(), v_agreement.id, v_agreement.version,
+     encode(extensions.digest(v_agreement.body, 'sha256'), 'hex'))
+  ON CONFLICT (practitioner_id, agreement_id) DO NOTHING;
+
+  RETURN QUERY SELECT v_agreement.id, v_agreement.version;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.accept_current_agreement(UUID) FROM public;
+GRANT EXECUTE ON FUNCTION public.accept_current_agreement(UUID) TO authenticated;
+
+-- Review amendment (round 2, item 2): the gate question, answered in SQL so
+-- version AND text-hash are always verified — if the current agreement's text
+-- or version changes, old acceptances fail closed automatically.
+CREATE OR REPLACE FUNCTION public.has_accepted_current_agreement()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+      FROM public.practitioner_agreements a
+      JOIN public.practitioners p
+        ON p.id = auth.uid() AND p.category = a.category
+      JOIN public.practitioner_agreement_acceptances acc
+        ON acc.practitioner_id   = auth.uid()
+       AND acc.agreement_id      = a.id
+       AND acc.agreement_version = a.version
+       AND acc.accepted_text_hash = encode(extensions.digest(a.body, 'sha256'), 'hex')
+     WHERE a.is_current
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.has_accepted_current_agreement() FROM public;
+GRANT EXECUTE ON FUNCTION public.has_accepted_current_agreement() TO authenticated;
+
 -- ═══ 4. De-identified practitioner review packs ══════════════════════════════
 -- Practitioner-facing output is PSEUDONYMOUS personal health data, not
--- anonymous: NI retains full attribution + audit internally (case_id,
--- source_intake_id, generated_by). Practitioners read packs via work-item
--- linkage — the same shape as 0048, but against de-identified content.
+-- anonymous: NI retains full attribution + audit internally, in the SEPARATE
+-- admin-only review_pack_audit table (source_intake_id, suppressed/transformed
+-- field audit, generated_by) — none of it on the practitioner-readable table.
+-- Practitioners read packs via ACTIVE work-item linkage only.
 
 -- Review amendments 6+7: the practitioner-readable table carries ONLY safe
 -- columns (no internal audit fields — those live in review_pack_audit, which

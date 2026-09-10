@@ -20,6 +20,14 @@ export const PRACTITIONER_CATEGORIES = [
 ] as const
 export type PractitionerCategory = (typeof PRACTITIONER_CATEGORIES)[number]
 
+// ── Version-bump rule (second review, item 3) ────────────────────────────────
+// Agreement text is IMMUTABLE per version. To change any wording:
+//   1. edit AGREEMENT_TEXTS below AND bump AGREEMENT_VERSION;
+//   2. re-run the admin "Publish DRAFT practitioner agreements" action — it
+//      refuses to overwrite an existing version's body, inserts the new
+//      version, and demotes the old one from is_current;
+//   3. every practitioner then fails the gate's version+hash check and must
+//      re-accept. Never edit a published row's body in place.
 export const AGREEMENT_VERSION = 's3-draft-1'
 
 const DRAFT_BANNER =
@@ -84,44 +92,36 @@ export async function getCurrentAgreement(
   return data as AgreementRow
 }
 
-/** Has this practitioner accepted the CURRENT agreement version for their category? Fail-closed. */
-export async function hasAcceptedCurrentAgreement(
-  client: AnyClient, practitionerId: string, category: PractitionerCategory,
-): Promise<boolean> {
-  const current = await getCurrentAgreement(client, category)
-  if (!current) return false
-  const { data, error } = await (client as AnyClient)
-    .from('practitioner_agreement_acceptances')
-    .select('id')
-    .eq('practitioner_id', practitionerId)
-    .eq('agreement_id', current.id)
-    .limit(1)
+/**
+ * Has the CALLING practitioner accepted the current agreement for their
+ * category — verified on agreement id AND version AND accepted_text_hash
+ * (sha256 of the current body), all inside the has_accepted_current_agreement
+ * SQL function (0051)? If the text or version changes, old acceptances fail
+ * closed automatically. Any error (incl. pre-migration missing function)
+ * counts as NOT accepted.
+ */
+export async function hasAcceptedCurrentAgreement(client: AnyClient): Promise<boolean> {
+  const { data, error } = await (client as AnyClient).rpc('has_accepted_current_agreement')
   if (error) return false
-  return (data ?? []).length > 0
+  return data === true
 }
 
 /**
- * Records acceptance of a specific agreement. Callers must derive the
- * agreement id/version FROM THE DATABASE (never from client input) — see
- * acceptCurrentAgreement in the care app, which resolves the practitioner's
- * category server-side and pins the current agreement + a hash of its exact
- * text (review amendment 4).
+ * The ONLY acceptance write path (second review, item 1): practitioners have
+ * no INSERT policy on practitioner_agreement_acceptances — this calls the
+ * SECURITY DEFINER RPC accept_current_agreement (0051), which resolves the
+ * caller's category → current agreement server-side, rejects a stale
+ * displayed agreement, and records the DB-derived version + sha256 text hash.
  */
-export async function acceptAgreement(
-  client: AnyClient,
-  input: { practitionerId: string; agreementId: string; agreementVersion: string; acceptedTextHash?: string },
-): Promise<void> {
-  const { error } = await (client as AnyClient)
-    .from('practitioner_agreement_acceptances')
-    .insert({
-      practitioner_id:    input.practitionerId,
-      agreement_id:       input.agreementId,
-      agreement_version:  input.agreementVersion,
-      accepted_text_hash: input.acceptedTextHash ?? null,
-    })
-  if (error && error.code !== '23505') {  // unique violation = already accepted
-    throw new Error(`acceptAgreement failed [${error.code}]: ${error.message}`)
-  }
+export async function acceptCurrentAgreementViaRpc(
+  client: AnyClient, expectedAgreementId?: string,
+): Promise<{ agreementId: string; agreementVersion: string }> {
+  const { data, error } = await (client as AnyClient)
+    .rpc('accept_current_agreement', { p_expected_agreement_id: expectedAgreementId ?? null })
+  if (error) throw new Error(`acceptCurrentAgreement failed [${error.code}]: ${error.message}`)
+  const row = Array.isArray(data) ? data[0] : data
+  if (!row?.agreement_id) throw new Error('acceptCurrentAgreement returned no agreement reference')
+  return { agreementId: row.agreement_id, agreementVersion: row.agreement_version }
 }
 
 /** Kill-switch for the care-app acceptance gate (default off). */

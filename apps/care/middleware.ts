@@ -64,28 +64,18 @@ export async function middleware(request: NextRequest) {
   // routed to /care/agreement before any case work. Off by default until
   // migration 0051 is applied and the agreement texts pass solicitor review.
   if (process.env.PRACTITIONER_AGREEMENT_GATE === 'true') {
-    // FAIL-CLOSED (review amendment 3): with the gate on, /cases is reachable
-    // ONLY when category → current agreement → acceptance all resolve. Missing
-    // category, missing published agreement, missing acceptance, or any query
-    // error all route to /care/agreement (which explains each state).
-    // Loose client — the Sprint 3 tables/columns predate type generation.
-    // eslint-disable-next-line
-    const loose = supabase as any
+    // FAIL-CLOSED. Second-review model: one SECURITY DEFINER SQL function
+    // (0051) answers the whole gate question — it verifies the acceptance
+    // against the current agreement's id AND version AND a sha256 hash of its
+    // exact text, so a text or version change fails old acceptances closed.
+    // Missing category, missing published agreement, missing/stale acceptance,
+    // a missing function (pre-migration) or any error all route to
+    // /care/agreement.
     let accepted = false
     try {
-      const { data: prac } = await loose
-        .from('practitioners').select('category').eq('id', user.id).maybeSingle()
-      if (prac?.category) {
-        const { data: current } = await loose
-          .from('practitioner_agreements').select('id')
-          .eq('category', prac.category).eq('is_current', true).maybeSingle()
-        if (current) {
-          const { data: acc } = await loose
-            .from('practitioner_agreement_acceptances').select('id')
-            .eq('practitioner_id', user.id).eq('agreement_id', current.id).maybeSingle()
-          accepted = !!acc
-        }
-      }
+      // eslint-disable-next-line
+      const { data, error } = await (supabase as any).rpc('has_accepted_current_agreement')
+      accepted = !error && data === true
     } catch {
       accepted = false
     }

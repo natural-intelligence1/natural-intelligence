@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   RIGHTS_REQUEST_TYPES, isRightsRequestType, isValidTransition,
+  isGlobalRestrictionRow,
 } from './requests'
 import {
   CONSENT_PURPOSES, CONSENT_TEXTS, REQUIRED_INTAKE_CONSENTS,
@@ -36,6 +37,23 @@ describe('status machine', () => {
   it('no backwards flow', () => {
     expect(isValidTransition('in_progress', 'new')).toBe(false)
     expect(isValidTransition('acknowledged', 'new')).toBe(false)
+  })
+})
+
+describe('global-restriction semantics (second review, item 5)', () => {
+  it('restriction and erasure are always global', () => {
+    expect(isGlobalRestrictionRow({ request_type: 'restriction', consent_type: null })).toBe(true)
+    expect(isGlobalRestrictionRow({ request_type: 'erasure', consent_type: 'anything' })).toBe(true)
+  })
+  it('blanket withdrawal (no purpose) is global', () => {
+    expect(isGlobalRestrictionRow({ request_type: 'consent_withdrawal', consent_type: null })).toBe(true)
+  })
+  it('withdrawing data_processing is treated as a GLOBAL restriction', () => {
+    expect(isGlobalRestrictionRow({ request_type: 'consent_withdrawal', consent_type: 'data_processing' })).toBe(true)
+  })
+  it('purpose-specific withdrawals are NOT global', () => {
+    expect(isGlobalRestrictionRow({ request_type: 'consent_withdrawal', consent_type: 'anonymised_research' })).toBe(false)
+    expect(isGlobalRestrictionRow({ request_type: 'access', consent_type: null })).toBe(false)
   })
 })
 

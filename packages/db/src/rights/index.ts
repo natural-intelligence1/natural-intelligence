@@ -4,6 +4,7 @@ export {
   isValidTransition, isRightsRequestType,
   createRightsRequest, listOwnRightsRequests, listAllRightsRequests,
   updateRightsRequestStatus, hasActiveRestriction, hasPurposeWithdrawal,
+  isGlobalRestrictionRow,
   isProcessingBlocked,
 } from './requests'
 export type { RightsRequestType, RightsRequestStatus, RightsRequestRow } from './requests'

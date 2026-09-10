@@ -114,13 +114,28 @@ export async function updateRightsRequestStatus(
 const BLOCKING_STATUSES = ['new', 'acknowledged', 'in_progress', 'fulfilled']
 
 /**
- * GLOBAL processing restriction: an open/fulfilled RESTRICTION or ERASURE
- * request, or a consent_withdrawal with NO specific purpose (deliberate
- * "restrict all processing"). Purpose-specific withdrawals do NOT trigger this
- * — see hasPurposeWithdrawal. Failure behaviour: a missing table
- * (pre-migration) returns false — acceptable ONLY because every processing
- * pipeline is additionally behind the default-off intake kill-switches; once
- * 0051 is applied this check is live end-to-end.
+ * Pure predicate (unit-tested): does this request row amount to a GLOBAL
+ * processing restriction? True for restriction and erasure requests, for a
+ * consent_withdrawal naming NO purpose (deliberate "restrict all
+ * processing"), and — second review, item 5 — for a withdrawal of
+ * `data_processing`, since withdrawing the foundational processing consent
+ * cannot coherently mean anything narrower than restricting all processing.
+ */
+export function isGlobalRestrictionRow(
+  r: { request_type: string; consent_type: string | null },
+): boolean {
+  if (r.request_type === 'restriction' || r.request_type === 'erasure') return true
+  if (r.request_type !== 'consent_withdrawal') return false
+  return !r.consent_type || r.consent_type === 'data_processing'
+}
+
+/**
+ * GLOBAL processing restriction — see isGlobalRestrictionRow for the
+ * semantics. Purpose-specific withdrawals do NOT trigger this — see
+ * hasPurposeWithdrawal. Failure behaviour: a missing table (pre-migration)
+ * returns false — acceptable ONLY because every processing pipeline is
+ * additionally behind the default-off intake kill-switches; once 0051 is
+ * applied this check is live end-to-end.
  */
 export async function hasActiveRestriction(client: AnyClient, memberId: string): Promise<boolean> {
   const { data, error } = await (client as AnyClient)
@@ -130,12 +145,7 @@ export async function hasActiveRestriction(client: AnyClient, memberId: string):
     .in('request_type', ['restriction', 'consent_withdrawal', 'erasure'])
     .in('status', BLOCKING_STATUSES)
   if (error) return false
-  return (data ?? []).some(
-    (r: { request_type: string; consent_type: string | null }) =>
-      r.request_type === 'restriction' ||
-      r.request_type === 'erasure' ||
-      (r.request_type === 'consent_withdrawal' && !r.consent_type),
-  )
+  return (data ?? []).some(isGlobalRestrictionRow)
 }
 
 /**

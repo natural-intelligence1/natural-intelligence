@@ -90,7 +90,7 @@ export default async function PrivacyPage() {
           submitAction={submitRightsRequest}
           requestTypes={[...RIGHTS_REQUEST_TYPES]}
           requestLabels={REQUEST_LABELS}
-          consentPurposes={CONSENT_PURPOSES.filter((p) => p !== 'platform_terms')}
+          consentPurposes={CONSENT_PURPOSES.filter((p) => p !== 'platform_terms' && p !== 'data_processing')}
         />
       </section>
 
