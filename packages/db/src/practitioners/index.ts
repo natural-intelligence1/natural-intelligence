@@ -44,3 +44,13 @@ export { getIntakeSummary }              from './getIntakeSummary'
 export { getCaseEvents }                 from './getCaseEvents'
 export { getBioHubSignals }              from './getBioHubSignals'
 export { getPriorReviews }               from './getPriorReviews'
+
+// ── Sprint 3 safety floor ─────────────────────────────────────────────────────
+export { buildReviewPack, scrubIdentifiers, makePseudonym } from './reviewPack'
+export type { ReviewPack } from './reviewPack'
+export {
+  PRACTITIONER_CATEGORIES, AGREEMENT_VERSION, AGREEMENT_TEXTS,
+  isPractitionerCategory, getCurrentAgreement, hasAcceptedCurrentAgreement,
+  acceptAgreement, isAgreementGateEnabled,
+} from './agreements'
+export type { PractitionerCategory, AgreementRow } from './agreements'
