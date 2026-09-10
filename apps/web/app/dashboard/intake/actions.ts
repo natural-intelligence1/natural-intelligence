@@ -1,10 +1,52 @@
 'use server'
 
-import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import {
+  createServerSupabaseClient, createAdminClient,
+  recordConsent, hasAllConsents, hasActiveRestriction,
+  REQUIRED_INTAKE_CONSENTS, OPTIONAL_INTAKE_CONSENTS, CONSENT_PURPOSES,
+  type ConsentPurpose,
+} from '@natural-intelligence/db'
 import { routeIntakeAssignment }      from '@natural-intelligence/db/practitioners'
 import { assertIntakeCollectionEnabled } from '@natural-intelligence/db/intake'
 import { generateHealthSynopsis }    from '../synopsis/actions'
 import { generateBodyStory }         from '../story/actions'
+
+// ─── Sprint 3 — consent-at-start enforcement ─────────────────────────────────
+// Fail-closed: intake writes are refused unless the required granular consents
+// exist. Runs AFTER the collection kill-switch (both must pass).
+async function assertIntakeConsents(
+  supabase: ReturnType<typeof createServerSupabaseClient>, memberId: string,
+): Promise<void> {
+  const ok = await hasAllConsents(supabase, memberId, REQUIRED_INTAKE_CONSENTS)
+  if (!ok) throw new Error('Required intake consents are not in place. Please complete the consent step first.')
+}
+
+// ─── grantIntakeConsents ──────────────────────────────────────────────────────
+// Records the member's intake-start consent choices (required + optional),
+// each with the exact text shown and its version. Refuses unless every
+// REQUIRED consent is granted.
+export async function grantIntakeConsents(choices: Record<string, boolean>): Promise<void> {
+  assertIntakeCollectionEnabled()
+  const supabase = createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthenticated')
+
+  for (const p of REQUIRED_INTAKE_CONSENTS) {
+    if (!choices[p]) throw new Error('All required consents must be granted to begin the intake.')
+  }
+  const offered: ConsentPurpose[] = [...REQUIRED_INTAKE_CONSENTS, ...OPTIONAL_INTAKE_CONSENTS]
+  for (const purpose of offered) {
+    if (!(CONSENT_PURPOSES as readonly string[]).includes(purpose)) continue
+    await recordConsent(supabase, {
+      memberId: user.id,
+      email:    user.email ?? '',
+      purpose,
+      consented: !!choices[purpose],
+      source:   'intake_start',
+      actor:    'member',
+    })
+  }
+}
 
 // ─── saveIntakeSection ────────────────────────────────────────────────────────
 // Upsert a partial section's data into intake_responses.
@@ -19,6 +61,7 @@ export async function saveIntakeSection(
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthenticated')
+  await assertIntakeConsents(supabase, user.id)   // Sprint 3: no consent, no save
 
   const { data: existing } = await supabase
     .from('intake_responses')
@@ -63,6 +106,7 @@ export async function completeIntake(consentData: {
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthenticated')
+  await assertIntakeConsents(supabase, user.id)   // Sprint 3: no consent, no completion
 
   const { data: existing } = await supabase
     .from('intake_responses')
@@ -86,6 +130,17 @@ export async function completeIntake(consentData: {
     await supabase
       .from('intake_responses')
       .insert({ member_id: user.id, ...finalData })
+  }
+
+  // Sprint 3 — restriction enforcement: where the member has an open or
+  // fulfilled restriction / consent-withdrawal / erasure request, no further
+  // AI, practitioner or research processing may run. (Pre-migration the check
+  // returns false, which is acceptable only because both intake kill-switches
+  // are additionally default-off — see rights/requests.ts.)
+  const restricted = await hasActiveRestriction(createAdminClient(), user.id)
+  if (restricted) {
+    console.log(JSON.stringify({ event: 'intake.processing.blocked_by_restriction', member_id: user.id }))
+    return
   }
 
   // Fire-and-forget: synopsis page shows generating state with meta refresh

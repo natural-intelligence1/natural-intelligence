@@ -7,6 +7,7 @@ const STATE_PAGES = new Set([
   '/care/pending-activation',
   '/care/suspended',
   '/care/access-revoked',
+  '/care/agreement',
 ])
 
 const STATUS_REDIRECT: Record<string, string> = {
@@ -56,6 +57,30 @@ export async function middleware(request: NextRequest) {
   if (!p) return go(request, '/care/unauthorised')
   if (p.status !== 'active')
     return go(request, STATUS_REDIRECT[p.status] ?? '/care/unauthorised')
+
+  // Sprint 3 — post-approval agreement gate (kill-switch, DEFAULT OFF).
+  // When PRACTITIONER_AGREEMENT_GATE === 'true', an active practitioner who
+  // has not accepted the current agreement version for their category is
+  // routed to /care/agreement before any case work. Off by default until
+  // migration 0051 is applied and the agreement texts pass solicitor review.
+  if (process.env.PRACTITIONER_AGREEMENT_GATE === 'true') {
+    // Loose client — the Sprint 3 tables/columns predate type generation.
+    // eslint-disable-next-line
+    const loose = supabase as any
+    const { data: prac } = await loose
+      .from('practitioners').select('category').eq('id', user.id).maybeSingle()
+    if (prac?.category) {
+      const { data: current } = await loose
+        .from('practitioner_agreements').select('id')
+        .eq('category', prac.category).eq('is_current', true).maybeSingle()
+      if (current) {
+        const { data: acc } = await loose
+          .from('practitioner_agreement_acceptances').select('id')
+          .eq('practitioner_id', user.id).eq('agreement_id', current.id).maybeSingle()
+        if (!acc) return go(request, '/care/agreement')
+      }
+    }
+  }
 
   return response
 }

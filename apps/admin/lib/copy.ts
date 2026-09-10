@@ -17,6 +17,7 @@ export const copy = {
     workshops:    'Workshops',
     resources:    'Resources',
     members:      'Members',
+    requests:     'Data requests',
     routeMap:     'Route Map',
     dev:          'Dev tools',
     logout:       'Log out',

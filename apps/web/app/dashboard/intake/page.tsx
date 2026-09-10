@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { createServerSupabaseClient } from '@natural-intelligence/db'
+import { createServerSupabaseClient, hasAllConsents, REQUIRED_INTAKE_CONSENTS } from '@natural-intelligence/db'
 import { isIntakeCollectionEnabled } from '@natural-intelligence/db/intake'
 import { copy } from '@/lib/copy'
 import { IntakeForm } from './IntakeForm'
+import { IntakeConsentGate } from './IntakeConsentGate'
 
 export const metadata: Metadata = {
   title: 'Health intake',
@@ -54,6 +55,12 @@ export default async function IntakePage() {
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
+
+  // Sprint 3 — consent-at-start gate: no health data may be collected before
+  // the required granular consents exist. Fail-closed: missing/unreadable
+  // consent rows mean the gate renders instead of the form.
+  const consented = await hasAllConsents(supabase, user.id, REQUIRED_INTAKE_CONSENTS)
+  if (!consented) return <IntakeConsentGate />
 
   const { data: existing } = await supabase
     .from('intake_responses')
