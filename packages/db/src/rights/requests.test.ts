@@ -2,8 +2,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   RIGHTS_REQUEST_TYPES, isRightsRequestType, isValidTransition,
-  isGlobalRestrictionRow,
+  isGlobalRestrictionRow, isProcessingBlocked,
 } from './requests'
+import { makeStubClient } from '../practitioners/__test-helpers__/stubQueryClient'
 import {
   CONSENT_PURPOSES, CONSENT_TEXTS, REQUIRED_INTAKE_CONSENTS,
   isConsentPurpose, CONSENT_TEXT_VERSION,
@@ -54,6 +55,44 @@ describe('global-restriction semantics (second review, item 5)', () => {
   it('purpose-specific withdrawals are NOT global', () => {
     expect(isGlobalRestrictionRow({ request_type: 'consent_withdrawal', consent_type: 'anonymised_research' })).toBe(false)
     expect(isGlobalRestrictionRow({ request_type: 'access', consent_type: null })).toBe(false)
+  })
+})
+
+describe('isProcessingBlocked — enforcement question', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type LooseClient = any
+
+  it('a GLOBAL restriction blocks every purpose', async () => {
+    const { client } = makeStubClient([
+      { data: [{ id: 'r1', request_type: 'restriction', consent_type: null }], error: null },
+    ])
+    expect(await isProcessingBlocked(client as LooseClient, 'm1', 'ai_assisted_processing')).toBe(true)
+  })
+
+  it('a purpose-specific withdrawal blocks that purpose', async () => {
+    const { client } = makeStubClient([
+      { data: [], error: null },          // no global restriction rows
+      { data: [{ id: 'r2' }], error: null }, // withdrawal naming this purpose
+    ])
+    expect(await isProcessingBlocked(client as LooseClient, 'm1', 'ai_assisted_processing')).toBe(true)
+  })
+
+  it('a purpose-specific withdrawal does NOT block other purposes', async () => {
+    const { client } = makeStubClient([
+      // hasActiveRestriction sees the row but it is not global…
+      { data: [{ id: 'r2', request_type: 'consent_withdrawal', consent_type: 'anonymised_research' }], error: null },
+      // …and no withdrawal names the queried purpose.
+      { data: [], error: null },
+    ])
+    expect(await isProcessingBlocked(client as LooseClient, 'm1', 'ai_assisted_processing')).toBe(false)
+  })
+
+  it('unblocked when nothing is on file', async () => {
+    const { client } = makeStubClient([
+      { data: [], error: null },
+      { data: [], error: null },
+    ])
+    expect(await isProcessingBlocked(client as LooseClient, 'm1', 'ai_assisted_processing')).toBe(false)
   })
 })
 

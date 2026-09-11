@@ -175,3 +175,65 @@ describe.skipIf(!HAVE_DB)('negative RLS — review packs require an ACTIVE work 
     expect(data ?? []).toHaveLength(0)
   })
 })
+
+// ─── Agreement acceptance is RPC-only (overnight hardening) ──────────────────
+// SELF-SKIP until migration 0051 is applied (table probe fails pre-migration).
+// Proves: practitioners cannot INSERT acceptance rows directly, the gate
+// function fails closed before acceptance, and the acceptance RPC rejects a
+// stale displayed agreement id (version/text mismatch protection).
+describe.skipIf(!HAVE_DB)('negative RLS — agreement acceptance is RPC-only', () => {
+  let admin: ReturnType<typeof mkAdmin>
+  let pract: Awaited<ReturnType<typeof createTestUser>>
+  let tableExists = false
+
+  beforeAll(async () => {
+    admin = mkAdmin()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const probe = await (admin as any).from('practitioner_agreement_acceptances').select('id').limit(1)
+    tableExists = !probe.error
+    if (!tableExists) return
+    pract = await createTestUser(admin, 's3-agr-pract')
+    await admin.from('practitioners').insert({
+      id: pract.id, display_name: `Test ${pract.email}`, status: 'active',
+    } as never)
+  })
+
+  afterAll(async () => {
+    if (!tableExists) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from('practitioner_agreement_acceptances').delete().eq('practitioner_id', pract.id)
+    await admin.from('practitioners').delete().eq('id', pract.id)
+    await deleteTestUser(admin, pract.id)
+  })
+
+  it('a practitioner cannot INSERT an acceptance row directly', async (ctx) => {
+    if (!tableExists) return ctx.skip()
+    const p = await signInAs(pract)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (p as any).from('practitioner_agreement_acceptances').insert({
+      practitioner_id: pract.id,
+      agreement_id: '00000000-0000-0000-0000-000000000000',
+      agreement_version: 'forged', accepted_text_hash: 'forged',
+    })
+    expect(error).not.toBeNull()
+  })
+
+  it('the gate reports NOT accepted before any acceptance', async (ctx) => {
+    if (!tableExists) return ctx.skip()
+    const p = await signInAs(pract)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (p as any).rpc('has_accepted_current_agreement')
+    expect(error).toBeNull()
+    expect(data).toBe(false)
+  })
+
+  it('the acceptance RPC rejects a stale/unknown displayed agreement id', async (ctx) => {
+    if (!tableExists) return ctx.skip()
+    const p = await signInAs(pract)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (p as any).rpc('accept_current_agreement', {
+      p_expected_agreement_id: '00000000-0000-0000-0000-000000000000',
+    })
+    expect(error).not.toBeNull()
+  })
+})
