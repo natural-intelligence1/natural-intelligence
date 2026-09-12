@@ -26,6 +26,19 @@ export function isReviewPacksEnabled(): boolean {
   return process.env.PRACTITIONER_REVIEW_PACKS_ENABLED === 'true'
 }
 
+/**
+ * Work statuses that grant access to de-identified pack-mode surfaces
+ * (final hardening, item 3). Matches the 0051 pack SELECT policy exactly.
+ * 'completed' is deliberately EXCLUDED: there is no signed retention/
+ * continuity requirement yet, so a finished piece of work grants no further
+ * client-data access; cancelled/declined grant nothing.
+ */
+export const PACK_MODE_ACTIVE_STATUSES = ['assigned', 'in_review', 'escalated'] as const
+
+export function isPackModeAccessibleStatus(status: string): boolean {
+  return (PACK_MODE_ACTIVE_STATUSES as readonly string[]).includes(status)
+}
+
 /** The ONLY columns a practitioner-facing surface may read. */
 export interface ReviewPackRow {
   id: string
@@ -105,19 +118,32 @@ export interface GenerateReviewPackResult {
 export async function generateAndStoreReviewPack(
   admin: AnyClient, caseId: string, generatedBy: string,
 ): Promise<GenerateReviewPackResult> {
-  // 1. Case → member (+ the case's own free-text concern, which 0052 removes
-  //    from direct practitioner reach — the pack carries it, token-normalised).
+  // 1. Resolve the case to its member — the MINIMUM needed to check consent.
+  //    No health data and no free text at this step: primary_concern is
+  //    deliberately NOT selected here (final hardening, item 1).
   const { data: caseRow, error: caseErr } = await (admin as AnyClient)
     .from('client_cases')
-    .select('id, client_id, primary_concern')
+    .select('id, client_id')
     .eq('id', caseId)
     .maybeSingle()
   if (caseErr || !caseRow) throw new Error(`generateReviewPack: case not found [${caseErr?.message ?? caseId}]`)
 
-  // 1b. Consent gate — FAIL CLOSED before any identified data is read.
+  // 2. Consent gate — FAIL CLOSED. Until this passes, the only thing read is
+  //    the case→member linkage above; on failure the function exits here and
+  //    neither primary_concern nor the intake summary is ever read.
   await assertSynopsisSharingPermitted(admin, caseRow.client_id)
 
-  // 2. Identified intake summary (service-role read; the last identified hop).
+  // 3. Only now, with consent verified: the case's free-text concern (which
+  //    0052 removes from direct practitioner reach — the pack carries it
+  //    token-normalised instead)…
+  const { data: concernRow } = await (admin as AnyClient)
+    .from('client_cases')
+    .select('primary_concern')
+    .eq('id', caseId)
+    .maybeSingle()
+  const primaryConcern: string | null = concernRow?.primary_concern ?? null
+
+  // …and the identified intake summary (service-role read; the last identified hop).
   const summary = await getIntakeSummary(admin as Parameters<typeof getIntakeSummary>[0], caseRow.client_id)
   if (!summary) throw new Error('generateReviewPack: no completed intake summary for this case’s member')
 
@@ -129,16 +155,16 @@ export async function generateAndStoreReviewPack(
     .limit(1)
     .maybeSingle()
 
-  // 3. Default-deny de-identification. The case primary_concern joins the
+  // 4. Default-deny de-identification. The case primary_concern joins the
   //    token-normalised concerns list rather than passing as free text.
   const source: Record<string, unknown> = { ...(summary as unknown as Record<string, unknown>) }
-  if (caseRow.primary_concern) {
+  if (primaryConcern) {
     const existing = Array.isArray(source.primaryConcerns) ? (source.primaryConcerns as unknown[]) : []
-    source.primaryConcerns = [...existing, caseRow.primary_concern]
+    source.primaryConcerns = [...existing, primaryConcern]
   }
   const pack = buildReviewPack(caseId, source)
 
-  // 4. Version = max + 1 (regeneration never overwrites).
+  // 5. Version = max + 1 (regeneration never overwrites).
   const { data: latest } = await (admin as AnyClient)
     .from('practitioner_review_packs')
     .select('pack_version')
@@ -148,7 +174,7 @@ export async function generateAndStoreReviewPack(
     .maybeSingle()
   const nextVersion = (latest?.pack_version ?? 0) + 1
 
-  // 5. Store pack (practitioner-readable, safe fields only)…
+  // 6. Store pack (practitioner-readable, safe fields only)…
   const { data: inserted, error: insErr } = await (admin as AnyClient)
     .from('practitioner_review_packs')
     .insert({
@@ -161,7 +187,7 @@ export async function generateAndStoreReviewPack(
     .single()
   if (insErr || !inserted) throw new Error(`generateReviewPack: pack insert failed [${insErr?.message}]`)
 
-  // 6. …and the internal audit/source linkage (admin-only table).
+  // 7. …and the internal audit/source linkage (admin-only table).
   const { error: auditErr } = await (admin as AnyClient)
     .from('review_pack_audit')
     .insert({

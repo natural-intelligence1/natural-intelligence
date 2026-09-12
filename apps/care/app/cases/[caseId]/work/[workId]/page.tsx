@@ -36,6 +36,7 @@ import {
   getPriorReviews,
   isReviewPacksEnabled,
   getReviewPackForCase,
+  isPackModeAccessibleStatus,
 }                                     from '@natural-intelligence/db/practitioners'
 import { getPractitionerTrace }       from '@natural-intelligence/db/crt'
 import { getClientPersonalisation }   from '@natural-intelligence/db/personalisation'
@@ -84,6 +85,12 @@ export default async function WorkspacePage({
   // A missing pack renders an explicit blocked state — there is NO fallback to
   // the identified data path below.
   if (isReviewPacksEnabled()) {
+    // Final hardening, item 3: pack-mode surfaces are reachable ONLY for
+    // active work (assigned / in_review / escalated). Completed work grants
+    // no further access (no signed retention/continuity requirement yet);
+    // cancelled and declined work 404 outright rather than relying on the
+    // pack query returning empty.
+    if (!isPackModeAccessibleStatus(workItem.status)) return notFound()
     const pack = await getReviewPackForCase(supabase, params.caseId)
     return (
       <ReviewPackWorkView

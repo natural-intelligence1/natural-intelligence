@@ -5,6 +5,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import {
   isReviewPacksEnabled, getReviewPackForCase,
   assertSynopsisSharingPermitted, generateAndStoreReviewPack,
+  PACK_MODE_ACTIVE_STATUSES, isPackModeAccessibleStatus,
 } from './reviewPackAccess'
 import { buildReviewPack, ITEM_WITHHELD } from './reviewPack'
 import { makeStubClient } from './__test-helpers__/stubQueryClient'
@@ -150,17 +151,34 @@ describe('assertSynopsisSharingPermitted — fail-closed consent gate', () => {
 })
 
 describe('generateAndStoreReviewPack — consent enforced before any identified read', () => {
-  it('refuses to generate for a member without synopsis-sharing consent', async () => {
+  it('refuses to generate for a member without synopsis-sharing consent, having read NO health data', async () => {
     const { client, calls } = makeStubClient([
-      // 1. case lookup succeeds
-      { data: { id: 'case-1', client_id: 'm1', primary_concern: null }, error: null },
+      // 1. case lookup succeeds (linkage only)
+      { data: { id: 'case-1', client_id: 'm1' }, error: null },
       // 2. consent lookup: no row
       { data: null, error: null },
     ])
     await expect(generateAndStoreReviewPack(client as LooseClient, 'case-1', 'admin-1'))
       .rejects.toThrow(/no active consent for de-identified synopsis sharing/)
     // Only client_cases + consent_records were touched — the identified intake
-    // tables were never read and nothing was inserted.
+    // tables were never read and nothing was inserted…
     expect(calls.map((c) => c.target)).toEqual(['client_cases', 'consent_records'])
+    // …and the pre-consent case read requested ONLY the case→member linkage:
+    // no primary_concern, no free text, no health fields (final hardening, item 1).
+    expect(calls[0].columns).toBe('id, client_id')
+  })
+})
+
+describe('pack-mode access statuses (final hardening, item 3)', () => {
+  it('exactly assigned / in_review / escalated are accessible', () => {
+    expect([...PACK_MODE_ACTIVE_STATUSES].sort()).toEqual(['assigned', 'escalated', 'in_review'])
+    for (const s of PACK_MODE_ACTIVE_STATUSES) {
+      expect(isPackModeAccessibleStatus(s)).toBe(true)
+    }
+  })
+  it('completed, cancelled and declined grant nothing', () => {
+    for (const s of ['completed', 'cancelled', 'declined', '', 'anything']) {
+      expect(isPackModeAccessibleStatus(s)).toBe(false)
+    }
   })
 })

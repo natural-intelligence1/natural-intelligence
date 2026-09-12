@@ -307,6 +307,17 @@ describe.skipIf(!HAVE_DB)('negative RLS — client_cases closed to practitioners
     expect(e2).not.toBeNull()
   })
 
+  it('COMPLETED work grants nothing through the view (final hardening, item 4)', async (ctx) => {
+    if (!viewExists || !caseId || !workId) return ctx.skip()
+    await admin.from('case_practitioner_work')
+      .update({ status: 'completed', completed_at: new Date().toISOString() } as never)
+      .eq('id', workId)
+    const p = await signInAs(pract)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (p as any).from('practitioner_case_index').select('id').eq('id', caseId)
+    expect(data ?? []).toHaveLength(0)
+  })
+
   it('CANCELLED work grants nothing through the view', async (ctx) => {
     if (!viewExists || !caseId || !workId) return ctx.skip()
     await admin.from('case_practitioner_work').update({ status: 'cancelled' } as never).eq('id', workId)

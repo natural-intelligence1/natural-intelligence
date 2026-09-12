@@ -41,10 +41,19 @@ DROP POLICY IF EXISTS case_practitioner_select ON public.client_cases;
 
 -- ── practitioner_case_index — column-scoped operational view ─────────────────
 -- Exposes ONLY non-health operational fields, and ONLY for cases where the
--- caller holds a work item in an operationally relevant status. No client_id,
--- no primary_concern. The view runs with owner rights (bypassing client_cases
--- RLS), so the WHERE clause IS the access rule — treat any edit to it as a
--- security change. security_barrier prevents predicate pushdown leaks.
+-- caller holds an ACTIVE work item. No client_id, no primary_concern. The
+-- view runs with owner rights (bypassing client_cases RLS), so the WHERE
+-- clause IS the access rule — treat any edit to it as a security change.
+-- security_barrier prevents predicate pushdown leaks.
+--
+-- DECISION (final hardening, item 4): 'completed' is NOT included. A finished
+-- piece of work grants no further client-data access — there is no signed
+-- retention/continuity requirement, the pack-mode inbox and pages are
+-- active-only, and the 0051 pack SELECT policy is active-only, so all three
+-- surfaces agree. If a continuity requirement is later signed off,
+-- reintroduce completed HERE with an explicit completed_at time window
+-- (e.g. 7 days) in the same review that signs the requirement — never
+-- silently.
 CREATE OR REPLACE VIEW public.practitioner_case_index
   WITH (security_barrier = true) AS
   SELECT
@@ -59,7 +68,7 @@ CREATE OR REPLACE VIEW public.practitioner_case_index
     FROM public.case_practitioner_work cpw
     WHERE cpw.case_id         = cc.id
       AND cpw.practitioner_id = auth.uid()
-      AND cpw.status IN ('assigned', 'in_review', 'escalated', 'completed')
+      AND cpw.status IN ('assigned', 'in_review', 'escalated')
   );
 
 REVOKE ALL    ON public.practitioner_case_index FROM anon;
@@ -68,9 +77,9 @@ GRANT  SELECT ON public.practitioner_case_index TO authenticated;
 COMMENT ON VIEW public.practitioner_case_index IS
   'Sprint 3: the ONLY practitioner-facing surface over client_cases. '
   'Operational columns only — no client_id, no primary_concern. '
-  'Cancelled/declined work grants nothing.';
+  'ACTIVE work only: completed, cancelled and declined grant nothing.';
 
--- ── Post-apply assertions (run manually after applying; both must hold) ──────
+-- ── Post-apply assertions (run manually after applying; all must hold) ───────
 -- 1. No practitioner-reachable SELECT policy remains on client_cases:
 --      SELECT polname FROM pg_policies
 --      WHERE schemaname='public' AND tablename='client_cases' AND cmd='SELECT';
@@ -79,6 +88,10 @@ COMMENT ON VIEW public.practitioner_case_index IS
 --      SELECT column_name FROM information_schema.columns
 --      WHERE table_name='practitioner_case_index';
 --    → must NOT include client_id or primary_concern.
+-- 3. The view's access rule is active-only:
+--      SELECT pg_get_viewdef('public.practitioner_case_index');
+--    → the status list must be exactly ('assigned','in_review','escalated');
+--      'completed' must NOT appear.
 
 -- NOTE for the same apply-window: the practitioner_client_personalisation view
 -- and any helper still selecting raw intake/biohub rows for practitioners

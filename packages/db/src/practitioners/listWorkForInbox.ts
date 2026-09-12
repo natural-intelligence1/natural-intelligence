@@ -11,7 +11,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types'
 import type { InboxWorkItem, InboxUrgency, WorkType, WorkStatus } from './types'
-import { isReviewPacksEnabled } from './reviewPackAccess'
+import { isReviewPacksEnabled, PACK_MODE_ACTIVE_STATUSES } from './reviewPackAccess'
 import { makePseudonym } from './reviewPack'
 
 // Sprint 3 (final review, item 3): when PRACTITIONER_REVIEW_PACKS_ENABLED is
@@ -126,30 +126,21 @@ async function listWorkForInboxPackMode(
   client:         ReturnType<typeof createClient<Database>>,
   practitionerId: string,
 ): Promise<InboxWorkItem[]> {
+  // Final hardening, item 3: pack mode lists ACTIVE work only. Completed work
+  // grants no further client-data access (no signed retention/continuity
+  // requirement yet), so there is no "Completed Recently" section here and no
+  // links to pages that would refuse access.
   const { data: activeData, error: activeError } = await client
     .from('case_practitioner_work')
     .select(PACK_WORK_SELECT)
     .eq('practitioner_id', practitionerId)
-    .in('status', ['assigned', 'in_review', 'escalated'])
+    .in('status', [...PACK_MODE_ACTIVE_STATUSES])
     .order('assigned_at', { ascending: false })
   if (activeError) {
     throw new Error(`listWorkForInbox (active, pack mode) failed [${activeError.code}]: ${activeError.message}`)
   }
 
-  const sevenDaysAgo = new Date(Date.now() - SEVEN_DAYS_MS).toISOString()
-  const { data: completedData, error: completedError } = await client
-    .from('case_practitioner_work')
-    .select(PACK_WORK_SELECT)
-    .eq('practitioner_id', practitionerId)
-    .eq('status', 'completed')
-    .gte('completed_at', sevenDaysAgo)
-    .order('completed_at', { ascending: false })
-    .limit(5)
-  if (completedError) {
-    throw new Error(`listWorkForInbox (completed, pack mode) failed [${completedError.code}]: ${completedError.message}`)
-  }
-
-  const rows = [...(activeData ?? []), ...(completedData ?? [])] as unknown as PackModeRow[]
+  const rows = (activeData ?? []) as unknown as PackModeRow[]
 
   // Operational case fields from the column-scoped view (0052). Pre-migration
   // the view does not exist: tolerate the error and fall back to defaults —
