@@ -132,9 +132,13 @@ The following order is mandatory. No step may be skipped or reordered.
   `data_processing` cannot be withdrawn via the RPC: they go through the
   rights-request channel, where a `data_processing` withdrawal is enforced
   as a GLOBAL processing restriction.
-- **CQC.** There is no current CQC operating requirement; CQC is a
-  change-control boundary only — any future service change that could bring
-  activities into CQC scope must come back through governance before build.
+- **CQC (approved position).** NI does not carry any regulated activity in
+  its current operating model. NI is presently designed to operate outside
+  CQC registration. CQC is a change-control boundary only: future
+  professions, modalities, reserved activities, clinical pathways or
+  care-delivery changes must be reviewed for CQC/regulatory implications
+  before activation — through governance and with solicitor review — never
+  activated first and assessed after.
 
 ## Build register (updated as the sprint lands)
 
