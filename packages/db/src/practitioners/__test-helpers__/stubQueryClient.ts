@@ -27,8 +27,12 @@ export function makeStubClient(results: StubResult[]) {
     const result = nextResult()
     const builder: Record<string, unknown> = {}
     const chain = () => builder
-    for (const m of ['eq', 'in', 'order', 'limit', 'insert', 'update', 'delete']) {
+    for (const m of ['eq', 'in', 'order', 'limit', 'update', 'delete']) {
       builder[m] = chain
+    }
+    builder.insert = (payload: unknown) => {
+      call.args = payload
+      return builder
     }
     builder.select = (columns: string) => {
       call.columns = columns

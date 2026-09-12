@@ -5,6 +5,6 @@ export {
 } from './purposes'
 export type { ConsentPurpose } from './purposes'
 export {
-  recordConsent, getMemberConsents, hasActiveConsent, hasAllConsents, withdrawConsent,
+  recordConsent, recordSignupConsents, getMemberConsents, hasActiveConsent, hasAllConsents, withdrawConsent,
 } from './records'
-export type { ConsentRecordRow, RecordConsentInput } from './records'
+export type { ConsentRecordRow, RecordConsentInput, SignupConsentWriteResult } from './records'

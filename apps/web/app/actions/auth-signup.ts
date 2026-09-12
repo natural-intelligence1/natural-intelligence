@@ -1,6 +1,6 @@
 'use server'
 
-import { createServerSupabaseClient } from '@natural-intelligence/db'
+import { createServerSupabaseClient, recordSignupConsents } from '@natural-intelligence/db'
 import { redirect } from 'next/navigation'
 
 export async function signupWithConsent(formData: FormData) {
@@ -31,32 +31,27 @@ export async function signupWithConsent(formData: FormData) {
   // Insert consent records if user was created
   if (data.user) {
     const now = new Date().toISOString()
-    // Sprint 3 self-review: consent evidence writes must never fail silently.
-    // A failed write is logged loudly with a structured event so it is
-    // operationally visible; signup itself proceeds (the account exists), but
-    // the missing evidence is surfaced rather than swallowed.
-    const { error: consentError } = await supabase.from('consent_records').insert([
-      {
-        profile_id: data.user.id,
-        email,
-        consent_type: 'platform_terms',
-        consented: true,
-        consented_at: now,
-      },
-      {
-        profile_id: data.user.id,
-        email,
-        consent_type: 'data_processing',
-        consented: true,
-        consented_at: now,
-      },
-    ])
-    if (consentError) {
+    // Sprint 3: signup consents are written VERSIONED (consent_version, exact
+    // consent_text shown, source 'signup_form', actor 'member'). Before
+    // migration 0051 the versioned columns do not exist, so recordSignupConsents
+    // falls back to the legacy row shape ONLY on a missing-column error; every
+    // other failure is surfaced loudly here — consent evidence must never fail
+    // silently. Signup itself proceeds (the account exists), but the missing
+    // evidence is operationally visible.
+    const consentResult = await recordSignupConsents(supabase, data.user.id, email)
+    if (!consentResult.ok) {
       console.error(JSON.stringify({
         event: 'signup.consent_record_write_failed',
         profile_id: data.user.id,
-        code: consentError.code,
-        message: consentError.message,
+        downgraded_attempt: consentResult.downgraded,
+        code: consentResult.error?.code,
+        message: consentResult.error?.message,
+      }))
+    } else if (consentResult.downgraded) {
+      console.warn(JSON.stringify({
+        event: 'signup.consent_record_written_unversioned',
+        profile_id: data.user.id,
+        reason: 'pre-0051 schema — versioned consent columns not present',
       }))
     }
 

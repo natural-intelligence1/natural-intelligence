@@ -63,6 +63,57 @@ export async function recordConsent(client: AnyClient, input: RecordConsentInput
   if (error) throw new Error(`recordConsent failed [${error.code}]: ${error.message}`)
 }
 
+/** Outcome of the signup consent write — the caller decides how to log it. */
+export interface SignupConsentWriteResult {
+  ok: boolean
+  /** True when the versioned write failed on missing columns (pre-0051) and
+   *  the legacy base-column write was attempted instead. */
+  downgraded: boolean
+  error: { code?: string; message: string } | null
+}
+
+/** PostgREST/Postgres codes meaning "a column in the payload does not exist". */
+const MISSING_COLUMN_CODES = ['PGRST204', '42703']
+
+/**
+ * Writes the two signup consents (platform_terms + data_processing) as FULLY
+ * VERSIONED rows: consent_version, exact consent_text shown, source and actor.
+ *
+ * Pre-migration compatibility: before 0051 is applied the versioned columns do
+ * not exist, so a missing-column failure — and ONLY that failure — retries
+ * with the legacy base columns (the pre-Sprint-3 row shape). Every other
+ * error is returned unswallowed for the caller to surface loudly.
+ */
+export async function recordSignupConsents(
+  client: AnyClient, memberId: string, email: string,
+): Promise<SignupConsentWriteResult> {
+  const now = new Date().toISOString()
+  const purposes: ConsentPurpose[] = ['platform_terms', 'data_processing']
+
+  const base = purposes.map((p) => ({
+    profile_id: memberId, email, consent_type: p, consented: true, consented_at: now,
+  }))
+  const versioned = purposes.map((p, i) => ({
+    ...base[i],
+    consent_version: CONSENT_TEXT_VERSION,
+    consent_text:    CONSENT_TEXTS[p],
+    source:          'signup_form',
+    actor:           'member',
+  }))
+
+  const { error } = await (client as AnyClient).from('consent_records').insert(versioned)
+  if (!error) return { ok: true, downgraded: false, error: null }
+
+  if (!MISSING_COLUMN_CODES.includes(error.code ?? '')) {
+    return { ok: false, downgraded: false, error }
+  }
+
+  // Pre-0051 schema: fall back to the legacy row shape only.
+  const { error: legacyError } = await (client as AnyClient).from('consent_records').insert(base)
+  if (legacyError) return { ok: false, downgraded: true, error: legacyError }
+  return { ok: true, downgraded: true, error: null }
+}
+
 /** All consent rows for a member, newest first. Returns [] if the table/read fails. */
 export async function getMemberConsents(client: AnyClient, memberId: string): Promise<ConsentRecordRow[]> {
   const { data, error } = await (client as AnyClient)
