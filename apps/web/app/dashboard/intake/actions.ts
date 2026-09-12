@@ -2,23 +2,25 @@
 
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 import { routeIntakeAssignment }      from '@natural-intelligence/db/practitioners'
-import { assertIntakeCollectionEnabled } from '@natural-intelligence/db/intake'
+import { assertIntakeAllowedForUser } from '@natural-intelligence/db/intake'
 import { generateHealthSynopsis }    from '../synopsis/actions'
 import { generateBodyStory }         from '../story/actions'
 
 // ─── saveIntakeSection ────────────────────────────────────────────────────────
 // Upsert a partial section's data into intake_responses.
 // Uses select-first pattern (no unique constraint on member_id).
-// Guarded by the collection kill-switch: throws BEFORE any client/DB access
-// when INTAKE_COLLECTION_ENABLED !== "true", so nothing is written.
+// Guarded by the availability rule (kill-switch OR single-account preview
+// allowlist): logged-out users and any authenticated user who is neither
+// globally enabled nor exactly allowlisted are refused BEFORE any intake
+// write, so nothing is stored for them.
 export async function saveIntakeSection(
   sectionData: Record<string, unknown>,
   sectionNumber: number
 ): Promise<void> {
-  assertIntakeCollectionEnabled()
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthenticated')
+  assertIntakeAllowedForUser(user.email)
 
   const { data: existing } = await supabase
     .from('intake_responses')
@@ -55,14 +57,17 @@ export async function completeIntake(consentData: {
   consent_to_ai_analysis: boolean
   consent_given_at: string
 }): Promise<void> {
-  // Collection kill-switch — refuses completion before any DB access, so no
-  // intake_responses write and no AI synopsis / body-story generation runs
-  // while disabled. (Assignment routing stays separately gated downstream by
-  // INTAKE_ASSIGNMENT_ENABLED.)
-  assertIntakeCollectionEnabled()
+  // Availability rule — kill-switch OR single-account preview allowlist.
+  // Refuses completion before any intake write, so no intake_responses write
+  // and no AI synopsis / body-story generation runs for anyone who is not
+  // globally enabled or exactly allowlisted. (Assignment routing stays
+  // separately gated downstream by INTAKE_ASSIGNMENT_ENABLED — the preview
+  // allowlist does NOT touch it, so an allowlisted completion still routes
+  // to no practitioner.)
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthenticated')
+  assertIntakeAllowedForUser(user.email)
 
   const { data: existing } = await supabase
     .from('intake_responses')

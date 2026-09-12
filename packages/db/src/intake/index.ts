@@ -28,3 +28,8 @@ export { sectionIdFromNumber, sectionNumberFromId } from './sectionCoercion'
 
 // ── Collection kill-switch (containment patch) ────────────────────────────────
 export { isIntakeCollectionEnabled, assertIntakeCollectionEnabled } from './collectionFlag'
+
+// ── Single-account founder-preview allowlist (narrow exception, default deny) ─
+export {
+  isIntakePreviewAllowedEmail, isIntakeAllowedForUser, assertIntakeAllowedForUser,
+} from './previewAllowlist'

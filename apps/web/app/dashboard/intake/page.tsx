@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
-import { isIntakeCollectionEnabled } from '@natural-intelligence/db/intake'
+import { isIntakeCollectionEnabled, isIntakeAllowedForUser } from '@natural-intelligence/db/intake'
 import { copy } from '@/lib/copy'
 import { IntakeForm } from './IntakeForm'
 
@@ -47,9 +47,18 @@ function IntakeUnavailable() {
 }
 
 export default async function IntakePage() {
-  // Collection kill-switch — checked before any auth or DB access so the
-  // disabled path performs no reads and renders no health-data fields.
-  if (!isIntakeCollectionEnabled()) return <IntakeUnavailable />
+  // Availability rule: the global collection kill-switch (default OFF) OR the
+  // single-account founder-preview allowlist. When globally disabled, the
+  // allowlist requires an authenticated session whose email is EXACTLY
+  // allowlisted; everyone else gets the unavailable state and no health-data
+  // fields render (which also removes the client-side intake_answers write
+  // path — the form is the only thing that issues those writes). Server
+  // actions enforce the same rule independently.
+  if (!isIntakeCollectionEnabled()) {
+    const gate = createServerSupabaseClient()
+    const { data: { user: gateUser } } = await gate.auth.getUser()
+    if (!gateUser || !isIntakeAllowedForUser(gateUser.email)) return <IntakeUnavailable />
+  }
 
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
