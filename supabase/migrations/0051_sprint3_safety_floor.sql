@@ -181,6 +181,38 @@ CREATE TABLE IF NOT EXISTS public.practitioner_agreements (
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_current_agreement_per_category
   ON public.practitioner_agreements(category) WHERE is_current;
 
+-- PA-pass polish (item 2): agreement rows are IMMUTABLE at the DB level.
+-- The admin seed's refusal to overwrite is application courtesy, not
+-- protection — this trigger is the protection. Once a row exists, its
+-- category, version, title, body and created_at can never change in place
+-- (new wording requires a NEW version row); only is_current may change,
+-- which is the controlled promotion/demotion path (and the partial unique
+-- index above keeps at most one current per category). Applies to every
+-- role including service_role — superseding text without a new version row
+-- would silently invalidate recorded acceptances' meaning.
+CREATE OR REPLACE FUNCTION public.enforce_agreement_immutability()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.category   IS DISTINCT FROM OLD.category
+     OR NEW.version    IS DISTINCT FROM OLD.version
+     OR NEW.title      IS DISTINCT FROM OLD.title
+     OR NEW.body       IS DISTINCT FROM OLD.body
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at
+  THEN
+    RAISE EXCEPTION 'practitioner_agreements rows are immutable (only is_current may change); publish changed wording as a NEW version row'
+      USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_practitioner_agreements_immutable ON public.practitioner_agreements;
+CREATE TRIGGER trg_practitioner_agreements_immutable
+  BEFORE UPDATE ON public.practitioner_agreements
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_agreement_immutability();
+
 CREATE TABLE IF NOT EXISTS public.practitioner_agreement_acceptances (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   practitioner_id UUID NOT NULL REFERENCES public.practitioners(id) ON DELETE CASCADE,

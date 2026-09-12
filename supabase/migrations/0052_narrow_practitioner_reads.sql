@@ -79,6 +79,43 @@ COMMENT ON VIEW public.practitioner_case_index IS
   'Operational columns only — no client_id, no primary_concern. '
   'ACTIVE work only: completed, cancelled and declined grant nothing.';
 
+-- ── Identity + personalisation views: practitioner branch REMOVED ────────────
+-- (PA-pass polish, item 1.) Two owner-rights views from the identified era
+-- grant practitioners rows keyed on ANY work history, with no status filter:
+--   • practitioner_client_identity (0041): client full_name + avatar_url —
+--     direct identity;
+--   • practitioner_client_personalisation (0047): biological_sex + clinical
+--     notes keyed by user_id — an identity linkage practitioners must not
+--     hold in pack mode.
+-- Views cannot read env flags, so DB-level pseudonymity requires the
+-- practitioner branch to GO when this migration applies (it applies only
+-- together with the pack rollout, at which point the identified care mode is
+-- retired). Both views are recreated WITHOUT the practitioner work-history
+-- branch: members keep self-access, admins keep access, practitioners get
+-- nothing. If a future identified-care mode is signed off, it must arrive as
+-- a NEW, separately gated surface through governance — never by silently
+-- restoring these branches.
+
+CREATE OR REPLACE VIEW public.practitioner_client_identity
+WITH (security_invoker = false) AS
+SELECT p.id, p.full_name, p.avatar_url, p.role
+FROM public.profiles p
+WHERE auth.uid() = p.id OR is_admin();
+
+COMMENT ON VIEW public.practitioner_client_identity IS
+  'Sprint 3 (0052): practitioner work-history branch removed — pack mode is '
+  'pseudonymous at DB level. Self + admin only. Name kept for compatibility.';
+
+CREATE OR REPLACE VIEW public.practitioner_client_personalisation
+WITH (security_invoker = false) AS
+SELECT up.user_id, up.biological_sex, up.clinical_notes_on_sex, up.updated_at
+FROM public.user_personalisation up
+WHERE auth.uid() = up.user_id OR is_admin();
+
+COMMENT ON VIEW public.practitioner_client_personalisation IS
+  'Sprint 3 (0052): practitioner work-history branch removed — clinical '
+  'personalisation reaches practitioners only via de-identified review packs.';
+
 -- ── Post-apply assertions (run manually after applying; all must hold) ───────
 -- 1. No practitioner-reachable SELECT policy remains on client_cases:
 --      SELECT polname FROM pg_policies
@@ -92,11 +129,19 @@ COMMENT ON VIEW public.practitioner_case_index IS
 --      SELECT pg_get_viewdef('public.practitioner_case_index');
 --    → the status list must be exactly ('assigned','in_review','escalated');
 --      'completed' must NOT appear.
+-- 4. Practitioners cannot reach identity through the identity view:
+--      SELECT pg_get_viewdef('public.practitioner_client_identity');
+--    → the WHERE clause must be exactly self-or-admin
+--      (auth.uid() = p.id OR is_admin()); no case_practitioner_work branch.
+--    Then, as a practitioner session holding an ACTIVE work item:
+--      SELECT * FROM practitioner_client_identity WHERE id = '<that client>';
+--    → must return ZERO rows.
+-- 5. Same for the personalisation view:
+--      SELECT pg_get_viewdef('public.practitioner_client_personalisation');
+--    → self-or-admin only; no case_practitioner_work branch.
 
--- NOTE for the same apply-window: the practitioner_client_personalisation view
--- and any helper still selecting raw intake/biohub rows for practitioners
--- (getIntakeSummary, getBioHubSignals) must be repointed at review packs first
--- — see the Sprint 3 PR "not completed" register. The care inbox and reasoning
--- pages read client_cases via joins/selects in identified mode: they degrade to
--- the pack-mode surfaces when PRACTITIONER_REVIEW_PACKS_ENABLED is on, which is
--- a precondition for applying this migration (governance sequencing B/C).
+-- NOTE for the same apply-window: any helper still selecting raw intake/biohub
+-- rows for practitioners (getIntakeSummary, getBioHubSignals) is dead code once
+-- the 0048 policies above are dropped — the care surfaces already run in pack
+-- mode when PRACTITIONER_REVIEW_PACKS_ENABLED is on, which is a precondition
+-- for applying this migration (governance sequencing B/C).

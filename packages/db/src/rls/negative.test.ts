@@ -236,6 +236,47 @@ describe.skipIf(!HAVE_DB)('negative RLS — agreement acceptance is RPC-only', (
     })
     expect(error).not.toBeNull()
   })
+
+  it('agreement text/version is IMMUTABLE at the DB level; is_current is not (PA-pass polish, item 2)', async (ctx) => {
+    if (!tableExists) return ctx.skip()
+    // Throwaway non-current synthetic agreement row (never promoted, so the
+    // one-current-per-category index is untouched); removed at the end.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: row, error: insErr } = await (admin as any).from('practitioner_agreements')
+      .insert({
+        category: 'unregistered', version: `immut-test-${Date.now()}`,
+        title: 'Synthetic immutability probe', body: 'synthetic body — is_test_data',
+        is_current: false,
+      })
+      .select('id').single()
+    expect(insErr).toBeNull()
+    try {
+      // Changing body in place must be refused by the trigger — even for the
+      // service-role client.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: bodyErr } = await (admin as any).from('practitioner_agreements')
+        .update({ body: 'tampered wording' }).eq('id', row.id)
+      expect(bodyErr).not.toBeNull()
+      expect(bodyErr!.message).toMatch(/immutable/)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: verErr } = await (admin as any).from('practitioner_agreements')
+        .update({ version: 'tampered-version' }).eq('id', row.id)
+      expect(verErr).not.toBeNull()
+      // is_current alone (promotion/demotion path) passes the trigger.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: curErr } = await (admin as any).from('practitioner_agreements')
+        .update({ is_current: false }).eq('id', row.id)
+      expect(curErr).toBeNull()
+      // And the text is untouched.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: check } = await (admin as any).from('practitioner_agreements')
+        .select('body').eq('id', row.id).single()
+      expect(check?.body).toBe('synthetic body — is_test_data')
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (admin as any).from('practitioner_agreements').delete().eq('id', row.id)
+    }
+  })
 })
 
 // ─── client_cases exposure closed (final review, item 3) ─────────────────────
@@ -305,6 +346,16 @@ describe.skipIf(!HAVE_DB)('negative RLS — client_cases closed to practitioners
     const { error: e2 } = await (p as any).from('practitioner_case_index').select('primary_concern').eq('id', caseId)
     expect(e1).not.toBeNull()
     expect(e2).not.toBeNull()
+  })
+
+  it('an ACTIVE work item grants NO identity via practitioner_client_identity (PA-pass polish, item 1)', async (ctx) => {
+    if (!viewExists || !caseId) return ctx.skip() // 0052 also narrows the identity view
+    const p = await signInAs(pract)
+    const { data } = await p
+      .from('practitioner_client_identity' as 'profiles')
+      .select('id, full_name')
+      .eq('id', member.id)
+    expect(data ?? []).toHaveLength(0)
   })
 
   it('COMPLETED work grants nothing through the view (final hardening, item 4)', async (ctx) => {

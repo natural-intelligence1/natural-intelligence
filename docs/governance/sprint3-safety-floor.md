@@ -110,6 +110,19 @@ The following order is mandatory. No step may be skipped or reordered.
   Reintroducing `completed` requires a signed retention/continuity
   requirement plus an explicit `completed_at` time window, changed in
   review — never silently.
+- **Pack mode is pseudonymous at the DATABASE level, not just the UI.**
+  `0052` removes the practitioner work-history branch from the
+  `practitioner_client_identity` (0041) and
+  `practitioner_client_personalisation` (0047) owner-rights views — both
+  previously served rows for ANY work history with no status filter. After
+  `0052`, those views are self+admin only, and post-apply SQL assertions 4–5
+  in the migration verify it. A future identified-care mode, if ever signed
+  off, must arrive as a new, separately gated surface through governance —
+  never by restoring these view branches.
+- **Agreement texts are immutable at the DATABASE level.** A trigger on
+  `practitioner_agreements` refuses in-place changes to category, version,
+  title, body or created_at for every role; only `is_current` may change
+  (controlled promotion/demotion). Changed wording is a new version row.
 - **Reasoning traces are not pack-safe.** `getPractitionerTrace` returns AI
   reasoning generated from the identified record; pack mode never calls it
   and shows an explicit unavailable state until a de-identified reasoning
