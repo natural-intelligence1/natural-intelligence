@@ -298,10 +298,10 @@ export default async function SynopsisPage() {
               {hasRootfinder ? '✓' : '○'}
             </span>
             <span className={hasRootfinder ? 'text-text-primary' : 'text-text-muted'}>
-              Root cause analysis
+              Symptom pattern summary
               {!hasRootfinder && (
                 <Link href="/dashboard/rootfinder" className="ml-1.5 text-text-brand hover:underline text-xs">
-                  Run analysis →
+                  Group symptoms →
                 </Link>
               )}
             </span>

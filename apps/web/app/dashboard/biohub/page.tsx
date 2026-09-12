@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import UploadForm from './UploadForm'
-import { BiohubReferenceNote } from './BiohubReferenceNote'
 
 export default async function BioHubPage() {
   const supabase = createServerSupabaseClient()
@@ -29,12 +28,15 @@ export default async function BioHubPage() {
     <div className="max-w-3xl mx-auto">
       <div className="mb-8">
         <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">BioHub</p>
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Lab report analysis</h1>
+        <h1 className="text-2xl font-bold text-text-primary mb-1">Lab report organiser</h1>
         <p className="text-sm text-text-muted">
-          Upload a PDF lab report and our AI will map your biomarkers against functional reference ranges.
+          Upload a PDF lab report to see your markers organised clearly, shown
+          with the reference intervals provided by the laboratory where available.
         </p>
-        {/* PS.3 worked example — sex-aware reference-range note */}
-        <BiohubReferenceNote />
+        <p className="text-xs text-text-muted mt-2">
+          This does not diagnose, treat or replace clinical interpretation. For
+          urgent concerns, contact your GP, NHS 111 or emergency services.
+        </p>
       </div>
 
       {/* Upload card */}

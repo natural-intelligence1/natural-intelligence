@@ -47,7 +47,7 @@ export default function CyclePatternSelector({ value, onChange }: Props) {
     <div className="space-y-4">
       {/* Hint */}
       <p className="text-xs text-text-muted">
-        Select all that apply. This helps identify hormonal root cause patterns.
+        Select all that apply. This helps your practitioner understand your cycle patterns.
       </p>
 
       {/* Regular options */}

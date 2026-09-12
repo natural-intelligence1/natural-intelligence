@@ -177,7 +177,7 @@ export default async function DashboardPage() {
                   <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">Health synopsis</p>
                   <h3 className="text-sm font-semibold text-text-primary mb-1">Get your personalised health overview</h3>
                   <p className="text-sm text-text-secondary leading-relaxed">
-                    Complete a 5-minute health intake and we&apos;ll synthesise your symptoms, labs, and root causes into a clear health picture.
+                    Complete a 5-minute health intake and we&apos;ll bring what you share together into one organised picture for you and your practitioner.
                   </p>
                 </div>
               </div>
@@ -353,9 +353,10 @@ export default async function DashboardPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">BioHub</p>
-                <h3 className="text-sm font-semibold text-text-primary mb-1">Lab report analysis</h3>
+                <h3 className="text-sm font-semibold text-text-primary mb-1">Lab report organiser</h3>
                 <p className="text-sm text-text-secondary leading-relaxed">
-                  Upload a PDF lab report and see your biomarkers mapped against functional reference ranges — not just GP limits.
+                  Upload a PDF lab report to see your markers organised clearly,
+                  with the reference intervals provided by the laboratory where available.
                 </p>
               </div>
             </div>
@@ -374,9 +375,10 @@ export default async function DashboardPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">RootFinder</p>
-                <h3 className="text-sm font-semibold text-text-primary mb-1">Find your root cause</h3>
+                <h3 className="text-sm font-semibold text-text-primary mb-1">Organise your symptoms into patterns</h3>
                 <p className="text-sm text-text-secondary leading-relaxed">
-                  Select the symptoms you&apos;ve been experiencing and our analysis engine will identify the most likely functional root causes driving them.
+                  Select what you&apos;ve noticed and we&apos;ll group your symptoms into
+                  broad themes for reflection and practitioner discussion.
                 </p>
               </div>
             </div>
@@ -385,7 +387,7 @@ export default async function DashboardPage() {
                 href="/dashboard/rootfinder"
                 className="inline-block px-4 py-2 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
               >
-                Start analysis
+                Group my symptoms
               </Link>
             </div>
           </section>
