@@ -15,6 +15,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildReviewPack } from './reviewPack'
 import { getIntakeSummary } from './getIntakeSummary'
+import { hasActiveConsent } from '../consent/records'
+import { isProcessingBlocked } from '../rights/requests'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyClient = SupabaseClient<any>
@@ -59,6 +61,34 @@ export async function getReviewPackForCase(client: AnyClient, caseId: string): P
   return data as ReviewPackRow
 }
 
+/**
+ * FAIL-CLOSED consent gate for anything that shares a de-identified synopsis
+ * with a practitioner (pack generation AND assignment routing). Throws with a
+ * clear, admin-readable reason unless the member has an ACTIVE
+ * deidentified_synopsis_sharing consent AND no global restriction / erasure /
+ * blanket withdrawal / purpose-specific withdrawal on file. hasActiveConsent
+ * is itself fail-closed (error or absence = no consent), so pre-migration or
+ * degraded states block rather than pass.
+ */
+export async function assertSynopsisSharingPermitted(
+  admin: AnyClient, memberId: string,
+): Promise<void> {
+  const consented = await hasActiveConsent(admin, memberId, 'deidentified_synopsis_sharing')
+  if (!consented) {
+    throw new Error(
+      'Blocked: this member has no active consent for de-identified synopsis sharing. '
+      + 'A review pack cannot be generated or routed without it.',
+    )
+  }
+  const blocked = await isProcessingBlocked(admin, memberId, 'deidentified_synopsis_sharing')
+  if (blocked) {
+    throw new Error(
+      'Blocked: this member has a restriction, erasure request or consent withdrawal '
+      + 'on file covering de-identified synopsis sharing.',
+    )
+  }
+}
+
 export interface GenerateReviewPackResult {
   packId: string
   pseudonym: string
@@ -83,6 +113,9 @@ export async function generateAndStoreReviewPack(
     .eq('id', caseId)
     .maybeSingle()
   if (caseErr || !caseRow) throw new Error(`generateReviewPack: case not found [${caseErr?.message ?? caseId}]`)
+
+  // 1b. Consent gate — FAIL CLOSED before any identified data is read.
+  await assertSynopsisSharingPermitted(admin, caseRow.client_id)
 
   // 2. Identified intake summary (service-role read; the last identified hop).
   const summary = await getIntakeSummary(admin as Parameters<typeof getIntakeSummary>[0], caseRow.client_id)

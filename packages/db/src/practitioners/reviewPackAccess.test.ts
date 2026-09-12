@@ -2,7 +2,10 @@
 // no-fallback behaviour and the generation contract's de-identification of
 // the case's contextual free text.
 import { describe, it, expect, afterEach } from 'vitest'
-import { isReviewPacksEnabled, getReviewPackForCase } from './reviewPackAccess'
+import {
+  isReviewPacksEnabled, getReviewPackForCase,
+  assertSynopsisSharingPermitted, generateAndStoreReviewPack,
+} from './reviewPackAccess'
 import { buildReviewPack, ITEM_WITHHELD } from './reviewPack'
 import { makeStubClient } from './__test-helpers__/stubQueryClient'
 
@@ -89,5 +92,75 @@ describe('generation contract — case primary_concern is token-normalised, neve
     expect(serialised).not.toContain('Elm Road')
     expect(serialised).not.toContain('Sarah')
     expect(serialised).not.toContain('nhs.net')
+  })
+})
+
+describe('assertSynopsisSharingPermitted — fail-closed consent gate', () => {
+  const granted = {
+    data: { consented: true, withdrawn_at: null, consented_at: '2026-09-01T00:00:00Z' },
+    error: null,
+  }
+  const noBlocks = { data: [], error: null }
+
+  it('throws when there is NO active deidentified_synopsis_sharing consent', async () => {
+    const { client } = makeStubClient([{ data: null, error: null }])
+    await expect(assertSynopsisSharingPermitted(client as LooseClient, 'm1'))
+      .rejects.toThrow(/no active consent for de-identified synopsis sharing/)
+  })
+
+  it('throws when the consent read errors (pre-migration / degraded) — fail closed', async () => {
+    const { client } = makeStubClient([
+      { data: null, error: { code: '42703', message: 'column does not exist' } },
+    ])
+    await expect(assertSynopsisSharingPermitted(client as LooseClient, 'm1'))
+      .rejects.toThrow(/no active consent/)
+  })
+
+  it('throws when consent was granted but later withdrawn', async () => {
+    const { client } = makeStubClient([
+      { data: { consented: true, withdrawn_at: '2026-09-10T00:00:00Z', consented_at: 'x' }, error: null },
+    ])
+    await expect(assertSynopsisSharingPermitted(client as LooseClient, 'm1'))
+      .rejects.toThrow(/no active consent/)
+  })
+
+  it('throws on a GLOBAL restriction even with active consent', async () => {
+    const { client } = makeStubClient([
+      granted,
+      { data: [{ id: 'r1', request_type: 'restriction', consent_type: null }], error: null },
+    ])
+    await expect(assertSynopsisSharingPermitted(client as LooseClient, 'm1'))
+      .rejects.toThrow(/restriction, erasure request or consent withdrawal/)
+  })
+
+  it('throws on a purpose-specific withdrawal request even with an (older) active consent row', async () => {
+    const { client } = makeStubClient([
+      granted,
+      { data: [], error: null }, // no global rows
+      { data: [{ id: 'r2' }], error: null }, // withdrawal naming this purpose
+    ])
+    await expect(assertSynopsisSharingPermitted(client as LooseClient, 'm1'))
+      .rejects.toThrow(/restriction, erasure request or consent withdrawal/)
+  })
+
+  it('passes only with active consent AND nothing blocking on file', async () => {
+    const { client } = makeStubClient([granted, noBlocks, noBlocks])
+    await expect(assertSynopsisSharingPermitted(client as LooseClient, 'm1')).resolves.toBeUndefined()
+  })
+})
+
+describe('generateAndStoreReviewPack — consent enforced before any identified read', () => {
+  it('refuses to generate for a member without synopsis-sharing consent', async () => {
+    const { client, calls } = makeStubClient([
+      // 1. case lookup succeeds
+      { data: { id: 'case-1', client_id: 'm1', primary_concern: null }, error: null },
+      // 2. consent lookup: no row
+      { data: null, error: null },
+    ])
+    await expect(generateAndStoreReviewPack(client as LooseClient, 'case-1', 'admin-1'))
+      .rejects.toThrow(/no active consent for de-identified synopsis sharing/)
+    // Only client_cases + consent_records were touched — the identified intake
+    // tables were never read and nothing was inserted.
+    expect(calls.map((c) => c.target)).toEqual(['client_cases', 'consent_records'])
   })
 })

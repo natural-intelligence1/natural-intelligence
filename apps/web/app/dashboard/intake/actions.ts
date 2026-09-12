@@ -176,6 +176,10 @@ async function routeCompletedCaseToPractitioner(memberId: string): Promise<void>
     console.log(JSON.stringify({ event: 'intake.assignment.disabled', member_id: memberId }))
     return
   }
+  if (res.status === 'blocked_by_consent') {
+    console.log(JSON.stringify({ event: 'intake.assignment.blocked_by_consent', member_id: memberId, reason: res.reason }))
+    return
+  }
   if (res.status === 'no_linked_practitioner') {
     console.log(JSON.stringify({ event: 'intake.assignment.no_linked_practitioner', member_id: memberId }))
     return

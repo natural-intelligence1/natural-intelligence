@@ -56,5 +56,6 @@ export {
 export type { PractitionerCategory, AgreementRow } from './agreements'
 export {
   isReviewPacksEnabled, getReviewPackForCase, generateAndStoreReviewPack,
+  assertSynopsisSharingPermitted,
 } from './reviewPackAccess'
 export type { ReviewPackRow, GenerateReviewPackResult } from './reviewPackAccess'
