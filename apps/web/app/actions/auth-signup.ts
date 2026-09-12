@@ -34,10 +34,13 @@ export async function signupWithConsent(formData: FormData) {
     // Sprint 3: signup consents are written VERSIONED (consent_version, exact
     // consent_text shown, source 'signup_form', actor 'member'). Before
     // migration 0051 the versioned columns do not exist, so recordSignupConsents
-    // falls back to the legacy row shape ONLY on a missing-column error; every
-    // other failure is surfaced loudly here — consent evidence must never fail
-    // silently. Signup itself proceeds (the account exists), but the missing
-    // evidence is operationally visible.
+    // falls back to the legacy row shape ONLY on a missing-column error.
+    //
+    // FAIL CLOSED on real errors (final hardening, item 5): if the consent
+    // evidence could not be written at all, the user is NOT sent to /welcome
+    // as if all were well — the failure is logged and they are asked to try
+    // again or contact NI. The account exists but holds no consent rows, so
+    // every consent-gated pathway stays fail-closed for it in the meantime.
     const consentResult = await recordSignupConsents(supabase, data.user.id, email)
     if (!consentResult.ok) {
       console.error(JSON.stringify({
@@ -47,7 +50,12 @@ export async function signupWithConsent(formData: FormData) {
         code: consentResult.error?.code,
         message: consentResult.error?.message,
       }))
-    } else if (consentResult.downgraded) {
+      redirect(`/auth/login?error=${encodeURIComponent(
+        'Your account was created, but we could not record your consent, so setup did not finish. '
+        + 'Please sign in to try again, or contact info@natural-intelligence.uk.',
+      )}`)
+    }
+    if (consentResult.downgraded) {
       console.warn(JSON.stringify({
         event: 'signup.consent_record_written_unversioned',
         profile_id: data.user.id,

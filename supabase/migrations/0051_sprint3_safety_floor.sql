@@ -42,6 +42,16 @@ CREATE POLICY "Members create own consent records"
 -- DEFINER function that can ONLY set withdrawn_at on the caller's own rows
 -- for one consent purpose. (Review amendment 2 — replaces an earlier broad
 -- member UPDATE policy.)
+-- Final hardening (item 7): the RPC validates the purpose server-side.
+--   • Unknown purposes are rejected outright.
+--   • platform_terms and data_processing are NOT withdrawable via this RPC:
+--     both are foundational (terms of use; lawful basis for the platform
+--     service). Withdrawing data_processing means a GLOBAL processing
+--     restriction, which must go through the client_rights_requests channel
+--     (a consent_withdrawal request naming data_processing — enforcement
+--     already treats that as global via isGlobalRestrictionRow), where the
+--     NI team handles the account consequences deliberately rather than a
+--     row silently flipping.
 CREATE OR REPLACE FUNCTION public.withdraw_own_consent(p_consent_type TEXT)
 RETURNS INTEGER
 LANGUAGE plpgsql
@@ -51,6 +61,18 @@ AS $$
 DECLARE
   affected INTEGER;
 BEGIN
+  IF p_consent_type NOT IN (
+    'record_holding', 'deidentified_synopsis_sharing', 'ai_assisted_processing',
+    'retention_beyond_episode', 'anonymised_research'
+  ) THEN
+    IF p_consent_type IN ('platform_terms', 'data_processing') THEN
+      RAISE EXCEPTION 'withdraw_own_consent: % must be withdrawn via a rights request, not this function', p_consent_type
+        USING ERRCODE = 'P0001';
+    END IF;
+    RAISE EXCEPTION 'withdraw_own_consent: unknown consent purpose %', p_consent_type
+      USING ERRCODE = 'P0001';
+  END IF;
+
   UPDATE public.consent_records
      SET withdrawn_at = now()
    WHERE profile_id = auth.uid()
@@ -64,6 +86,21 @@ $$;
 REVOKE ALL ON FUNCTION public.withdraw_own_consent(TEXT) FROM public;
 GRANT EXECUTE ON FUNCTION public.withdraw_own_consent(TEXT) TO authenticated;
 
+-- Final hardening (item 6): purpose values are constrained at the DB level so
+-- stray rows cannot create confusing enforcement states. Added NOT VALID so
+-- application is safe even if unexpected historical values exist; run
+--   ALTER TABLE public.consent_records VALIDATE CONSTRAINT consent_records_consent_type_check;
+-- after confirming existing rows (expected values pre-Sprint-3: only
+-- platform_terms and data_processing, both written by signup).
+ALTER TABLE public.consent_records
+  DROP CONSTRAINT IF EXISTS consent_records_consent_type_check;
+ALTER TABLE public.consent_records
+  ADD CONSTRAINT consent_records_consent_type_check CHECK (consent_type IN (
+    'platform_terms', 'data_processing', 'record_holding',
+    'deidentified_synopsis_sharing', 'ai_assisted_processing',
+    'retention_beyond_episode', 'anonymised_research'
+  )) NOT VALID;
+
 -- ═══ 2. client_rights_requests — withdrawal + GDPR rights channel ════════════
 
 CREATE TABLE IF NOT EXISTS public.client_rights_requests (
@@ -72,7 +109,17 @@ CREATE TABLE IF NOT EXISTS public.client_rights_requests (
   request_type    TEXT NOT NULL CHECK (request_type IN
                     ('access','correction','export','erasure','restriction','consent_withdrawal')),
   details         TEXT,
-  consent_type    TEXT,           -- for consent_withdrawal: which consent purpose
+  -- For consent_withdrawal only: which consent purpose (NULL = blanket
+  -- withdrawal, treated as global). Constrained (final hardening, item 6):
+  -- must be NULL or an approved purpose, and non-withdrawal request types
+  -- must leave it NULL.
+  consent_type    TEXT
+                  CHECK (consent_type IS NULL OR consent_type IN (
+                    'platform_terms', 'data_processing', 'record_holding',
+                    'deidentified_synopsis_sharing', 'ai_assisted_processing',
+                    'retention_beyond_episode', 'anonymised_research'
+                  ))
+                  CHECK (request_type = 'consent_withdrawal' OR consent_type IS NULL),
   status          TEXT NOT NULL DEFAULT 'new' CHECK (status IN
                     ('new','acknowledged','in_progress','fulfilled','refused','withdrawn')),
   resolution_note TEXT,

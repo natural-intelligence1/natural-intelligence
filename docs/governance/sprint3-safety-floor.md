@@ -87,15 +87,41 @@ The following order is mandatory. No step may be skipped or reordered.
 - **C. The review-pack mode must be tested (flag on, in a controlled
   session, against `0051` tables) before `0052` is applied.** The test must
   confirm: packs render for active work items; the blocked state renders
-  when no pack exists; no identity, raw intake or case `primary_concern`
-  free text appears anywhere in the pack-mode workspace, inbox or reasoning
-  page; cancelled/declined work grants no pack or case-index access; and the
-  post-apply SQL assertions in the `0052` file both hold.
+  when no pack exists; no identity, raw intake, reasoning trace or case
+  `primary_concern` free text appears anywhere in the pack-mode workspace,
+  inbox or reasoning page; completed, cancelled and declined work grant no
+  pack or case-index access; and the post-apply SQL assertions in the
+  `0052` file all hold.
 - **D. No real-client use of any of this until clinician + solicitor review
   of all DRAFT texts and Founder sign-off.** This is independent of A–C:
   even with both migrations applied and both flags on, the intake
   kill-switches stay off and real clients stay out until the review-and-
   sign-off gate in the table above is passed.
+- **E. PA pass still required before merge/migration/deploy decisions.**
+  Branch-local hardening is authorised; the decisions to merge this branch,
+  apply 0051/0052 or deploy remain blocked until the PA pass is recorded.
+
+### Standing decisions (final hardening, 13 Sep 2026)
+
+- **Completed work grants no client-data access in de-identified mode.**
+  The 0051 pack SELECT policy, the 0052 `practitioner_case_index` view and
+  every pack-mode surface (workspace, inbox, reasoning) are active-work-only
+  (`assigned`/`in_review`/`escalated`). Cancelled and declined work 404.
+  Reintroducing `completed` requires a signed retention/continuity
+  requirement plus an explicit `completed_at` time window, changed in
+  review — never silently.
+- **Reasoning traces are not pack-safe.** `getPractitionerTrace` returns AI
+  reasoning generated from the identified record; pack mode never calls it
+  and shows an explicit unavailable state until a de-identified reasoning
+  surface exists.
+- **Withdrawal purposes.** `withdraw_own_consent` accepts only the five
+  granular purposes, validated server-side. `platform_terms` and
+  `data_processing` cannot be withdrawn via the RPC: they go through the
+  rights-request channel, where a `data_processing` withdrawal is enforced
+  as a GLOBAL processing restriction.
+- **CQC.** There is no current CQC operating requirement; CQC is a
+  change-control boundary only — any future service change that could bring
+  activities into CQC scope must come back through governance before build.
 
 ## Build register (updated as the sprint lands)
 

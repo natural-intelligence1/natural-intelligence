@@ -161,6 +161,14 @@ export async function hasAllConsents(
  * on consent_records. This goes through the narrow SECURITY DEFINER RPC
  * `withdraw_own_consent` (migration 0051), which can only set withdrawn_at on
  * auth.uid()'s own rows. Returns the number of rows withdrawn.
+ *
+ * Purpose rule (final hardening, item 7): the RPC validates the purpose
+ * server-side. Only the five granular purposes are withdrawable here;
+ * platform_terms and data_processing are foundational and are REFUSED by the
+ * RPC — withdrawing them goes through the client_rights_requests channel,
+ * where a data_processing withdrawal is treated as a GLOBAL processing
+ * restriction (see rights/requests.ts isGlobalRestrictionRow) and handled by
+ * the NI team deliberately.
  */
 export async function withdrawConsent(
   client: AnyClient, purpose: ConsentPurpose,
