@@ -74,17 +74,23 @@ The following order is mandatory. No step may be skipped or reordered.
 - **A. `0051` is applied only after review.** Founder authorisation after PR
   review is required before `0051` touches the production database. Until
   then it is a file on the branch and nothing more.
-- **B. `0052` is not applied until the practitioner workspace has been
-  repointed at review packs and tested.** The repoint now exists in code
-  behind `PRACTITIONER_REVIEW_PACKS_ENABLED` (default **off**, exact-string
-  `"true"`), but "exists" is not "tested": applying `0052` first would remove
-  the workspace's current read path while the replacement is still unverified.
-- **C. The review-pack workspace mode must be tested (flag on, in a
-  controlled session, against `0051` tables) before `0052` is applied.**
-  The test must confirm: packs render for active work items; the blocked
-  state renders when no pack exists; no identity, raw intake or case
-  `primary_concern` free text appears anywhere in the pack-mode workspace;
-  and cancelled/declined work grants no pack access.
+- **B. `0052` is not applied until EVERY practitioner raw-access surface has
+  been repointed and tested.** `0052` now removes practitioner SELECT on
+  `client_cases` entirely (RLS cannot mask columns, so `primary_concern` and
+  `client_id` could not otherwise be protected) and replaces it with the
+  column-scoped `practitioner_case_index` view (operational fields only).
+  The repointed surfaces — case workspace, practitioner inbox and reasoning
+  page — all exist in code behind `PRACTITIONER_REVIEW_PACKS_ENABLED`
+  (default **off**, exact-string `"true"`), but "exists" is not "tested":
+  applying `0052` first would remove the current read paths while the
+  replacements are still unverified.
+- **C. The review-pack mode must be tested (flag on, in a controlled
+  session, against `0051` tables) before `0052` is applied.** The test must
+  confirm: packs render for active work items; the blocked state renders
+  when no pack exists; no identity, raw intake or case `primary_concern`
+  free text appears anywhere in the pack-mode workspace, inbox or reasoning
+  page; cancelled/declined work grants no pack or case-index access; and the
+  post-apply SQL assertions in the `0052` file both hold.
 - **D. No real-client use of any of this until clinician + solicitor review
   of all DRAFT texts and Founder sign-off.** This is independent of A–C:
   even with both migrations applied and both flags on, the intake

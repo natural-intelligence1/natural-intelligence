@@ -6,5 +6,6 @@ export {
   updateRightsRequestStatus, hasActiveRestriction, hasPurposeWithdrawal,
   isGlobalRestrictionRow,
   isProcessingBlocked,
+  isRightsChannelAvailable,
 } from './requests'
 export type { RightsRequestType, RightsRequestStatus, RightsRequestRow } from './requests'

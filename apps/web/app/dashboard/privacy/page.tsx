@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import {
   createServerSupabaseClient,
-  getMemberConsents, listOwnRightsRequests,
+  getMemberConsents, listOwnRightsRequests, isRightsChannelAvailable,
   RIGHTS_REQUEST_TYPES, CONSENT_PURPOSES, type RightsRequestType,
 } from '@natural-intelligence/db'
 import { PrivacyRequestForm } from './PrivacyRequestForm'
@@ -38,9 +38,13 @@ export default async function PrivacyPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const [consents, requests] = await Promise.all([
+  // Pre-migration degradation (final review, item 4): if the rights-request
+  // table is not available yet (0051 unapplied), render a clear "coming soon /
+  // contact us" state instead of a form that would fail on submit.
+  const [consents, requests, channelAvailable] = await Promise.all([
     getMemberConsents(supabase, user.id),
     listOwnRightsRequests(supabase, user.id),
+    isRightsChannelAvailable(supabase),
   ])
 
   return (
@@ -83,21 +87,41 @@ export default async function PrivacyPage() {
       {/* Submit a request */}
       <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-6">
         <h2 className="text-base font-semibold text-text-primary mb-2">Make a request</h2>
-        <p className="text-xs text-text-muted mb-4">
-          DRAFT wording — requires solicitor review before real-client use.
-        </p>
-        <PrivacyRequestForm
-          submitAction={submitRightsRequest}
-          requestTypes={[...RIGHTS_REQUEST_TYPES]}
-          requestLabels={REQUEST_LABELS}
-          consentPurposes={CONSENT_PURPOSES.filter((p) => p !== 'platform_terms' && p !== 'data_processing')}
-        />
+        {channelAvailable ? (
+          <>
+            <p className="text-xs text-text-muted mb-4">
+              DRAFT wording — requires solicitor review before real-client use.
+            </p>
+            <PrivacyRequestForm
+              submitAction={submitRightsRequest}
+              requestTypes={[...RIGHTS_REQUEST_TYPES]}
+              requestLabels={REQUEST_LABELS}
+              consentPurposes={CONSENT_PURPOSES.filter((p) => p !== 'platform_terms' && p !== 'data_processing')}
+            />
+          </>
+        ) : (
+          <p className="text-sm text-text-secondary">
+            Online privacy requests are not available just yet — this part of
+            the service is being finalised. In the meantime, you can make any
+            request about your data (including withdrawing a consent or asking
+            for a copy, correction or deletion) by contacting the Natural
+            Intelligence team directly at{' '}
+            <a href="mailto:info@natural-intelligence.uk" className="underline text-text-primary">
+              info@natural-intelligence.uk
+            </a>
+            . Your rights are unaffected.
+          </p>
+        )}
       </section>
 
       {/* Existing requests */}
       <section className="rounded-xl border border-border-default bg-surface-raised p-6">
         <h2 className="text-base font-semibold text-text-primary mb-4">Your requests</h2>
-        {requests.length === 0 ? (
+        {!channelAvailable ? (
+          <p className="text-sm text-text-muted">
+            Requests made by email are handled personally and are not listed here yet.
+          </p>
+        ) : requests.length === 0 ? (
           <p className="text-sm text-text-muted">You have not made any requests.</p>
         ) : (
           <ul className="space-y-3">

@@ -179,3 +179,17 @@ export async function isProcessingBlocked(
   if (await hasActiveRestriction(client, memberId)) return true
   return hasPurposeWithdrawal(client, memberId, purpose)
 }
+
+/**
+ * Availability probe for the rights channel (final review, item 4): true only
+ * when client_rights_requests is queryable. Before migration 0051 the table
+ * does not exist, so member-facing surfaces must render a degraded, clearly
+ * worded state instead of a form that would fail on submit.
+ */
+export async function isRightsChannelAvailable(client: AnyClient): Promise<boolean> {
+  const { error } = await (client as AnyClient)
+    .from('client_rights_requests')
+    .select('id')
+    .limit(1)
+  return !error
+}

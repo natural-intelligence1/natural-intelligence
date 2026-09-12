@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   RIGHTS_REQUEST_TYPES, isRightsRequestType, isValidTransition,
-  isGlobalRestrictionRow, isProcessingBlocked,
+  isGlobalRestrictionRow, isProcessingBlocked, isRightsChannelAvailable,
 } from './requests'
 import { makeStubClient } from '../practitioners/__test-helpers__/stubQueryClient'
 import {
@@ -115,5 +115,22 @@ describe('consent purposes', () => {
   })
   it('AI consent text states the no-clinical-decision rule', () => {
     expect(CONSENT_TEXTS.ai_assisted_processing).toContain('makes no clinical decision')
+  })
+})
+
+describe('isRightsChannelAvailable — privacy-page degraded state (final review, item 4)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type LooseClient = any
+
+  it('false when the table is missing (pre-0051) — page must render the degraded state', async () => {
+    const { client } = makeStubClient([
+      { data: null, error: { code: '42P01', message: 'relation "client_rights_requests" does not exist' } },
+    ])
+    expect(await isRightsChannelAvailable(client as LooseClient)).toBe(false)
+  })
+
+  it('true when the table is queryable', async () => {
+    const { client } = makeStubClient([{ data: [], error: null }])
+    expect(await isRightsChannelAvailable(client as LooseClient)).toBe(true)
   })
 })

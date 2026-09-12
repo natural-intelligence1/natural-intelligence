@@ -46,6 +46,20 @@ export default async function ReviewPacksPage() {
     .limit(100)
   const cases = (caseRows ?? []) as CaseRow[]
 
+  // Final review, item 6: a pack can only be generated from a COMPLETED
+  // intake, so members without one are visibly labelled and their generate
+  // button disabled — admins cannot attempt impossible packs.
+  const memberIds = [...new Set(cases.map((c) => c.client_id))]
+  const completedIntakeMembers = new Set<string>()
+  if (memberIds.length > 0) {
+    const { data: intakeRows } = await adminClient
+      .from('intake_responses')
+      .select('member_id, is_complete')
+      .in('member_id', memberIds)
+      .eq('is_complete', true)
+    for (const r of intakeRows ?? []) completedIntakeMembers.add(r.member_id)
+  }
+
   // Loose client: table arrives with unapplied migration 0051, so it is not
   // in the generated types yet (repo pattern for pre-typegen tables).
   // eslint-disable-next-line
@@ -68,8 +82,10 @@ export default async function ReviewPacksPage() {
         De-identified practitioner review packs. Generation reads the identified
         intake once server-side, applies the default-deny de-identifier, and
         stores the pack with an internal audit record. Regeneration always
-        creates a new version. DRAFT — requires solicitor/clinician review
-        before real-client use.
+        creates a new version. Generation requires the member&apos;s active
+        consent for de-identified synopsis sharing and is refused when a
+        restriction or withdrawal is on file. DRAFT — requires
+        solicitor/clinician review before real-client use.
       </p>
 
       {packErr && (
@@ -86,6 +102,7 @@ export default async function ReviewPacksPage() {
         <div className="space-y-3">
           {cases.map((c) => {
             const pack = latestByCase.get(c.id)
+            const intakeComplete = completedIntakeMembers.has(c.client_id)
             return (
               <div key={c.id} className="flex items-center justify-between gap-4 px-4 py-3 rounded-lg bg-surface-raised border border-border-default">
                 <div className="min-w-0">
@@ -96,8 +113,19 @@ export default async function ReviewPacksPage() {
                       ? ` · latest pack ${pack.pseudonym} v${pack.pack_version} (${new Date(pack.generated_at).toLocaleDateString('en-GB')})`
                       : ' · no pack generated'}
                   </p>
+                  {!intakeComplete && (
+                    <p className="text-xs text-status-warningText mt-1">
+                      No completed intake — cannot generate.
+                    </p>
+                  )}
                 </div>
-                <GenerateForm caseId={c.id} hasPack={Boolean(pack)} />
+                {intakeComplete ? (
+                  <GenerateForm caseId={c.id} hasPack={Boolean(pack)} />
+                ) : (
+                  <span className="px-3 py-1.5 rounded-md text-xs font-semibold bg-surface-muted text-text-muted border border-border-default cursor-not-allowed select-none">
+                    Generate pack
+                  </span>
+                )}
               </div>
             )
           })}
