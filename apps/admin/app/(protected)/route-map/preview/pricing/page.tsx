@@ -91,6 +91,48 @@ function PricingHero() {
   )
 }
 
+// ─── 2b. Choose your path — restrained audience index, not a card grid ───────
+// One quiet list: each audience, one line, and where on the page they belong.
+function ChooseYourPath() {
+  const paths = [
+    {
+      who: 'Clients',
+      where: 'Everything below is for you — start free, and add practitioner care when you want it.',
+    },
+    {
+      who: 'Practitioners',
+      where: 'Join a practice built on human judgement. Applications are reviewed personally.',
+    },
+    {
+      who: 'Students & graduates',
+      where: 'Begin inside the community and the Library, and grow from there.',
+    },
+    {
+      who: 'Organisations',
+      where: 'A 12-month practitioner-led programme, by proposal — see For organisations below.',
+    },
+  ]
+  return (
+    <section className="max-w-2xl mx-auto px-6 pb-20 md:pb-24">
+      <p className="font-mono text-[11px] font-medium tracking-[0.16em] uppercase text-center mb-8" style={{ color: C.goldInk }}>
+        Choose your path
+      </p>
+      <div style={{ borderTop: `1px solid ${C.border}` }}>
+        {paths.map((p) => (
+          <div
+            key={p.who}
+            className="grid grid-cols-1 sm:grid-cols-12 gap-1 sm:gap-6 py-5"
+            style={{ borderBottom: `1px solid ${C.border}` }}
+          >
+            <p className="sm:col-span-4 text-[15px] font-medium" style={{ color: C.pine }}>{p.who}</p>
+            <p className="sm:col-span-8 text-[14px] font-light leading-[1.7]" style={{ color: C.text2 }}>{p.where}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 // ─── Tier data — one section per story line ───────────────────────────────────
 interface Tier {
   story: string
@@ -116,8 +158,8 @@ const TIERS: Tier[] = [
   {
     story: 'Track your health',
     name: 'Your Health, Tracked',
-    price: '£ — per month',
-    priceNote: 'Price to be set',
+    price: 'Price to be set',
+    priceNote: 'Introductory offer to be confirmed',
     line: 'Your own patterns, quietly organised. These tools show — they do not diagnose.',
     features: ['Lab report organiser and trends', 'Daily habit and protocol tracking', 'Check-ins and personal goals', 'Symptom pattern explorer'],
     cta: 'Track your health',
@@ -125,8 +167,8 @@ const TIERS: Tier[] = [
   {
     story: 'Bring in a practitioner',
     name: 'NI Care',
-    price: '£ —',
-    priceNote: 'Price to be set',
+    price: 'Price to be set',
+    priceNote: 'Introductory offer to be confirmed',
     line: 'One care journey, led by a qualified practitioner from the first conversation. Begin with intake, consultation and your personal plan. Continue with follow-ups, labs and plan updates for as long as it serves you. Everything in Tracked is included.',
     features: [],
     stages: [
@@ -139,9 +181,8 @@ const TIERS: Tier[] = [
   {
     story: 'Coordinate the right people around you',
     name: 'Fully Supported',
-    price: '£ — per month',
-    priceNote: 'Price to be set',
-    line: 'Everything in NI Care, with our team coordinating the right people around you — personally, not by software.',
+    price: 'By proposal',
+    line: 'Everything in NI Care, with a named person from our team arranging the wider support around you.',
     features: ['A named coordination contact', 'Multi-practitioner coordination', 'Care planning between reviews'],
     cta: 'Enquire',
   },
@@ -320,16 +361,28 @@ const FAQS: { q: string; a: string }[] = [
     a: 'No. The self-serve tools organise your own information and show patterns over time. They do not diagnose, treat or make any clinical judgement — that is always the work of a qualified human practitioner.',
   },
   {
-    q: 'How am I matched with a practitioner?',
-    a: 'You are not matched by software. Our team routes your request to a practitioner personally — coordination is human at every step.',
+    q: 'How is a practitioner chosen?',
+    a: 'By people, not software. When you begin NI Care, the NI team looks at what you need and introduces you to a suitable practitioner personally. If it is not the right fit, tell us — we will arrange another introduction.',
   },
   {
     q: 'What exactly am I paying for?',
-    a: 'A qualified practitioner’s time and judgement: the consultation you book, the plan they write, and — where you continue — their attention over time.',
+    a: 'A qualified practitioner’s time and judgement: the consultation you book, the plan they write for you, and — where you continue — their attention over time.',
+  },
+  {
+    q: 'Who owns my data?',
+    a: 'You do. Your record is yours to see, correct, export or ask us to delete. We hold it securely on your behalf and share nothing with a practitioner without your consent.',
+  },
+  {
+    q: 'What happens when an introductory offer ends?',
+    a: 'Nothing you have not agreed to. Any introductory offer states its end date and what follows in plain terms when you join, and we tell you before anything changes. There are no quiet increases.',
   },
   {
     q: 'Can I stay on the free tier forever?',
     a: 'Yes. The Library, the community and free workshops are not a trial — they are a permanent part of what Natural Intelligence is.',
+  },
+  {
+    q: 'How does subsidised access work?',
+    a: 'A limited number of subsidised places exist on the practitioner-led tiers, assessed on eligibility rather than first come, first served. Tell us your situation and someone from the team will reply personally.',
   },
   {
     q: 'Does Natural Intelligence replace my GP?',
@@ -358,8 +411,9 @@ function PricingFAQ() {
 // ─── FounderDecisionNotes (admin-facing, would not ship publicly) ─────────────
 function FounderDecisionNotes() {
   const notes = [
-    'Prices remain unset on every paid tier ("£ —"). The retired 19/49/69/119 figures are not used and must not return. Founder to set launch prices.',
-    'Editorial redesign (this revision): the four-line story is now the page structure — each line opens its tier section. Path cards and the desktop comparison table are gone; comparison is a set of quiet per-tier accordions on all screen sizes.',
+    'Prices remain unset on every paid tier — shown as "Price to be set" / "Introductory offer to be confirmed" / "By proposal" (no "£ —" placeholders). The retired 19/49/69/119 figures are not used and must not return. Founder to set launch prices.',
+    'Amendment pass applied: a restrained "Choose your path" list (Clients / Practitioners / Students & graduates / Organisations) sits after the hero — a hairline list, not a card grid — and the FAQ is expanded to eight questions including data ownership, introductory-offer ending, subsidised access and how a practitioner is chosen (no "matched with" phrasing anywhere).',
+    'The four-line story remains the page structure — each line opens its tier section. Comparison stays as quiet per-tier accordions on all screen sizes.',
     'First Care and Ongoing Support remain collapsed into one NI Care tier — one journey, Begin/Continue. NI Care is the only tier set on a card; everything else sits directly on the cream ground.',
     'Corporate is the specified 12-month organisational programme (monthly practitioner-led workshop, participant resource, staff sheet, family resource, practical challenge; care homes, schools, workplaces; "Request a proposal"). Enquiry-led, by proposal only.',
     'Subsidised access is a quiet support note, not a sales card, and uses eligibility-based wording with no donation/charitable-structure language, per the open legal question.',
@@ -397,6 +451,7 @@ export default async function PricingPreviewPage() {
     <div className="min-h-screen" style={{ background: C.cream, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <PreviewBanner />
       <PricingHero />
+      <ChooseYourPath />
 
       {/* The story, section by section */}
       <div className="pb-6">
