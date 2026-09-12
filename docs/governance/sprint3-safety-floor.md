@@ -132,6 +132,21 @@ The following order is mandatory. No step may be skipped or reordered.
   `data_processing` cannot be withdrawn via the RPC: they go through the
   rights-request channel, where a `data_processing` withdrawal is enforced
   as a GLOBAL processing restriction.
+- **LRP — Lead Responsible Practitioner (PA condition, manual loop).**
+  Every practitioner-led case has exactly ONE active LRP at any time. A
+  Category 3 (unregistered) practitioner cannot be sole LRP at launch.
+  There is no practitioner category 4 and no "student" practitioner class —
+  students and graduates are a community pathway, not a care-delivery role.
+  Schema enforcement of the LRP model is NOT yet built: until it is, the
+  manual operating loop must record the LRP explicitly in writing for every
+  case, from case one, and any LRP change must be recorded the same way.
+- **Future product control (PA condition, recorded for the roadmap).** The
+  CQC/change-control boundary currently exists in governance text, not as a
+  hard product control. Before any new modality, profession or care
+  activity can be enabled, a profession/modality ACTIVATION GATE must be
+  built into the product (a controlled allow-list, default-deny, with
+  governance + solicitor review recorded per activation). Until that gate
+  exists, no new modality or care activity may be switched on.
 - **CQC (approved position).** NI does not carry any regulated activity in
   its current operating model. NI is presently designed to operate outside
   CQC registration. CQC is a change-control boundary only: future
