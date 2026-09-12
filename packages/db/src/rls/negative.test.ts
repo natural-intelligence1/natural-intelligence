@@ -237,3 +237,82 @@ describe.skipIf(!HAVE_DB)('negative RLS — agreement acceptance is RPC-only', (
     expect(error).not.toBeNull()
   })
 })
+
+// ─── client_cases exposure closed (final review, item 3) ─────────────────────
+// SELF-SKIP until migration 0052 is applied (probe: practitioner_case_index
+// view exists). Once applied, proves: practitioners cannot SELECT client_cases
+// directly at all; the index view exposes no client_id/primary_concern; and
+// cancelled work grants nothing through the view.
+describe.skipIf(!HAVE_DB)('negative RLS — client_cases closed to practitioners (0052)', () => {
+  let admin: ReturnType<typeof mkAdmin>
+  let member: Awaited<ReturnType<typeof createTestUser>>
+  let pract: Awaited<ReturnType<typeof createTestUser>>
+  let caseId: string | null = null
+  let workId: string | null = null
+  let viewExists = false
+
+  beforeAll(async () => {
+    admin = mkAdmin()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const probe = await (admin as any).from('practitioner_case_index').select('id').limit(1)
+    viewExists = !probe.error
+    if (!viewExists) return
+    member = await createTestUser(admin, 's3-cc-member')
+    pract  = await createTestUser(admin, 's3-cc-pract')
+    await admin.from('practitioners').insert({
+      id: pract.id, display_name: `Test ${pract.email}`, status: 'active',
+    } as never)
+    const { data: c } = await admin.from('client_cases')
+      .insert({ client_id: member.id, status: 'active', primary_concern: 'synthetic concern text' } as never)
+      .select('id').single()
+    caseId = (c as { id: string } | null)?.id ?? null
+    if (!caseId) return
+    const { data: w } = await admin.from('case_practitioner_work')
+      .insert({ case_id: caseId, practitioner_id: pract.id, work_type: 'case_review', status: 'assigned', assignment_source: 'admin' } as never)
+      .select('id').single()
+    workId = (w as { id: string } | null)?.id ?? null
+  })
+
+  afterAll(async () => {
+    if (!viewExists) return
+    if (workId) await admin.from('case_practitioner_work').delete().eq('id', workId)
+    if (caseId) await admin.from('client_cases').delete().eq('id', caseId)
+    if (pract)  { await admin.from('practitioners').delete().eq('id', pract.id); await deleteTestUser(admin, pract.id) }
+    if (member) await deleteTestUser(admin, member.id)
+  })
+
+  it('a practitioner with ACTIVE work still cannot SELECT client_cases directly', async (ctx) => {
+    if (!viewExists || !caseId) return ctx.skip()
+    const p = await signInAs(pract)
+    const { data } = await p.from('client_cases').select('id, primary_concern').eq('id', caseId)
+    expect(data ?? []).toHaveLength(0)
+  })
+
+  it('the case index view serves operational fields for active work', async (ctx) => {
+    if (!viewExists || !caseId) return ctx.skip()
+    const p = await signInAs(pract)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (p as any).from('practitioner_case_index').select('id, status').eq('id', caseId)
+    expect((data ?? []).length).toBe(1)
+  })
+
+  it('the view refuses client_id and primary_concern (columns absent)', async (ctx) => {
+    if (!viewExists || !caseId) return ctx.skip()
+    const p = await signInAs(pract)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: e1 } = await (p as any).from('practitioner_case_index').select('client_id').eq('id', caseId)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: e2 } = await (p as any).from('practitioner_case_index').select('primary_concern').eq('id', caseId)
+    expect(e1).not.toBeNull()
+    expect(e2).not.toBeNull()
+  })
+
+  it('CANCELLED work grants nothing through the view', async (ctx) => {
+    if (!viewExists || !caseId || !workId) return ctx.skip()
+    await admin.from('case_practitioner_work').update({ status: 'cancelled' } as never).eq('id', workId)
+    const p = await signInAs(pract)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (p as any).from('practitioner_case_index').select('id').eq('id', caseId)
+    expect(data ?? []).toHaveLength(0)
+  })
+})

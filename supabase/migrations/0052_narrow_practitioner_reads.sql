@@ -21,38 +21,69 @@ DROP POLICY IF EXISTS practitioners_read_assigned_client ON public.biomarker_res
 DROP POLICY IF EXISTS practitioners_read_assigned_client ON public.biomarker_trajectory;
 DROP POLICY IF EXISTS practitioners_read_assigned_client ON public.lab_reports;
 
--- ── 0046 audit finding (second review, item 7) ────────────────────────────────
+-- ── 0046 audit finding (second review, item 7; HARDENED overnight) ──────────
 -- `case_practitioner_select` (F1, captured in 0046) grants a practitioner with
--- ANY work history on a case — including cancelled and declined work — SELECT
--- over client_cases rows, which carry client_id (identity linkage) and
--- primary_concern (user-entered free-text HEALTH context). Two problems, two
--- treatments:
---   a) status: cancelled/declined work must grant nothing → recreated below
---      with a status filter. 'completed' is retained deliberately: the care
---      inbox's Completed Recently / clinical-continuity sections need the
---      case row, and the row's non-concern fields (status, dates, complexity)
---      are operational, not clinical.
---   b) primary_concern free text: RLS cannot mask a column. The practitioner
---      workspace repoint (the other half of this coupled workstream) must stop
---      selecting primary_concern from client_cases — the de-identified review
---      pack carries the concern instead. Until the repoint lands, this
---      migration must not be applied (same coupling rule as above).
+-- ANY work history on a case SELECT over client_cases rows, which carry
+-- client_id (identity linkage) and primary_concern (user-entered free-text
+-- HEALTH context). RLS cannot mask a column, so a status-filtered recreation
+-- of the policy would STILL let practitioners select primary_concern and
+-- client_id directly. Resolution (final review, item 3): practitioners get NO
+-- SELECT policy on client_cases at all. Operational case data flows through
+-- the column-scoped `practitioner_case_index` view below; clinical content
+-- flows exclusively through practitioner_review_packs; identity flows through
+-- practitioner_client_identity (F2) only where the identified mode still
+-- lawfully operates (and that mode is retired by the pack rollout this
+-- migration is coupled to).
 
 DROP POLICY IF EXISTS case_practitioner_select ON public.client_cases;
-CREATE POLICY case_practitioner_select
-  ON public.client_cases FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1
-      FROM public.case_practitioner_work cpw
-      WHERE cpw.case_id         = client_cases.id
-        AND cpw.practitioner_id = auth.uid()
-        AND cpw.status IN ('assigned', 'in_review', 'escalated', 'completed')
-    )
+-- Deliberately NOT recreated. Member-own and admin/service-role access to
+-- client_cases is defined elsewhere and untouched by this migration.
+
+-- ── practitioner_case_index — column-scoped operational view ─────────────────
+-- Exposes ONLY non-health operational fields, and ONLY for cases where the
+-- caller holds a work item in an operationally relevant status. No client_id,
+-- no primary_concern. The view runs with owner rights (bypassing client_cases
+-- RLS), so the WHERE clause IS the access rule — treat any edit to it as a
+-- security change. security_barrier prevents predicate pushdown leaks.
+CREATE OR REPLACE VIEW public.practitioner_case_index
+  WITH (security_barrier = true) AS
+  SELECT
+    cc.id,
+    cc.status,
+    cc.case_complexity_score,
+    cc.escalation_required,
+    cc.created_at
+  FROM public.client_cases cc
+  WHERE EXISTS (
+    SELECT 1
+    FROM public.case_practitioner_work cpw
+    WHERE cpw.case_id         = cc.id
+      AND cpw.practitioner_id = auth.uid()
+      AND cpw.status IN ('assigned', 'in_review', 'escalated', 'completed')
   );
+
+REVOKE ALL    ON public.practitioner_case_index FROM anon;
+GRANT  SELECT ON public.practitioner_case_index TO authenticated;
+
+COMMENT ON VIEW public.practitioner_case_index IS
+  'Sprint 3: the ONLY practitioner-facing surface over client_cases. '
+  'Operational columns only — no client_id, no primary_concern. '
+  'Cancelled/declined work grants nothing.';
+
+-- ── Post-apply assertions (run manually after applying; both must hold) ──────
+-- 1. No practitioner-reachable SELECT policy remains on client_cases:
+--      SELECT polname FROM pg_policies
+--      WHERE schemaname='public' AND tablename='client_cases' AND cmd='SELECT';
+--    → must list ONLY member-own / admin policies (nothing work-item-based).
+-- 2. The view exposes no restricted columns:
+--      SELECT column_name FROM information_schema.columns
+--      WHERE table_name='practitioner_case_index';
+--    → must NOT include client_id or primary_concern.
 
 -- NOTE for the same apply-window: the practitioner_client_personalisation view
 -- and any helper still selecting raw intake/biohub rows for practitioners
 -- (getIntakeSummary, getBioHubSignals) must be repointed at review packs first
--- — see the Sprint 3 PR "not completed" register.
+-- — see the Sprint 3 PR "not completed" register. The care inbox and reasoning
+-- pages read client_cases via joins/selects in identified mode: they degrade to
+-- the pack-mode surfaces when PRACTITIONER_REVIEW_PACKS_ENABLED is on, which is
+-- a precondition for applying this migration (governance sequencing B/C).
