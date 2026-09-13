@@ -126,7 +126,7 @@ describe.skipIf(!HAVE_DB)('negative RLS — review packs require an ACTIVE work 
     packId = p?.id ?? null
     // CANCELLED work item — must grant nothing
     const { data: w } = await admin.from('case_practitioner_work')
-      .insert({ case_id: caseId, practitioner_id: pract.id, work_type: 'case_review', status: 'cancelled', assignment_source: 'admin' } as never)
+      .insert({ case_id: caseId, practitioner_id: pract.id, work_type: 'case_review', status: 'cancelled', assignment_source: 'admin', assigned_by: pract.id } as never)
       .select('id').single()
     workId = (w as { id: string } | null)?.id ?? null
   })
@@ -309,7 +309,7 @@ describe.skipIf(!HAVE_DB)('negative RLS — client_cases closed to practitioners
     caseId = (c as { id: string } | null)?.id ?? null
     if (!caseId) return
     const { data: w } = await admin.from('case_practitioner_work')
-      .insert({ case_id: caseId, practitioner_id: pract.id, work_type: 'case_review', status: 'assigned', assignment_source: 'admin' } as never)
+      .insert({ case_id: caseId, practitioner_id: pract.id, work_type: 'case_review', status: 'assigned', assignment_source: 'admin', assigned_by: pract.id } as never)
       .select('id').single()
     workId = (w as { id: string } | null)?.id ?? null
   })
