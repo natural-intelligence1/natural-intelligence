@@ -621,3 +621,60 @@ export async function resetTestData(): Promise<{ deleted: Record<string, number>
     },
   }
 }
+
+// ─── Sprint 3: publish DRAFT practitioner agreements (controlled pathway) ─────
+// The care-app agreement gate CANNOT function until this has been run (and
+// migration 0051 applied) — this is the sanctioned alternative to ad hoc SQL.
+// Texts remain DRAFT until solicitor sign-off.
+//
+// Immutability rule (second review, item 3): agreement text is immutable per
+// version. If the constants' text differs from an already-published row of
+// the SAME version, this action REFUSES — bump AGREEMENT_VERSION in
+// packages/db/src/practitioners/agreements.ts instead; practitioners then
+// re-accept via the gate's version+hash check. Publishing demotes any other
+// current row first (the DB also enforces one current per category via a
+// partial unique index).
+export async function seedPractitionerAgreements(): Promise<{ published: number; version: string }> {
+  const { adminClient } = await requireAdmin()
+  const { AGREEMENT_TEXTS, AGREEMENT_VERSION, PRACTITIONER_CATEGORIES } =
+    await import('@natural-intelligence/db/practitioners')
+
+  // eslint-disable-next-line
+  const loose = adminClient as any
+  let published = 0
+  for (const category of PRACTITIONER_CATEGORIES) {
+    const { title, body } = AGREEMENT_TEXTS[category]
+    const { data: existing, error: readErr } = await loose
+      .from('practitioner_agreements')
+      .select('id, body, is_current')
+      .eq('category', category).eq('version', AGREEMENT_VERSION)
+      .maybeSingle()
+    if (readErr) throw new Error(`seedPractitionerAgreements(${category}) read failed: ${readErr.message}`)
+
+    if (existing && existing.body !== body) {
+      throw new Error(
+        `Agreement text for '${category}' differs from published version ${AGREEMENT_VERSION}. ` +
+        'Published text is immutable — bump AGREEMENT_VERSION and re-run.',
+      )
+    }
+
+    if (existing) {
+      if (!existing.is_current) {
+        await loose.from('practitioner_agreements')
+          .update({ is_current: false }).eq('category', category).eq('is_current', true)
+        const { error } = await loose.from('practitioner_agreements')
+          .update({ is_current: true }).eq('id', existing.id)
+        if (error) throw new Error(`seedPractitionerAgreements(${category}) promote failed: ${error.message}`)
+      }
+    } else {
+      await loose.from('practitioner_agreements')
+        .update({ is_current: false }).eq('category', category).eq('is_current', true)
+      const { error } = await loose.from('practitioner_agreements')
+        .insert({ category, version: AGREEMENT_VERSION, title, body, is_current: true })
+      if (error) throw new Error(`seedPractitionerAgreements(${category}) insert failed: ${error.message}`)
+    }
+    published++
+  }
+  revalidatePath('/dev/seed')
+  return { published, version: AGREEMENT_VERSION }
+}

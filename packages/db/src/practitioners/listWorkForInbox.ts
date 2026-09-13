@@ -11,6 +11,14 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types'
 import type { InboxWorkItem, InboxUrgency, WorkType, WorkStatus } from './types'
+import { isReviewPacksEnabled, PACK_MODE_ACTIVE_STATUSES } from './reviewPackAccess'
+import { makePseudonym } from './reviewPack'
+
+// Sprint 3 (final review, item 3): when PRACTITIONER_REVIEW_PACKS_ENABLED is
+// on, the inbox runs in DE-IDENTIFIED mode — no client_cases join (no
+// client_id, no primary_concern), no identity-view lookup. Display name is
+// the deterministic case pseudonym; operational case fields come from the
+// column-scoped practitioner_case_index view (0052) where available.
 
 // ─── Urgency computation ─────────────────────────────────────────────────────
 
@@ -101,12 +109,88 @@ function mapRow(row: RawRow, clientName: string): InboxWorkItem {
   }
 }
 
+// ─── Pack-mode (de-identified) inbox ─────────────────────────────────────────
+
+const PACK_WORK_SELECT =
+  'id, case_id, work_type, status, assigned_at, started_at, completed_at, due_at' as const
+
+type PackModeRow = Omit<RawRow, 'client_cases'>
+
+interface CaseIndexRow {
+  id: string
+  case_complexity_score: number | null
+  escalation_required: boolean | null
+}
+
+async function listWorkForInboxPackMode(
+  client:         ReturnType<typeof createClient<Database>>,
+  practitionerId: string,
+): Promise<InboxWorkItem[]> {
+  // Final hardening, item 3: pack mode lists ACTIVE work only. Completed work
+  // grants no further client-data access (no signed retention/continuity
+  // requirement yet), so there is no "Completed Recently" section here and no
+  // links to pages that would refuse access.
+  const { data: activeData, error: activeError } = await client
+    .from('case_practitioner_work')
+    .select(PACK_WORK_SELECT)
+    .eq('practitioner_id', practitionerId)
+    .in('status', [...PACK_MODE_ACTIVE_STATUSES])
+    .order('assigned_at', { ascending: false })
+  if (activeError) {
+    throw new Error(`listWorkForInbox (active, pack mode) failed [${activeError.code}]: ${activeError.message}`)
+  }
+
+  const rows = (activeData ?? []) as unknown as PackModeRow[]
+
+  // Operational case fields from the column-scoped view (0052). Pre-migration
+  // the view does not exist: tolerate the error and fall back to defaults —
+  // NEVER to a client_cases read.
+  const indexMap = new Map<string, CaseIndexRow>()
+  const caseIds = [...new Set(rows.map((r) => r.case_id))]
+  if (caseIds.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: indexRows, error: indexError } = await (client as any)
+      .from('practitioner_case_index')
+      .select('id, case_complexity_score, escalation_required')
+      .in('id', caseIds)
+    if (!indexError) {
+      for (const row of (indexRows ?? []) as CaseIndexRow[]) indexMap.set(row.id, row)
+    }
+  }
+
+  return rows.map((row) => {
+    const idx = indexMap.get(row.case_id)
+    const status = row.status as WorkStatus
+    return {
+      workItemId:          row.id,
+      caseId:              row.case_id,
+      workType:            row.work_type as WorkType,
+      status,
+      assignedAt:          row.assigned_at,
+      startedAt:           row.started_at,
+      completedAt:         row.completed_at,
+      dueAt:               row.due_at,
+      clientName:          makePseudonym(row.case_id),
+      primaryConcern:      null,
+      caseComplexityScore: idx?.case_complexity_score ?? 0,
+      escalationRequired:  idx?.escalation_required   ?? false,
+      urgency:             computeUrgency({ status, dueAt: row.due_at, assignedAt: row.assigned_at }),
+    }
+  })
+}
+
 // ─── Main function ────────────────────────────────────────────────────────────
 
 export async function listWorkForInbox(
   client:         ReturnType<typeof createClient<Database>>,
   practitionerId: string,
 ): Promise<InboxWorkItem[]> {
+  // Sprint 3: de-identified inbox when the review-pack mode is on. No
+  // client_cases join, no identity lookup, no fallback to the identified path.
+  if (isReviewPacksEnabled()) {
+    return listWorkForInboxPackMode(client, practitionerId)
+  }
+
   // Query 1 — active work items (assigned / in_review / escalated)
   const { data: activeData, error: activeError } = await client
     .from('case_practitioner_work')

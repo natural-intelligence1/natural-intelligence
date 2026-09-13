@@ -14,6 +14,8 @@ const navLinks = [
   { href: '/workshops',     label: copy.nav.workshops },
   { href: '/resources',     label: copy.nav.resources },
   { href: '/members',       label: copy.nav.members },
+  { href: '/requests',      label: copy.nav.requests },
+  { href: '/review-packs',  label: copy.nav.reviewPacks },
   { href: '/route-map',     label: copy.nav.routeMap },
 ]
 

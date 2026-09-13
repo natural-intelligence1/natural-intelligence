@@ -10,3 +10,7 @@ export * from './intake'
 
 // Clinical Reasoning Trace (Sprint 17)
 export * from './crt'
+
+// ── Sprint 3 safety floor ─────────────────────────────────────────────────────
+export * from './consent'
+export * from './rights'

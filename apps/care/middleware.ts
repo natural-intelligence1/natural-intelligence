@@ -7,6 +7,7 @@ const STATE_PAGES = new Set([
   '/care/pending-activation',
   '/care/suspended',
   '/care/access-revoked',
+  '/care/agreement',
 ])
 
 const STATUS_REDIRECT: Record<string, string> = {
@@ -56,6 +57,30 @@ export async function middleware(request: NextRequest) {
   if (!p) return go(request, '/care/unauthorised')
   if (p.status !== 'active')
     return go(request, STATUS_REDIRECT[p.status] ?? '/care/unauthorised')
+
+  // Sprint 3 — post-approval agreement gate (kill-switch, DEFAULT OFF).
+  // When PRACTITIONER_AGREEMENT_GATE === 'true', an active practitioner who
+  // has not accepted the current agreement version for their category is
+  // routed to /care/agreement before any case work. Off by default until
+  // migration 0051 is applied and the agreement texts pass solicitor review.
+  if (process.env.PRACTITIONER_AGREEMENT_GATE === 'true') {
+    // FAIL-CLOSED. Second-review model: one SECURITY DEFINER SQL function
+    // (0051) answers the whole gate question — it verifies the acceptance
+    // against the current agreement's id AND version AND a sha256 hash of its
+    // exact text, so a text or version change fails old acceptances closed.
+    // Missing category, missing published agreement, missing/stale acceptance,
+    // a missing function (pre-migration) or any error all route to
+    // /care/agreement.
+    let accepted = false
+    try {
+      // eslint-disable-next-line
+      const { data, error } = await (supabase as any).rpc('has_accepted_current_agreement')
+      accepted = !error && data === true
+    } catch {
+      accepted = false
+    }
+    if (!accepted) return go(request, '/care/agreement')
+  }
 
   return response
 }

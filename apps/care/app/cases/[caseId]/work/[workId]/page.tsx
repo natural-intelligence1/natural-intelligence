@@ -34,6 +34,9 @@ import {
   getCaseEvents,
   getBioHubSignals,
   getPriorReviews,
+  isReviewPacksEnabled,
+  getReviewPackForCase,
+  isPackModeAccessibleStatus,
 }                                     from '@natural-intelligence/db/practitioners'
 import { getPractitionerTrace }       from '@natural-intelligence/db/crt'
 import { getClientPersonalisation }   from '@natural-intelligence/db/personalisation'
@@ -46,6 +49,7 @@ import {
   PriorReviewsPanel,
   SectionNavRail,
   ActionPanel,
+  ReviewPackWorkView,
 }                                     from '@/components/workspace'
 
 export const dynamic = 'force-dynamic'
@@ -73,6 +77,28 @@ export default async function WorkspacePage({
   // Guard: only call startWorkItem if status is still 'assigned' (addendum S4).
   if (workItem.status === 'assigned') {
     startWorkItem(supabase, params.workId).catch(() => {})
+  }
+
+  // ── Sprint 3: de-identified review-pack mode ──────────────────────────────
+  // When PRACTITIONER_REVIEW_PACKS_ENABLED is on, the workspace reads ONLY the
+  // review pack (RLS-scoped to active work) and renders the pseudonymous view.
+  // A missing pack renders an explicit blocked state — there is NO fallback to
+  // the identified data path below.
+  if (isReviewPacksEnabled()) {
+    // Final hardening, item 3: pack-mode surfaces are reachable ONLY for
+    // active work (assigned / in_review / escalated). Completed work grants
+    // no further access (no signed retention/continuity requirement yet);
+    // cancelled and declined work 404 outright rather than relying on the
+    // pack query returning empty.
+    if (!isPackModeAccessibleStatus(workItem.status)) return notFound()
+    const pack = await getReviewPackForCase(supabase, params.caseId)
+    return (
+      <ReviewPackWorkView
+        pack={pack}
+        workItem={workItem}
+        workId={params.workId}
+      />
+    )
   }
 
   // ── 3. Load case for header + client metadata ─────────────────────────────

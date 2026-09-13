@@ -1,6 +1,6 @@
 'use server'
 
-import { createServerSupabaseClient } from '@natural-intelligence/db'
+import { createServerSupabaseClient, recordSignupConsents } from '@natural-intelligence/db'
 import { redirect } from 'next/navigation'
 
 export async function signupWithConsent(formData: FormData) {
@@ -31,22 +31,37 @@ export async function signupWithConsent(formData: FormData) {
   // Insert consent records if user was created
   if (data.user) {
     const now = new Date().toISOString()
-    await supabase.from('consent_records').insert([
-      {
+    // Sprint 3: signup consents are written VERSIONED (consent_version, exact
+    // consent_text shown, source 'signup_form', actor 'member'). Before
+    // migration 0051 the versioned columns do not exist, so recordSignupConsents
+    // falls back to the legacy row shape ONLY on a missing-column error.
+    //
+    // FAIL CLOSED on real errors (final hardening, item 5): if the consent
+    // evidence could not be written at all, the user is NOT sent to /welcome
+    // as if all were well — the failure is logged and they are asked to try
+    // again or contact NI. The account exists but holds no consent rows, so
+    // every consent-gated pathway stays fail-closed for it in the meantime.
+    const consentResult = await recordSignupConsents(supabase, data.user.id, email)
+    if (!consentResult.ok) {
+      console.error(JSON.stringify({
+        event: 'signup.consent_record_write_failed',
         profile_id: data.user.id,
-        email,
-        consent_type: 'platform_terms',
-        consented: true,
-        consented_at: now,
-      },
-      {
+        downgraded_attempt: consentResult.downgraded,
+        code: consentResult.error?.code,
+        message: consentResult.error?.message,
+      }))
+      redirect(`/auth/login?error=${encodeURIComponent(
+        'Your account was created, but we could not record your consent, so setup did not finish. '
+        + 'Please sign in to try again, or contact info@natural-intelligence.uk.',
+      )}`)
+    }
+    if (consentResult.downgraded) {
+      console.warn(JSON.stringify({
+        event: 'signup.consent_record_written_unversioned',
         profile_id: data.user.id,
-        email,
-        consent_type: 'data_processing',
-        consented: true,
-        consented_at: now,
-      },
-    ])
+        reason: 'pre-0051 schema — versioned consent columns not present',
+      }))
+    }
 
     // Fire-and-forget notify (best effort)
     try {

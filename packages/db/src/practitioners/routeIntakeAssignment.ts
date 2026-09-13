@@ -13,11 +13,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types'
 import { assignCaseForReview } from './assignCaseForReview'
+import { assertSynopsisSharingPermitted } from './reviewPackAccess'
 
 type AdminClient = SupabaseClient<Database>
 
 export type RouteIntakeAssignmentResult =
   | { status: 'disabled' }
+  | { status: 'blocked_by_consent'; reason: string }
   | { status: 'no_linked_practitioner' }
   | { status: 'assigned'; caseId: string; workId: string; alreadyAssigned: boolean }
 
@@ -32,6 +34,19 @@ export async function routeIntakeAssignment(
 ): Promise<RouteIntakeAssignmentResult> {
   // Kill-switch — default disabled. No work item is created unless explicitly on.
   if (!isIntakeAssignmentEnabled()) return { status: 'disabled' }
+
+  // Sprint 3 consent gate — FAIL CLOSED. Routing puts a case in front of a
+  // practitioner (a de-identified synopsis under the target model), so it
+  // requires an active deidentified_synopsis_sharing consent and no
+  // restriction/withdrawal on file, exactly like pack generation.
+  try {
+    await assertSynopsisSharingPermitted(admin, memberId)
+  } catch (err) {
+    return {
+      status: 'blocked_by_consent',
+      reason: err instanceof Error ? err.message : 'consent check failed',
+    }
+  }
 
   // Resolve the client's active practitioner (ended_at IS NULL).
   const { data: link, error } = await admin

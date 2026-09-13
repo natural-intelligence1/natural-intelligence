@@ -39,6 +39,11 @@ describe.skipIf(!HAVE_DB)('routeIntakeAssignment — kill-switch + routing (synt
   let linkId: string
   let caseId: string | undefined
   const origFlag = process.env[FLAG]
+  // Sprint 3: routing now fail-closes without deidentified_synopsis_sharing
+  // consent. hasActiveConsent reads withdrawn_at, which arrives with 0051 —
+  // so consent can only be VISIBLE post-migration. Pre-0051 the assigned-path
+  // tests self-skip and the blocked path is asserted instead.
+  let consentVisible = false
 
   beforeAll(async () => {
     admin          = mkAdmin()
@@ -50,6 +55,18 @@ describe.skipIf(!HAVE_DB)('routeIntakeAssignment — kill-switch + routing (synt
       clientId: linkedMember.id, practitionerId: practitioner.id,
       connectionType: 'assigned_by_admin', role: 'lead', controlLevel: 'keep', creationActor: 'admin',
     })
+    // Probe for the 0051 consent columns, then grant synopsis-sharing consent
+    // to both members so the pre-existing routing paths stay testable.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const probe = await (admin as any).from('consent_records').select('withdrawn_at').limit(1)
+    consentVisible = !probe.error
+    for (const m of [linkedMember, unlinkedMember]) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (admin as any).from('consent_records').insert({
+        profile_id: m.id, email: m.email, consent_type: 'deidentified_synopsis_sharing',
+        consented: true, consented_at: new Date().toISOString(),
+      })
+    }
   })
 
   afterAll(async () => {
@@ -60,6 +77,8 @@ describe.skipIf(!HAVE_DB)('routeIntakeAssignment — kill-switch + routing (synt
       await admin.from('case_practitioner_work').delete().in('case_id', ids)
       await admin.from('client_cases').delete().in('id', ids)
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from('consent_records').delete().in('profile_id', [linkedMember.id, unlinkedMember.id])
     await admin.from('client_practitioner_links').delete().eq('id', linkId)
     await admin.from('practitioners').delete().eq('id', practitioner.id)
     await deleteTestUser(admin, practitioner.id)
@@ -82,7 +101,16 @@ describe.skipIf(!HAVE_DB)('routeIntakeAssignment — kill-switch + routing (synt
     expect(await workCountFor(linkedMember.id)).toBe(0)
   })
 
-  it('flag "true" + active link → assigns and surfaces in the practitioner inbox', async () => {
+  it('flag "true" + consent NOT visible → blocked_by_consent, no work item (pre-0051 fail-closed)', async (ctx) => {
+    if (consentVisible) return ctx.skip() // post-migration: consent is granted and visible
+    setFlag('true')
+    const res = await routeIntakeAssignment(admin, linkedMember.id)
+    expect(res.status).toBe('blocked_by_consent')
+    expect(await workCountFor(linkedMember.id)).toBe(0)
+  })
+
+  it('flag "true" + active link + consent → assigns and surfaces in the practitioner inbox', async (ctx) => {
+    if (!consentVisible) return ctx.skip() // pre-0051: gate correctly blocks instead
     setFlag('true')
     const res = await routeIntakeAssignment(admin, linkedMember.id)
     expect(res.status).toBe('assigned')
@@ -92,7 +120,8 @@ describe.skipIf(!HAVE_DB)('routeIntakeAssignment — kill-switch + routing (synt
     expect(inbox.some((i) => i.caseId === caseId)).toBe(true)
   })
 
-  it('flag "true", repeated → idempotent (no duplicate work item)', async () => {
+  it('flag "true", repeated → idempotent (no duplicate work item)', async (ctx) => {
+    if (!consentVisible) return ctx.skip()
     setFlag('true')
     const res = await routeIntakeAssignment(admin, linkedMember.id)
     expect(res.status).toBe('assigned')
@@ -100,7 +129,8 @@ describe.skipIf(!HAVE_DB)('routeIntakeAssignment — kill-switch + routing (synt
     expect(await workCountFor(linkedMember.id)).toBe(1)
   })
 
-  it('flag "true" + no active link → skips (no work item)', async () => {
+  it('flag "true" + no active link → skips (no work item)', async (ctx) => {
+    if (!consentVisible) return ctx.skip() // pre-0051 the consent gate fires first
     setFlag('true')
     const res = await routeIntakeAssignment(admin, unlinkedMember.id)
     expect(res.status).toBe('no_linked_practitioner')
