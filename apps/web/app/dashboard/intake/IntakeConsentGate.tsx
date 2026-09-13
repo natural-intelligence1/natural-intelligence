@@ -6,10 +6,12 @@
 // DRAFT — requires solicitor/clinician review before real-client use.
 
 import { useState, useTransition } from 'react'
+// Subpath import: the db ROOT barrel re-exports server.ts (next/headers),
+// which a client component must never pull into its bundle.
 import {
   CONSENT_TEXTS, REQUIRED_INTAKE_CONSENTS, OPTIONAL_INTAKE_CONSENTS,
   type ConsentPurpose,
-} from '@natural-intelligence/db'
+} from '@natural-intelligence/db/consent'
 import { grantIntakeConsents } from './actions'
 
 const PURPOSE_LABELS: Record<string, string> = {
