@@ -35,7 +35,7 @@ export async function analyseSymptoms(
     .from('root_causes')
     .select('id')
 
-  if (!rootCauses || rootCauses.length === 0) throw new Error('No root causes found')
+  if (!rootCauses || rootCauses.length === 0) throw new Error('No symptom themes are available right now')
 
   // Fetch symptom_root_mappings for the submitted symptoms
   const symptomIds = symptoms.map((s) => s.symptom_id)
@@ -59,7 +59,7 @@ export async function analyseSymptoms(
     scores.set(m.root_cause_id, (scores.get(m.root_cause_id) ?? 0) + contribution)
   }
 
-  if (scores.size === 0) throw new Error('No root cause matches found for the selected symptoms')
+  if (scores.size === 0) throw new Error('We could not group the selected symptoms into themes — try selecting a few more')
 
   // Normalise to 0-1 confidence
   const maxScore = Math.max(...Array.from(scores.values()))

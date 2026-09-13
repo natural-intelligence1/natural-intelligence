@@ -2,143 +2,20 @@ import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 
-// ─── Zone config ─────────────────────────────────────────────────────────────
-const ZONE_CONFIG = [
-  { label: 'Depleted',    colour: '#DC2626', width: 12 }, // Zone 1
-  { label: 'Low',         colour: '#F97316', width: 14 }, // Zone 2
-  { label: 'Sub-optimal', colour: '#EAB308', width: 14 }, // Zone 3
-  { label: 'Optimal',     colour: '#4E7A5C', width: 20 }, // Zone 4 — NI sage
-  { label: 'Elevated',    colour: '#F97316', width: 14 }, // Zone 5
-  { label: 'Excess',      colour: '#DC2626', width: 12 }, // Zone 6
-] as const
+// ─── BioHub report page (updated legal clearance, 13 Sep 2026) ────────────────
+// Cleared scope: the user's numerical result; the LABORATORY'S OWN reference
+// interval exactly as supplied; the laboratory's own High/Low/Abnormal flag
+// where the report supplied one ("Laboratory flag: …"); and a SEPARATELY
+// LABELLED "NI Educational Comparison Range" with a neutral position
+// statement (Below / Within / Above) — shown ONLY when the range carries
+// identifiable source/methodology metadata (migration 0055 adds those
+// columns; until it is applied and ranges are curated with sources, every
+// marker shows the no-range-available line instead — default deny).
+// NOT rendered, ever: zones, red/amber/green risk colouring, "optimal/
+// deficient/abnormal" NI labels, diagnostic conclusions, or any treatment/
+// supplement/dosage suggestion. Lab clinical intervals and NI educational
+// ranges are never blurred together.
 
-// Remaining percentage is used as padding on each side; zones sum to 86%
-const ZONE_WIDTHS_PCT = ZONE_CONFIG.map((z) => z.width)
-
-// ─── ZoneBar component ────────────────────────────────────────────────────────
-function ZoneBar({ zone, value, unit }: { zone: number | null; value: number | null; unit: string | null }) {
-  // Compute dot position: centre of the corresponding zone segment
-  const PADDING_EACH = (100 - ZONE_WIDTHS_PCT.reduce((a, b) => a + b, 0)) / 2
-
-  let dotPct: number | null = null
-  if (zone !== null && zone >= 1 && zone <= 6) {
-    let left = PADDING_EACH
-    for (let i = 0; i < zone - 1; i++) left += ZONE_WIDTHS_PCT[i]
-    dotPct = left + ZONE_WIDTHS_PCT[zone - 1] / 2
-  }
-
-  return (
-    <div className="mt-3">
-      {/* Bar */}
-      <div className="relative h-2.5 rounded-full overflow-hidden flex"
-           style={{ background: '#E5E7EB' }}>
-        {/* Leading padding */}
-        <div style={{ width: `${PADDING_EACH}%` }} />
-        {ZONE_CONFIG.map((z, i) => (
-          <div
-            key={i}
-            style={{ width: `${z.width}%`, background: z.colour }}
-            className="h-full"
-          />
-        ))}
-        {/* Trailing padding */}
-        <div style={{ width: `${PADDING_EACH}%` }} />
-
-        {/* Marker dot */}
-        {dotPct !== null && (
-          <div
-            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white shadow"
-            style={{
-              left: `calc(${dotPct}% - 6px)`,
-              background: ZONE_CONFIG[(zone ?? 1) - 1].colour,
-            }}
-          />
-        )}
-      </div>
-
-      {/* Zone labels */}
-      <div className="flex justify-between mt-1 px-0" style={{ paddingLeft: `${PADDING_EACH}%`, paddingRight: `${PADDING_EACH}%` }}>
-        {ZONE_CONFIG.map((z, i) => (
-          <span
-            key={i}
-            className="text-2xs font-medium"
-            style={{
-              width: `${z.width}%`,
-              color: zone === i + 1 ? z.colour : '#9CA3AF',
-              textAlign: 'center',
-              display: 'inline-block',
-              fontSize: '9px',
-            }}
-          >
-            {z.label}
-          </span>
-        ))}
-      </div>
-
-      {/* Value + unit */}
-      {value !== null && (
-        <p className="text-xs text-text-muted mt-1">
-          Your value: <span className="font-semibold text-text-primary">{value} {unit ?? ''}</span>
-        </p>
-      )}
-    </div>
-  )
-}
-
-// ─── GP vs NI callout ─────────────────────────────────────────────────────────
-function GpNiCallout({
-  gpLow, gpHigh, gpInterpretation,
-  niLow, niHigh,
-  unit,
-}: {
-  gpLow: number | null; gpHigh: number | null; gpInterpretation: string | null
-  niLow: number | null; niHigh: number | null
-  unit: string | null
-}) {
-  const hasGp = gpLow !== null || gpHigh !== null || gpInterpretation !== null
-  const hasNi = niLow !== null || niHigh !== null
-
-  if (!hasGp && !hasNi) return null
-
-  return (
-    <div className="flex gap-2 mt-3 flex-wrap">
-      {hasGp && (
-        <div className="flex-1 min-w-[120px] rounded-lg border border-border-default bg-surface-muted px-3 py-2">
-          <p className="text-2xs font-semibold uppercase tracking-wider text-text-muted mb-0.5"
-             style={{ fontSize: '9px' }}>
-            GP / Conventional
-          </p>
-          <p className="text-xs text-text-secondary">
-            {gpLow !== null && gpHigh !== null
-              ? `${gpLow}–${gpHigh} ${unit ?? ''}`
-              : gpInterpretation ?? '—'}
-          </p>
-          {gpInterpretation && (
-            <p className="text-xs font-medium text-text-primary capitalize">{gpInterpretation}</p>
-          )}
-        </div>
-      )}
-      {hasNi && (
-        <div
-          className="flex-1 min-w-[120px] rounded-lg px-3 py-2 border"
-          style={{ borderColor: '#B8935A', background: 'rgba(184,147,90,0.06)' }}
-        >
-          <p
-            className="text-2xs font-semibold uppercase tracking-wider mb-0.5"
-            style={{ fontSize: '9px', color: '#B8935A' }}
-          >
-            NI Functional range
-          </p>
-          <p className="text-xs" style={{ color: '#B8935A' }}>
-            {niLow !== null && niHigh !== null ? `${niLow}–${niHigh} ${unit ?? ''}` : '—'}
-          </p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 export default async function BioHubReportPage({
   params,
 }: {
@@ -170,7 +47,7 @@ export default async function BioHubReportPage({
         <meta httpEquiv="refresh" content="5" />
         <div className="rounded-xl border border-border-default bg-surface-raised p-8 text-center">
           <div className="w-8 h-8 rounded-full border-2 border-text-brand border-t-transparent animate-spin mx-auto mb-4" />
-          <p className="text-sm font-semibold text-text-primary mb-1">Analysing your report</p>
+          <p className="text-sm font-semibold text-text-primary mb-1">Reading your report</p>
           <p className="text-sm text-text-muted">This usually takes 20–40 seconds. The page will refresh automatically.</p>
         </div>
       </div>
@@ -181,7 +58,7 @@ export default async function BioHubReportPage({
     return (
       <div className="max-w-3xl mx-auto">
         <div className="rounded-xl border border-red-200 bg-surface-raised p-8 text-center">
-          <p className="text-sm font-semibold text-red-600 mb-1">Analysis failed</p>
+          <p className="text-sm font-semibold text-red-600 mb-1">We could not read this report</p>
           {report.parse_error && (
             <p className="text-xs text-text-muted mb-4">{report.parse_error}</p>
           )}
@@ -196,20 +73,59 @@ export default async function BioHubReportPage({
     )
   }
 
-  // Fetch biomarker results
+  // Fetch biomarker results (only lab-extracted fields are displayed below)
   const { data: biomarkers } = await adminClient
     .from('biomarker_results')
     .select('*')
     .eq('report_id', id)
     .order('marker_name', { ascending: true })
 
+  // NI Educational Comparison Ranges — SOURCE-GATED. A range is displayable
+  // only when its functional_ranges row carries source/methodology metadata
+  // (0055 columns). Pre-0055 the select errors → the map stays empty → every
+  // marker shows the no-range-available line. Never a silent fallback to
+  // unsourced ranges.
+  interface EducationalRange {
+    marker_key: string
+    ni_range_low: number | null
+    ni_range_high: number | null
+    unit: string | null
+    source_label: string | null
+    source_reference: string | null
+    last_reviewed_at: string | null
+  }
+  const eduRanges = new Map<string, EducationalRange>()
+  const markerKeys = (biomarkers ?? []).map((b) => b.marker_key).filter((k): k is string => !!k)
+  if (markerKeys.length > 0) {
+    // eslint-disable-next-line
+    const { data: rangeRows, error: rangeErr } = await (adminClient as any)
+      .from('functional_ranges')
+      .select('marker_key, ni_range_low, ni_range_high, unit, source_label, source_reference, last_reviewed_at')
+      .in('marker_key', markerKeys)
+    if (!rangeErr) {
+      for (const r of (rangeRows ?? []) as EducationalRange[]) {
+        if (r.ni_range_low !== null && r.ni_range_high !== null && r.source_label) {
+          eduRanges.set(r.marker_key, r)
+        }
+      }
+    }
+  }
+
+  // Neutral position statement against the NI educational range — never a
+  // clinical label.
+  function eduPosition(value: number | null, r: EducationalRange): string | null {
+    if (value === null || r.ni_range_low === null || r.ni_range_high === null) return null
+    if (value < r.ni_range_low)  return 'Below NI Educational Comparison Range'
+    if (value > r.ni_range_high) return 'Above NI Educational Comparison Range'
+    return 'Within NI Educational Comparison Range'
+  }
+
   const reportDate = report.report_date
     ? new Date(report.report_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : new Date(report.created_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 
   const totalMarkers = biomarkers?.length ?? 0
-  const optimalCount = biomarkers?.filter((b) => b.functional_zone === 4).length ?? 0
-  const outOfRangeCount = biomarkers?.filter((b) => b.functional_zone !== null && b.functional_zone !== 4).length ?? 0
+  const withInterval = biomarkers?.filter((b) => b.gp_range_low !== null && b.gp_range_high !== null).length ?? 0
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -222,73 +138,86 @@ export default async function BioHubReportPage({
         </p>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      {/* Summary cards — counts only, no clinical assessment */}
+      <div className="grid grid-cols-2 gap-4 mb-8">
         <div className="rounded-xl border border-border-default bg-surface-raised p-4 text-center">
           <p className="text-2xl font-semibold text-text-primary">{totalMarkers}</p>
-          <p className="text-xs text-text-muted mt-0.5">Markers</p>
+          <p className="text-xs text-text-muted mt-0.5">Markers extracted</p>
         </div>
         <div className="rounded-xl border border-border-default bg-surface-raised p-4 text-center">
-          <p className="text-2xl font-semibold" style={{ color: '#4E7A5C' }}>{optimalCount}</p>
-          <p className="text-xs text-text-muted mt-0.5">Optimal</p>
-        </div>
-        <div className="rounded-xl border border-border-default bg-surface-raised p-4 text-center">
-          <p className="text-2xl font-semibold text-amber-500">{outOfRangeCount}</p>
-          <p className="text-xs text-text-muted mt-0.5">Review</p>
+          <p className="text-2xl font-semibold text-text-primary">{withInterval}</p>
+          <p className="text-xs text-text-muted mt-0.5">With a laboratory interval</p>
         </div>
       </div>
 
-      {/* Biomarker list */}
+      {/* Biomarker list — value, unit, and the laboratory's own interval/flag */}
       {(!biomarkers || biomarkers.length === 0) ? (
         <div className="rounded-xl border border-border-default bg-surface-raised p-8 text-center">
           <p className="text-sm text-text-muted">No biomarkers could be extracted from this report.</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {biomarkers.map((b) => (
-            <div key={b.id} className="rounded-xl border border-border-default bg-surface-raised p-5">
-              {/* Marker header */}
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <div>
-                  <p className="text-sm font-semibold text-text-primary">{b.marker_name}</p>
-                  {b.ni_interpretation && (
-                    <p className="text-xs text-text-secondary mt-0.5">{b.ni_interpretation}</p>
+        <div className="space-y-3">
+          {biomarkers.map((b) => {
+            const edu = b.marker_key ? eduRanges.get(b.marker_key) : undefined
+            const position = edu ? eduPosition(b.value, edu) : null
+            return (
+              <div key={b.id} className="rounded-xl border border-border-default bg-surface-raised p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-text-primary">{b.marker_name}</p>
+                    <p className="text-sm text-text-secondary mt-1">
+                      Your value:{' '}
+                      <span className="font-semibold text-text-primary">
+                        {b.value !== null ? `${b.value} ${b.unit ?? ''}` : b.raw_value ?? '—'}
+                      </span>
+                    </p>
+                    <p className="text-xs text-text-muted mt-1">
+                      {b.gp_range_low !== null && b.gp_range_high !== null
+                        ? `Laboratory reference interval: ${b.gp_range_low}–${b.gp_range_high} ${b.unit ?? ''}`
+                        : 'No laboratory interval found in this report'}
+                    </p>
+                  </div>
+                  {b.gp_interpretation && (
+                    <span className="inline-block px-2 py-0.5 rounded-md text-xs font-medium flex-shrink-0 bg-surface-muted text-text-secondary capitalize">
+                      Laboratory flag: {b.gp_interpretation}
+                    </span>
                   )}
                 </div>
-                {b.functional_zone !== null && (
-                  <span
-                    className="inline-block px-2 py-0.5 rounded-md text-xs font-medium flex-shrink-0"
-                    style={{
-                      background: `${ZONE_CONFIG[b.functional_zone - 1].colour}18`,
-                      color: ZONE_CONFIG[b.functional_zone - 1].colour,
-                    }}
-                  >
-                    Zone {b.functional_zone} · {ZONE_CONFIG[b.functional_zone - 1].label}
-                  </span>
+
+                {/* NI Educational Comparison Range — separate, source-gated */}
+                {edu ? (
+                  <div className="mt-3 rounded-lg border border-border-default bg-surface-muted px-3 py-2.5">
+                    <p className="text-xs font-medium text-text-secondary">
+                      NI Educational Comparison Range: {edu.ni_range_low}–{edu.ni_range_high} {edu.unit ?? b.unit ?? ''}
+                    </p>
+                    {position && (
+                      <p className="text-xs text-text-primary mt-1">Your result: {position}</p>
+                    )}
+                    <p className="text-2xs text-text-muted mt-1.5 leading-relaxed" style={{ fontSize: '11px' }}>
+                      Shown for educational comparison only. This is separate
+                      from the reference interval provided by your laboratory
+                      and is not a diagnostic or treatment threshold.
+                      {' '}Source: {edu.source_label}
+                      {edu.last_reviewed_at ? ` · reviewed ${new Date(edu.last_reviewed_at).toLocaleDateString('en-GB')}` : ''}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-text-muted mt-3">
+                    No NI educational comparison range is currently available for this marker.
+                  </p>
                 )}
               </div>
-
-              {/* 6-zone bar */}
-              <ZoneBar zone={b.functional_zone} value={b.value} unit={b.unit} />
-
-              {/* GP vs NI callout */}
-              <GpNiCallout
-                gpLow={b.gp_range_low}
-                gpHigh={b.gp_range_high}
-                gpInterpretation={b.gp_interpretation}
-                niLow={b.ni_range_low}
-                niHigh={b.ni_range_high}
-                unit={b.unit}
-              />
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
-      {/* NI disclaimer */}
-      <p className="text-xs text-text-muted mt-8 leading-relaxed text-center">
-        Functional ranges are for educational purposes only and do not constitute medical advice.
-        Always discuss results with your practitioner.
+      {/* Boundary copy */}
+      <p className="text-xs text-text-muted mt-8 leading-relaxed text-center max-w-xl mx-auto">
+        Values are shown with the reference intervals provided by the laboratory
+        where available. This does not diagnose, treat or replace clinical
+        interpretation — discuss your results with a qualified practitioner.
+        For urgent concerns, contact your GP, NHS 111 or emergency services.
       </p>
     </div>
   )

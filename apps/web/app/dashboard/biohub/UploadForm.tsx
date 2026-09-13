@@ -71,7 +71,7 @@ export default function UploadForm({ memberId }: { memberId: string }) {
         disabled={isPending || !fileName}
         className="w-full py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover disabled:opacity-40 disabled:cursor-not-allowed text-text-inverted text-sm font-medium transition-colors"
       >
-        {isPending ? 'Uploading…' : 'Upload & analyse'}
+        {isPending ? 'Uploading…' : 'Upload & organise'}
       </button>
     </form>
   )

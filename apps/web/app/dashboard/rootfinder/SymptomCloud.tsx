@@ -122,7 +122,7 @@ export function SymptomCloud({ symptoms }: { symptoms: Symptom[] }) {
                 : 'bg-surface-muted text-text-muted cursor-not-allowed'
             }`}
           >
-            {isPending ? 'Analysing…' : 'Find root cause'}
+            {isPending ? 'Organising…' : 'Group my symptoms'}
           </button>
         </div>
         {error && (
