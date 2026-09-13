@@ -28,10 +28,10 @@ export default async function BioHubPage() {
     <div className="max-w-3xl mx-auto">
       <div className="mb-8">
         <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">BioHub</p>
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Lab report organiser</h1>
+        <h1 className="text-2xl font-bold text-text-primary mb-1">Your lab report</h1>
         <p className="text-sm text-text-muted">
-          Upload a PDF lab report to see your markers organised clearly, shown
-          with the reference intervals provided by the laboratory where available.
+          Upload a lab report to organise and view your biomarkers, laboratory
+          reference ranges and optional NI educational comparison ranges.
         </p>
         <p className="text-xs text-text-muted mt-2">
           This does not diagnose, treat or replace clinical interpretation. For
