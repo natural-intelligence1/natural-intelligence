@@ -17,7 +17,7 @@ import { grantIntakeConsents } from './actions'
 const PURPOSE_LABELS: Record<string, string> = {
   record_holding:                'Holding your health record',
   ai_assisted_processing:        'AI-assisted organisation of your record',
-  deidentified_synopsis_sharing: 'Sharing a de-identified synopsis with a practitioner',
+  deidentified_synopsis_sharing: 'Sharing a pseudonymous synopsis with a practitioner',
   retention_beyond_episode:      'Keeping your record after your care episode',
   anonymised_research:           'Anonymised research use',
 }
@@ -70,20 +70,61 @@ export function IntakeConsentGate() {
     <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-semibold text-text-primary mb-2">Before you begin</h1>
       <p className="text-sm text-text-secondary mb-2 max-w-xl">
-        Your intake collects health information. Please read and choose each
-        consent below — nothing is saved until the required consents are in
-        place, and you can withdraw any consent later from Privacy &amp; consent.
+        Your intake collects health information. Natural Intelligence has two
+        pathways, and your choices below depend on which you use. Your health
+        intake will not be submitted until the required choices for your
+        selected NI service are complete. You can manage or withdraw your
+        optional choices at any time in{' '}
+        <a href="/dashboard/privacy" className="underline text-text-primary">Privacy &amp; Data Controls</a>.
       </p>
       <p className="text-xs text-text-muted mb-6">
         DRAFT — requires solicitor/clinician review before real-client use.
       </p>
 
-      <div className="space-y-3 mb-3">
+      {/* Pathway 1 — self-serve tools: explicit consent */}
+      <h2 className="text-sm font-semibold text-text-primary mb-1">
+        Self-serve tools — your explicit consent
+      </h2>
+      <p className="text-xs text-text-secondary mb-3 max-w-xl">
+        Using NI&apos;s self-serve tools relies on your explicit consent to
+        process the health information you choose to provide.
+      </p>
+      <div className="space-y-3 mb-6">
         {REQUIRED_INTAKE_CONSENTS.map((p) => <ConsentRow key={p} purpose={p} required />)}
       </div>
+
+      {/* Pathway 2 — practitioner-led care: necessary processing, not optional consent */}
+      <h2 className="text-sm font-semibold text-text-primary mb-1">
+        Practitioner-led care
+      </h2>
+      <p className="text-xs text-text-secondary mb-3 max-w-xl">
+        If you choose practitioner-led care, Natural Intelligence needs to
+        process and share relevant information with your practitioner so that
+        the service can be provided — that is part of providing the care you
+        have chosen, not a separate optional consent. If you only use the
+        self-serve tools, sharing with a practitioner stays your choice below.
+      </p>
       <div className="space-y-3 mb-6">
-        {OPTIONAL_INTAKE_CONSENTS.map((p) => <ConsentRow key={p} purpose={p} required={false} />)}
+        {OPTIONAL_INTAKE_CONSENTS.filter((p) => p === 'deidentified_synopsis_sharing')
+          .map((p) => <ConsentRow key={p} purpose={p} required={false} />)}
       </div>
+
+      {/* Other optional choices */}
+      <h2 className="text-sm font-semibold text-text-primary mb-1">
+        Other optional choices
+      </h2>
+      <div className="space-y-3 mb-4">
+        {OPTIONAL_INTAKE_CONSENTS.filter((p) => p !== 'deidentified_synopsis_sharing')
+          .map((p) => <ConsentRow key={p} purpose={p} required={false} />)}
+      </div>
+
+      <p className="text-xs text-text-muted mb-6 max-w-xl leading-relaxed">
+        Withdrawing a consent stops future processing that relies on that
+        consent. It does not automatically erase information Natural
+        Intelligence or a practitioner must retain for legal, professional,
+        complaints, insurance or claims purposes. You can view, export,
+        correct or delete eligible data in Privacy &amp; Data Controls.
+      </p>
 
       {error && (
         <div className="mb-4 rounded-lg border border-status-errorBorder bg-status-errorBg px-4 py-3 text-sm text-status-errorText">
@@ -101,7 +142,8 @@ export function IntakeConsentGate() {
       </button>
       {!allRequiredTicked && (
         <p className="text-xs text-text-muted mt-3">
-          The two required consents (*) must be granted before the intake can start.
+          The required choices (*) for your selected NI service must be
+          complete before the intake can start.
         </p>
       )}
     </div>

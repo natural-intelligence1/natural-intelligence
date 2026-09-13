@@ -29,8 +29,11 @@ export const OPTIONAL_INTAKE_CONSENTS: ConsentPurpose[] = [
   'anonymised_research',
 ]
 
-/** Version identifier stamped on every consent row written by this build. */
-export const CONSENT_TEXT_VERSION = 's3-draft-1'
+/** Version identifier stamped on every consent row written by this build.
+ *  s3-draft-2 — PA/legal Screen 1 amendments (pathway separation, withdrawal
+ *  scope, pseudonymous-not-anonymous, reasonably-identifiable research
+ *  wording, retention rule). */
+export const CONSENT_TEXT_VERSION = 's3-draft-2'
 
 const DRAFT_PREFIX =
   'DRAFT — requires solicitor/clinician review before real-client use. '
@@ -48,9 +51,13 @@ export const CONSENT_TEXTS: Record<ConsentPurpose, string> = {
     'supporting my care.',
   deidentified_synopsis_sharing:
     DRAFT_PREFIX +
-    'I consent to a de-identified (pseudonymous) synopsis of my health record ' +
-    'being shared with a reviewing practitioner. My name and direct identifiers ' +
-    'are not included; Natural Intelligence retains the link internally.',
+    'If I use only Natural Intelligence’s self-serve tools, sharing with a ' +
+    'practitioner is my choice, and I consent to it here. If I choose ' +
+    'practitioner-led care, Natural Intelligence needs to process and share ' +
+    'relevant information with my practitioner so that the service can be ' +
+    'provided. Any synopsis or review pack shared is pseudonymous — my name ' +
+    'and direct identifiers are not included — not anonymous; Natural ' +
+    'Intelligence retains the link internally.',
   ai_assisted_processing:
     DRAFT_PREFIX +
     'I consent to AI-assisted processing of my record to organise and summarise ' +
@@ -59,12 +66,18 @@ export const CONSENT_TEXTS: Record<ConsentPurpose, string> = {
   retention_beyond_episode:
     DRAFT_PREFIX +
     'I consent to my record being retained after my care episode ends, so that ' +
-    'my history is available if I return. I may withdraw this at any time.',
+    'my history is available if I return. Natural Intelligence may retain data ' +
+    'while my account or the service remains active where still necessary for ' +
+    'the stated purpose, subject to the retention schedule. I may withdraw ' +
+    'this consent at any time: withdrawal stops future processing that relies ' +
+    'on it, but does not automatically erase information Natural Intelligence ' +
+    'or a practitioner must retain for legal, professional, complaints, ' +
+    'insurance or claims purposes.',
   anonymised_research:
     DRAFT_PREFIX +
-    'I consent to fully anonymised information derived from my record being ' +
-    'used for research to improve natural-health care. Anonymised means I ' +
-    'cannot be identified from it.',
+    'I consent to anonymised information derived from my record being used ' +
+    'for research to improve natural-health care — anonymised so that I am ' +
+    'not reasonably identifiable from the research data.',
 }
 
 export function isConsentPurpose(v: string): v is ConsentPurpose {

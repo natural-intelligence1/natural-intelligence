@@ -109,7 +109,7 @@ describe('consent purposes', () => {
     expect([...REQUIRED_INTAKE_CONSENTS].sort()).toEqual(['ai_assisted_processing', 'record_holding'])
   })
   it('version stamp present and purpose guard works', () => {
-    expect(CONSENT_TEXT_VERSION).toBe('s3-draft-1')
+    expect(CONSENT_TEXT_VERSION).toBe('s3-draft-2')
     expect(isConsentPurpose('record_holding')).toBe(true)
     expect(isConsentPurpose('sell_my_data')).toBe(false)
   })

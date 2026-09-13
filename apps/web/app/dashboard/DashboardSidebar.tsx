@@ -22,7 +22,7 @@ const memberLinks: NavLink[] = [
   { label: 'DailyPath',    href: '/dashboard/dailypath'                  },
   { label: 'Trajectory',   href: '/dashboard/trajectory'                 },
   { label: 'LifeTracker',  href: '/dashboard/lifetracker'                },
-  { label: 'Privacy & consent', href: '/dashboard/privacy'               },
+  { label: 'Privacy & Data Controls', href: '/dashboard/privacy'               },
   { label: 'Intelligence', href: null,                     comingSoon: true },
   { label: 'Settings',     href: null,                     comingSoon: true },
 ]

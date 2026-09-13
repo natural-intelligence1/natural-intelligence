@@ -9,8 +9,8 @@ import { PrivacyRequestForm } from './PrivacyRequestForm'
 import { submitRightsRequest } from './actions'
 
 export const metadata: Metadata = {
-  title: 'Privacy & consent',
-  description: 'See your consents and make requests about your data.',
+  title: 'Privacy & Data Controls',
+  description: 'See what NI holds about you, manage your consents, and export, correct or delete your data.',
 }
 
 // Sprint 3 — member Privacy & Consent page. Closes the privacy-policy
@@ -20,12 +20,12 @@ export const metadata: Metadata = {
 // promised). Table availability degrades gracefully pre-migration.
 
 const REQUEST_LABELS: Record<RightsRequestType, string> = {
-  access:             'See a copy of my data',
-  correction:         'Correct something in my data',
-  export:             'Export my data',
-  erasure:            'Delete my data',
+  access:             'See a copy of what NI holds about me',
+  correction:         'Correct or update something in my data',
+  export:             'Download / export my data',
+  erasure:            'Delete my eligible data or my account',
   restriction:        'Restrict how my data is used',
-  consent_withdrawal: 'Withdraw a consent I gave',
+  consent_withdrawal: 'Manage or withdraw an optional consent',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -50,12 +50,30 @@ export default async function PrivacyPage() {
   return (
     <div className="py-10 px-4 sm:px-6 lg:px-8 max-w-3xl">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-text-primary mb-2">Privacy &amp; consent</h1>
-        <p className="text-sm text-text-secondary max-w-xl">
-          What you have consented to, and how to change it. Requests are handled
-          personally by the Natural Intelligence team — we will acknowledge your
-          request and keep you informed. We do not promise instant deletion:
-          some records must be retained where the law requires it.
+        <h1 className="text-2xl font-semibold text-text-primary mb-2">Privacy &amp; Data Controls</h1>
+        <p className="text-sm text-text-secondary max-w-xl mb-3">
+          From here you can see what Natural Intelligence holds about you,
+          download or export your data, correct or update it, delete eligible
+          self-serve data, request deletion of your account, and manage or
+          withdraw your optional consents. Requests are handled personally by
+          the Natural Intelligence team — we will acknowledge your request and
+          keep you informed.
+        </p>
+        <p className="text-xs text-text-muted max-w-xl mb-2">
+          Deletion: data you created through the self-serve tools can be
+          deleted. Some records must or may legitimately be retained under
+          legal or professional requirements — for example records Natural
+          Intelligence or a practitioner must keep for legal, professional,
+          complaints, insurance or claims purposes — so we do not promise that
+          everything will be deleted.
+        </p>
+        <p className="text-xs text-text-muted max-w-xl">
+          Withdrawal and retention: withdrawing a consent stops future
+          processing that relies on it; it does not automatically erase
+          information covered by those retention requirements. Natural
+          Intelligence may retain data while your account or a service remains
+          active where still necessary for the stated purpose, subject to the
+          retention schedule.
         </p>
       </div>
 
