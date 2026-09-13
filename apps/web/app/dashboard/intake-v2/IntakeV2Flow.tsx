@@ -252,7 +252,8 @@ export function IntakeV2Flow({ initialAnswers, submitted: initiallySubmitted }: 
   }, [sectionQuestions])
   const screenQuestions = screens[screenIndex] ?? []
 
-  const totalMinutes = sections.reduce((sum, entry) => sum + entry.estimateMinutes, 0)
+  const coreMinutes = sections.filter((entry) => !entry.optional).reduce((sum, entry) => sum + entry.estimateMinutes, 0)
+  const optionalMinutes = sections.filter((entry) => entry.optional).reduce((sum, entry) => sum + entry.estimateMinutes, 0)
   const answeredSections = sections.filter((entry) =>
     visibleQuestions(entry.id, answers).some((question) => answers[question.id] !== undefined && answers[question.id] !== '')).length
 
@@ -338,7 +339,9 @@ export function IntakeV2Flow({ initialAnswers, submitted: initiallySubmitted }: 
         <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">NI Pre-Consultation Health Intake</p>
         <h1 className="text-xl font-semibold text-text-primary">Your health story</h1>
         <p className="text-xs text-text-muted mt-1">
-          About {totalMinutes} minutes in total, honestly counted. Everything saves as you go — stop and come back whenever you like.
+          About {coreMinutes} minutes for the core questions, honestly counted
+          {optionalMinutes > 0 ? ` — plus around ${optionalMinutes} if you choose the optional chapters` : ''}.
+          Everything saves as you go — stop and come back whenever you like.
         </p>
       </div>
 
