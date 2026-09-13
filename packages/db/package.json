@@ -8,6 +8,7 @@
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
     "./consent": "./src/consent/index.ts",
+    "./intakeV2": "./src/intakeV2/index.ts",
     "./intake": "./src/intake/index.ts",
     "./practitioners": "./src/practitioners/index.ts",
     "./crt": "./src/crt/index.ts",
