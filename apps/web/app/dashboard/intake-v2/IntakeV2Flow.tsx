@@ -6,11 +6,22 @@
 // skip-and-return everywhere it is safe, and a calm read-back before
 // submission. The component renders and stores — it never interprets,
 // scores, ranks or concludes. All copy is original NI wording.
+//
+// Editing model (walkthrough bug-fix):
+//   • Every text control keeps an immediate LOCAL draft — typing is never
+//     re-routed through a save, and a stored value can never clobber
+//     in-progress typing (DraftText syncs down only while unfocused).
+//   • Saves are debounced in the background (createV2AutosaveQueue) and
+//     also flushed on every step change — navigation NEVER waits for the
+//     network, and a failed save is retried, never dropped.
+//   • Moving between steps scrolls to the top and focuses the new chapter
+//     heading (not an input — no surprise keyboard on mobile).
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import {
-  V2_SECTIONS, type V2Answers, type V2QuestionDef, type V2SectionDef,
-  visibleSections, visibleQuestions, missingRequired,
+  type V2Answers, type V2QuestionDef, type V2SectionDef,
+  visibleSections, visibleQuestions,
+  createV2AutosaveQueue, type V2SaveState,
 } from '@natural-intelligence/db/intakeV2'
 import { saveV2Screen, submitV2 } from './actions'
 
@@ -27,6 +38,38 @@ function Chip({ selected, onClick, children }: { selected: boolean; onClick: () 
       {children}
     </button>
   )
+}
+
+/** Text-entry control with an immediate local draft. The parent's value is
+ *  only synced down while the field is NOT focused, so autosave responses,
+ *  re-renders or late hydration can never overwrite in-progress typing or
+ *  move the cursor. Clearing to empty is a real value and persists. */
+function DraftText({ kind = 'text', className, value, onValue, placeholder }: {
+  kind?: 'text' | 'date' | 'number' | 'textarea'
+  className: string
+  value: string
+  onValue: (next: string) => void
+  placeholder?: string
+}) {
+  const [draft, setDraft] = useState(value)
+  const focusedRef = useRef(false)
+  useEffect(() => {
+    if (!focusedRef.current) setDraft(value)
+  }, [value])
+
+  const shared = {
+    className,
+    value: draft,
+    placeholder,
+    onFocus: () => { focusedRef.current = true },
+    onBlur: () => { focusedRef.current = false },
+    onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setDraft(event.target.value)
+      onValue(event.target.value)
+    },
+  }
+  if (kind === 'textarea') return <textarea {...shared} />
+  return <input {...shared} type={kind} />
 }
 
 /** Original, unbranded stool-form illustrations — plain shapes, no clinical
@@ -59,13 +102,13 @@ function QuestionControl({ question, value, onChange }: {
 
   switch (question.type) {
     case 'text':
-      return <input className={base} type="text" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} />
+      return <DraftText className={base} value={(value as string) ?? ''} onValue={onChange} />
     case 'date':
-      return <input className={`${base} max-w-xs`} type="date" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} />
+      return <DraftText kind="date" className={`${base} max-w-xs`} value={(value as string) ?? ''} onValue={onChange} />
     case 'number':
-      return <input className={`${base} max-w-xs`} type="number" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} />
+      return <DraftText kind="number" className={`${base} max-w-xs`} value={(value as string) ?? ''} onValue={onChange} />
     case 'textarea':
-      return <textarea className={`${base} min-h-[110px]`} value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} />
+      return <DraftText kind="textarea" className={`${base} min-h-[110px]`} value={(value as string) ?? ''} onValue={onChange} />
     case 'yesno':
       return (
         <div className="flex gap-2">
@@ -132,7 +175,7 @@ function QuestionControl({ question, value, onChange }: {
                       ))}
                     </div>
                   ) : (
-                    <input className={base} type="text" value={item[field.key] ?? ''} onChange={(e) => update(index, field.key, e.target.value)} />
+                    <DraftText className={base} value={item[field.key] ?? ''} onValue={(next) => update(index, field.key, next)} />
                   )}
                 </div>
               ))}
@@ -161,9 +204,9 @@ function QuestionControl({ question, value, onChange }: {
           {items.map((item, index) => (
             <div key={index} className="rounded-xl border border-border-default bg-surface-raised p-4 grid grid-cols-1 sm:grid-cols-4 gap-2 items-start">
               {fields.map((field) => (
-                <input key={field.key} className={base} placeholder={field.label} type="text"
+                <DraftText key={field.key} className={base} placeholder={field.label}
                   value={item[field.key] ?? ''}
-                  onChange={(e) => onChange(items.map((entry, i) => (i === index ? { ...entry, [field.key]: e.target.value } : entry)))} />
+                  onValue={(next) => onChange(items.map((entry, i) => (i === index ? { ...entry, [field.key]: next } : entry)))} />
               ))}
               <button type="button" className="text-xs text-text-muted underline sm:col-span-4 text-left" onClick={() => onChange(items.filter((_, i) => i !== index))}>
                 Remove
@@ -189,9 +232,9 @@ function QuestionControl({ question, value, onChange }: {
           {items.map((item, index) => (
             <div key={index} className="rounded-xl border border-border-default bg-surface-raised p-4 grid grid-cols-1 sm:grid-cols-3 gap-2 items-start">
               {fields.map((field) => (
-                <input key={field.key} className={base} placeholder={field.label} type="text"
+                <DraftText key={field.key} className={base} placeholder={field.label}
                   value={item[field.key] ?? ''}
-                  onChange={(e) => onChange(items.map((entry, i) => (i === index ? { ...entry, [field.key]: e.target.value } : entry)))} />
+                  onValue={(next) => onChange(items.map((entry, i) => (i === index ? { ...entry, [field.key]: next } : entry)))} />
               ))}
               <button type="button" className="text-xs text-text-muted underline sm:col-span-3 text-left" onClick={() => onChange(items.filter((_, i) => i !== index))}>
                 Remove
@@ -238,7 +281,29 @@ export function IntakeV2Flow({ initialAnswers, submitted: initiallySubmitted }: 
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(initiallySubmitted)
   const [missing, setMissing] = useState<string[]>([])
+  const [saveState, setSaveState] = useState<V2SaveState>('idle')
   const [isPending, startTransition] = useTransition()
+
+  // Background autosave — debounced, ordered, retrying. Navigation never
+  // waits for it; nothing typed is ever dropped (see autosaveQueue tests).
+  const autosaveRef = useRef<ReturnType<typeof createV2AutosaveQueue> | null>(null)
+  if (autosaveRef.current === null) {
+    autosaveRef.current = createV2AutosaveQueue({
+      save: saveV2Screen,
+      onState: (state) => {
+        setSaveState(state)
+        if (state === 'error') {
+          setError('We could not save just now — your answers are still here and we will retry. Check your connection if this continues.')
+        } else if (state === 'saved') {
+          setError(null)
+        }
+      },
+    })
+  }
+  useEffect(() => {
+    const queue = autosaveRef.current
+    return () => { queue?.dispose() }
+  }, [])
 
   const sections = useMemo(() => visibleSections(answers), [answers])
   const section: V2SectionDef | undefined = sections[sectionIndex]
@@ -259,56 +324,66 @@ export function IntakeV2Flow({ initialAnswers, submitted: initiallySubmitted }: 
 
   function setAnswer(id: string, value: unknown) {
     setAnswers((current) => ({ ...current, [id]: value }))
+    autosaveRef.current?.queue(id, value)
   }
 
-  function persistScreen(then?: () => void) {
+  // ── Step navigation: instant, save in the background ────────────────────────
+
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const skipFirstStepEffect = useRef(true)
+  useEffect(() => {
+    if (skipFirstStepEffect.current) { skipFirstStepEffect.current = false; return }
+    // After the new step has rendered: land at the top and hand focus to the
+    // chapter heading (never an input — no surprise keyboard on mobile).
+    window.scrollTo({ top: 0 })
+    headingRef.current?.focus({ preventScroll: true })
+  }, [sectionIndex, screenIndex])
+
+  function goTo(nextSection: number, nextScreen: number) {
     setError(null)
-    const subset: Record<string, unknown> = {}
-    for (const question of screenQuestions) {
-      if (answers[question.id] !== undefined) subset[question.id] = answers[question.id]
-    }
+    setSectionIndex(nextSection)
+    setScreenIndex(nextScreen)
+    void autosaveRef.current?.flush()
+  }
+
+  function advance() {
+    if (screenIndex < screens.length - 1) goTo(sectionIndex, screenIndex + 1)
+    else if (sectionIndex < sections.length - 1) goTo(sectionIndex + 1, 0)
+    else void autosaveRef.current?.flush()
+  }
+
+  function goBack() {
+    if (screenIndex > 0) goTo(sectionIndex, screenIndex - 1)
+    else if (sectionIndex > 0) goTo(sectionIndex - 1, 0)
+  }
+
+  function jumpToSection(index: number) {
+    goTo(index, 0)
+  }
+
+  function submit() {
     startTransition(async () => {
       try {
-        if (Object.keys(subset).length > 0) await saveV2Screen(subset)
-        then?.()
+        // Submission is the one step that must wait: everything typed has to
+        // be in the database before the factual completeness check runs.
+        await autosaveRef.current?.flush()
+        if (autosaveRef.current?.hasPending()) {
+          setError('We could not save your latest answers — please try again before submitting.')
+          return
+        }
+        const result = await submitV2()
+        if (result.ok) { setSubmitted(true); window.scrollTo({ top: 0 }) }
+        else setMissing(result.missing)
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'We could not save just now — your answers are still here. Please try again.')
+        setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
       }
     })
   }
 
-  function advance() {
-    persistScreen(() => {
-      if (screenIndex < screens.length - 1) setScreenIndex(screenIndex + 1)
-      else if (sectionIndex < sections.length - 1) { setSectionIndex(sectionIndex + 1); setScreenIndex(0) }
-      window.scrollTo({ top: 0 })
-    })
-  }
-
-  function goBack() {
-    setError(null)
-    if (screenIndex > 0) setScreenIndex(screenIndex - 1)
-    else if (sectionIndex > 0) { setSectionIndex(sectionIndex - 1); setScreenIndex(0) }
-    window.scrollTo({ top: 0 })
-  }
-
-  function jumpToSection(index: number) {
-    persistScreen(() => { setSectionIndex(index); setScreenIndex(0); window.scrollTo({ top: 0 }) })
-  }
-
-  function submit() {
-    persistScreen(() => {
-      startTransition(async () => {
-        try {
-          const result = await submitV2()
-          if (result.ok) { setSubmitted(true); window.scrollTo({ top: 0 }) }
-          else setMissing(result.missing)
-        } catch (e) {
-          setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
-        }
-      })
-    })
-  }
+  const saveLabel = saveState === 'saving' ? 'Saving…'
+    : saveState === 'saved' ? 'Saved'
+    : saveState === 'error' ? 'Not saved yet — retrying'
+    : ''
 
   // ── Submitted state ─────────────────────────────────────────────────────────
   if (submitted) {
@@ -370,7 +445,10 @@ export function IntakeV2Flow({ initialAnswers, submitted: initiallySubmitted }: 
         {/* The current chapter */}
         <div className="flex-1 min-w-0">
           <section className="rounded-2xl border border-border-default bg-surface-raised p-6 sm:p-8">
-            <h2 className="text-lg font-semibold text-text-primary mb-1">{section.title}</h2>
+            <h2 ref={headingRef} tabIndex={-1}
+              className="text-lg font-semibold text-text-primary mb-1 focus:outline-none">
+              {section.title}
+            </h2>
             {section.intro && <p className="text-sm text-text-secondary mb-1">{section.intro}</p>}
             {screens.length > 1 && (
               <p className="text-[11px] text-text-muted mb-4">Part {screenIndex + 1} of {screens.length}</p>
@@ -458,15 +536,19 @@ export function IntakeV2Flow({ initialAnswers, submitted: initiallySubmitted }: 
                     Back
                   </button>
                 )}
-                <button type="button" onClick={advance} disabled={isPending}
-                  className="px-6 py-2.5 rounded-full bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors disabled:opacity-50">
-                  {isPending ? 'Saving…' : 'Save & continue'}
+                <button type="button" onClick={advance}
+                  className="px-6 py-2.5 rounded-full bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors">
+                  Save &amp; continue
                 </button>
-                <button type="button" onClick={advance} disabled={isPending}
+                <button type="button" onClick={advance}
                   className="text-xs text-text-muted underline">
                   Skip for now
                 </button>
+                <span aria-live="polite" className="ml-auto text-[11px] text-text-muted">{saveLabel}</span>
               </div>
+            )}
+            {isReview && saveLabel && (
+              <p aria-live="polite" className="mt-3 text-[11px] text-text-muted">{saveLabel}</p>
             )}
           </section>
 

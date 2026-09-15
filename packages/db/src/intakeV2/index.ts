@@ -13,6 +13,8 @@ export {
   getOrCreateV2Session, completeV2Session,
 } from './flow'
 export type { V2Answers } from './flow'
+export { createV2AutosaveQueue } from './autosaveQueue'
+export type { V2AutosaveQueue, V2SaveState } from './autosaveQueue'
 export {
   CALL_SHEET_TREES, callSheetTreesForAnswers,
 } from './callSheet'
