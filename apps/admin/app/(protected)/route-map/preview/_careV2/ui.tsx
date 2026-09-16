@@ -27,10 +27,10 @@ export function SyntheticBanner({ text }: { text: string }) {
 }
 
 const PROVENANCE_STYLE: Record<Provenance, { label: string; bg: string; fg: string; border: string; dashed?: boolean }> = {
-  client:    { label: 'Client-reported',       bg: '#EEF2EA', fg: '#5E6B3F', border: '#C9D2BE' },
-  verified:  { label: 'Practitioner-verified', bg: '#E9EFEA', fg: '#2E4636', border: '#B9CBBE' },
-  corrected: { label: 'Corrected',             bg: '#F5EDDA', fg: '#7D6128', border: '#B08A3E' },
-  missing:   { label: 'Missing',               bg: 'transparent', fg: '#5F6862', border: '#C9C2B2', dashed: true },
+  client_reported:       { label: 'Client-reported',       bg: '#EEF2EA', fg: '#5E6B3F', border: '#C9D2BE' },
+  practitioner_verified: { label: 'Practitioner-verified', bg: '#E9EFEA', fg: '#2E4636', border: '#B9CBBE' },
+  corrected:             { label: 'Corrected',             bg: '#F5EDDA', fg: '#7D6128', border: '#B08A3E' },
+  missing:               { label: 'Missing',               bg: 'transparent', fg: '#5F6862', border: '#C9C2B2', dashed: true },
 }
 
 /** Provenance chip — appears on every claim in the synopsis. */

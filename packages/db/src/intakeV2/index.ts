@@ -13,6 +13,20 @@ export {
   getOrCreateV2Session, completeV2Session,
 } from './flow'
 export type { V2Answers } from './flow'
+export {
+  V2_FIELD_REGISTRY, v2FieldById, v2IntakeWritableFields, v2ConfirmOnlyFields, v2FieldsForDomain,
+  V2_FAMILY_RELATIVES, V2_FAMILY_CATEGORIES, V2_SYSTEM_KEYS,
+} from './fieldRegistry'
+export type { V2FieldDef, V2FieldSource, V2FieldDomain, V2SynopsisSectionId } from './fieldRegistry'
+export {
+  V2_SYNOPSIS_SECTIONS, V2_INTAKE_SCREEN_SEQUENCE, v2FieldsForSynopsisSection,
+  deriveV2SafetyReviewItems, V2_SAFETY_BLOCK_TITLE, V2_SAFETY_BOUNDARY_TEXT, V2_SAFETY_EMPTY_STATE,
+} from './synopsisMapping'
+export type { V2SynopsisSectionDef, V2SafetyReviewItem } from './synopsisMapping'
+export { V2_PROVENANCE_STATES, clientReported, missingFact, verifyFact, correctFact } from './provenance'
+export type { V2Provenance, V2SourcedFact, V2Correction } from './provenance'
+export { buildCaseSnapshot } from './caseSnapshot'
+export type { V2AccountProfile, V2CareProfile, V2CaseSnapshot } from './caseSnapshot'
 export { createV2AutosaveQueue } from './autosaveQueue'
 export type { V2AutosaveQueue, V2SaveState } from './autosaveQueue'
 export {
