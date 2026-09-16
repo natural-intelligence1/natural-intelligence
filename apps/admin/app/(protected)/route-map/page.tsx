@@ -51,6 +51,21 @@ export default async function RouteMapPage() {
         </p>
       </div>
 
+      {/* Internal design previews — admin-only, noindex, synthetic data only.
+          Listed here so founder review does not depend on typing raw URLs. */}
+      <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
+        <h2 className="text-lg font-semibold text-text-primary mb-1">Design previews (internal)</h2>
+        <p className="text-xs text-text-muted mb-3 max-w-3xl">
+          Synthetic-data previews for founder review. Nothing here reads or writes live records;
+          all controls are inert. Available on deployments built from the preview branch.
+        </p>
+        <ul className="text-sm space-y-1.5">
+          <li><a className="text-text-brand underline" href="/route-map/preview/intake-v2">Intake V2 — client flow (mobile-first)</a></li>
+          <li><a className="text-text-brand underline" href="/route-map/preview/synopsis-v2">Practitioner Synopsis V2 (desktop)</a></li>
+          <li><a className="text-text-brand underline" href="/route-map/preview/pricing">Pricing page preview</a></li>
+        </ul>
+      </section>
+
       {!map ? (
         <div className="rounded-lg border border-status-errorBorder bg-status-errorBg px-4 py-3 text-sm text-status-errorText">
           ROLE-ROUTE-MAP.md could not be read in this deployment. The canonical
