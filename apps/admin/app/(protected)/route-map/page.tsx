@@ -56,8 +56,12 @@ export default async function RouteMapPage() {
       <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
         <h2 className="text-lg font-semibold text-text-primary mb-1">Design previews (internal)</h2>
         <p className="text-xs text-text-muted mb-3 max-w-3xl">
-          Synthetic-data previews for founder review. Nothing here reads or writes live records;
-          all controls are inert. Available on deployments built from the preview branch.
+          Internal admin previews — branch only. These pages are not on production until KR approves
+          merge/deploy; the production admin route-map remains{' '}
+          <code className="text-[11px] bg-surface-muted px-1 py-0.5 rounded">admin.natural-intelligence.uk/route-map</code>
+          {' '}(this page — there is no second route-map anywhere else). The previews are synthetic-data
+          only, every control is inert, nothing reads or writes live records, and they are not
+          live-data practitioner surfaces or public website pages.
         </p>
         <ul className="text-sm space-y-1.5">
           <li><a className="text-text-brand underline" href="/route-map/preview/intake-v2">Intake V2 — client flow (mobile-first)</a></li>

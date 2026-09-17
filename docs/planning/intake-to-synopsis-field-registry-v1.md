@@ -171,3 +171,32 @@ the synthetic fixture only (`apps/admin/.../preview/_careV2/fixtures.ts`).
   tasks (Sprint 3 model).
 - Body map, food-photo capture: earlier deferred items, unchanged.
 - 0052 remains locked; 0055 remains file-only.
+
+## 13. Sign-off record (17 Sep 2026 — display-only; statuses change only through governance)
+
+The same panel renders at the foot of both admin branch previews
+(`/route-map/preview/intake-v2`, `/route-map/preview/synopsis-v2`). No
+approval is collected through those pages; a status changes only when the
+named party records it. Nothing below implies an approval that has not
+been explicitly recorded.
+
+| Party | Current status | Required sign-off |
+|---|---|---|
+| A. KR / Founder / Product Owner | **Not yet approved** | Intake flow and UX; synopsis structure and density; safety block placement/tone; ask-once/profile-confirmation model; food diary vs good/average/difficult-day UX; timeline centrepiece |
+| B. Clinical Reviewer / Lead Practitioner Reviewer | **Not yet reviewed** | safety_capture trigger set; system symptom option sets; reproductive questions; family mental-health wording; missing-information prompts; practitioner call-sheet prompts; physical observation fields |
+| C. Solicitor / Legal-Governance Reviewer | **Not yet reviewed** | Sensitive-field wording; GP-contact permission wording; case_snapshot model; upload/storage/retention model; export wording; de-identification / practitioner display boundary; SaMD boundary wording |
+| D. Data Protection / Governance | **Not yet reviewed** | Data minimisation; frozen case_snapshot scope; profile vs case data split; withdrawal/restriction behaviour; retention handling; audit trail |
+| E. Technical / Code | **Built as synthetic branch preview only** | Evidence: branch `care-v2-preview-synthetic`; registry/mapping/preview commits with 55/55 intakeV2 tests, type-check/lint/build passing; controlled-language sweep clean (negations/attributed IDs only); no real or anonymised data; no assignment/0052/0055/pricing changes; no migrations; main and production untouched |
+
+Status scales — A: Not yet approved → Approved for visual direction →
+Approved for Code build → Approved for merge → Approved for live-data use.
+B: Not yet reviewed → Reviewed with changes → Clinically approved for
+synthetic preview → Clinically approved for live-data use. C: Not yet
+reviewed → Reviewed with changes → Approved for synthetic preview →
+Approved for live-data use. D: Not yet reviewed → Approved for internal
+synthetic preview → Approved for live-data processing.
+
+**F. Final release gate:** Not approved for live-data use until KR,
+clinical reviewer, solicitor/legal-governance reviewer and technical
+verifier have all signed off. Live-data wiring requires separate KR
+authorisation and the approved Sprint 3-compatible data-access model.

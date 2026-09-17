@@ -27,6 +27,7 @@ import {
   type FixtureMedication, type Sourced,
 } from '../_careV2/fixtures'
 import { C, display, body, SyntheticBanner, ProvenanceChip, Fact, Section, InertControl } from '../_careV2/ui'
+import { PreviewContextBanner, SignOffPanel } from '../_careV2/signoff'
 
 const case_ = FIXTURE_CASE
 const sectionTitle = (id: string) => V2_SYNOPSIS_SECTIONS.find((s) => s.id === id)?.title ?? id
@@ -66,6 +67,7 @@ export function SynopsisV2Preview() {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-10" style={{ background: C.cream, minHeight: '100vh' }}>
+      <PreviewContextBanner />
       <SyntheticBanner text={case_.banner} />
 
       <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
@@ -415,6 +417,8 @@ export function SynopsisV2Preview() {
           </div>
         </Section>
       )}
+
+      <SignOffPanel surface="Practitioner Synopsis V2 (synthetic preview)" />
 
       <p className="text-[11px] leading-relaxed mt-8 max-w-3xl" style={{ ...body, color: C.muted }}>
         This surface organises and displays what the client shared. It does not diagnose, does not infer causes,
