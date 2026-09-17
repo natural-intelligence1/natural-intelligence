@@ -68,16 +68,24 @@ const SIGN_OFF_PARTIES: SignOffParty[] = [
   {
     key: 'C',
     party: 'Solicitor / Legal-Governance Reviewer',
-    status: 'Not yet reviewed',
+    // Recorded ruling, relayed by KR 18 Sep 2026 (docs/governance/
+    // solicitor-rulings-2026-09.md): ARCHITECTURE APPROVED — GREEN.
+    // Approved: intake architecture, practitioner factual summary
+    // architecture, current SaMD/MHRA boundary, static safety model,
+    // practitioner-authored Analysis & Plan separation. NOT approved for
+    // live data: seven controls are required first, and the full wording
+    // review of the complete question set is still outstanding.
+    status: 'Architecture approved — GREEN (18 Sep 2026); wording review outstanding; live-data controls required',
     statusOptions: ['Not yet reviewed', 'Reviewed with changes', 'Approved for synthetic preview', 'Approved for live-data use'],
     items: [
-      'Sensitive-field wording',
-      'GP-contact permission wording',
-      'case_snapshot model',
-      'Upload/storage/retention model',
-      'Export wording',
-      'De-identification / practitioner display boundary',
-      'SaMD boundary wording',
+      'OUTSTANDING: full wording review of the complete question set',
+      'Before live data: field-purpose / lawful-basis / retention metadata',
+      'Before live data: not-continuously-monitored / emergency wording',
+      'Before live data: safeguarding SOP',
+      'Before live data: summary provenance/audit metadata',
+      'Before live data: student access/audit controls',
+      'Before live data: practitioner-only Analysis & Plan (data-layer enforcement)',
+      'Before live data: Legal/MHRA change-control gate',
     ],
   },
   {

@@ -184,7 +184,7 @@ been explicitly recorded.
 |---|---|---|
 | A. KR / Founder / Product Owner | **Not yet approved** | Intake flow and UX; synopsis structure and density; safety block placement/tone; ask-once/profile-confirmation model; food diary vs good/average/difficult-day UX; timeline centrepiece |
 | B. Clinical Reviewer / Lead Practitioner Reviewer | **Not yet reviewed** | safety_capture trigger set; system symptom option sets; reproductive questions; family mental-health wording; missing-information prompts; practitioner call-sheet prompts; physical observation fields |
-| C. Solicitor / Legal-Governance Reviewer | **Not yet reviewed** | Sensitive-field wording; GP-contact permission wording; case_snapshot model; upload/storage/retention model; export wording; de-identification / practitioner display boundary; SaMD boundary wording |
+| C. Solicitor / Legal-Governance Reviewer | **Architecture approved — GREEN (18 Sep 2026)**; full wording review of the complete question set OUTSTANDING; seven controls required before live-data activation (see §14) | Approved: intake architecture; practitioner factual summary architecture; current SaMD/MHRA boundary; static safety model; practitioner-authored Analysis & Plan separation. Still to review: complete question-set wording (sensitive fields, GP-contact permission, export wording) |
 | D. Data Protection / Governance | **Not yet reviewed** | Data minimisation; frozen case_snapshot scope; profile vs case data split; withdrawal/restriction behaviour; retention handling; audit trail |
 | E. Technical / Code | **Built as synthetic branch preview only** | Evidence: branch `care-v2-preview-synthetic`; registry/mapping/preview commits with 55/55 intakeV2 tests, type-check/lint/build passing; controlled-language sweep clean (negations/attributed IDs only); no real or anonymised data; no assignment/0052/0055/pricing changes; no migrations; main and production untouched |
 
@@ -200,3 +200,23 @@ synthetic preview → Approved for live-data processing.
 clinical reviewer, solicitor/legal-governance reviewer and technical
 verifier have all signed off. Live-data wiring requires separate KR
 authorisation and the approved Sprint 3-compatible data-access model.
+
+## 14. Solicitor ruling — architecture approved (18 Sep 2026)
+
+Recorded in `docs/governance/solicitor-rulings-2026-09.md`. Architecture
+(intake, factual synopsis, SaMD/MHRA boundary, static safety model,
+Analysis & Plan separation) is APPROVED — GREEN. **Seven controls are
+required before live-data activation** — each becomes a build/process item
+on the live-data gate, in addition to the Sprint 3 dependency in §10:
+
+1. Field-purpose / lawful-basis / retention metadata on the field registry
+   (extend `V2FieldDef` when the live-data task is authorised).
+2. "Not continuously monitored" / emergency wording on client surfaces.
+3. Safeguarding SOP (operational).
+4. Summary provenance/audit metadata.
+5. Student access/audit controls.
+6. Practitioner-only Analysis & Plan enforced at the data layer.
+7. Legal/MHRA change-control gate on changes to these surfaces.
+
+Outstanding: full wording review of the complete question set —
+architecture approval does not clear question copy for real-client use.

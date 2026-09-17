@@ -69,3 +69,39 @@ pricing-page claims · practitioner-facing functionality.
   intake completion — noted in the open-intake founder ruling.)
 - **BioHub functional-range display**: hidden from self-serve; any
   reinstatement (or practitioner-facing display) needs clearance.
+
+## Ruling: Intake V2 + Practitioner Synopsis V2 architecture (18 Sep 2026)
+
+**Status: ARCHITECTURE APPROVED — GREEN** (relayed by KR, 18 Sep 2026).
+
+Approved:
+- Intake architecture (ask-once profile/care-profile, intake_v2 factual
+  story, frozen case_snapshot model)
+- Practitioner factual summary architecture (Synopsis V2, provenance model)
+- Current SaMD/MHRA boundary (collect/organise/store/display/structure only)
+- Static safety model (clinician-owned safety_capture metadata; raw answers
+  surfaced for practitioner review; no assessment by NI)
+- Practitioner-authored Analysis & Plan separation (separate tab, empty by
+  default, never pre-filled)
+
+**Controls REQUIRED before live-data activation** (each is a build/process
+item on the live-data gate — none exists yet, none may be skipped):
+1. Field-purpose / lawful-basis / retention metadata on the field registry.
+2. "Not continuously monitored" / emergency wording on client-facing
+   surfaces (alongside the existing static 111/GP/999 text).
+3. Safeguarding SOP (operational, human-owned).
+4. Summary provenance/audit metadata (who saw/produced what, when).
+5. Student access/audit controls.
+6. Practitioner-only Analysis & Plan enforcement at the data layer (today
+   enforced in the registry/tests; live wiring needs DB-level enforcement).
+7. Legal/MHRA change-control gate on any change to these surfaces.
+
+**Outstanding:** full wording review of the complete question set (the
+standing DRAFT-text review). Architecture approval does NOT clear question
+copy for real-client use.
+
+This ruling sits on top of, and does not relax, the standing Sprint 3
+live-data dependency: consent enforcement, de-identification/review-pack
+boundary, client_cases access controls, clinician sign-off and KR
+authorisation are all still required before any real case is processed or
+rendered.
