@@ -184,7 +184,7 @@ been explicitly recorded.
 |---|---|---|
 | A. KR / Founder / Product Owner | **Not yet approved** | Intake flow and UX; synopsis structure and density; safety block placement/tone; ask-once/profile-confirmation model; food diary vs good/average/difficult-day UX; timeline centrepiece |
 | B. Clinical Reviewer / Lead Practitioner Reviewer | **Not yet reviewed** | safety_capture trigger set; system symptom option sets; reproductive questions; family mental-health wording; missing-information prompts; practitioner call-sheet prompts; physical observation fields |
-| C. Solicitor / Legal-Governance Reviewer | **Architecture approved — GREEN (18 Sep 2026)**; full wording review of the complete question set OUTSTANDING; seven controls required before live-data activation (see §14) | Approved: intake architecture; practitioner factual summary architecture; current SaMD/MHRA boundary; static safety model; practitioner-authored Analysis & Plan separation. Still to review: complete question-set wording (sensitive fields, GP-contact permission, export wording) |
+| C. Solicitor / Legal-Governance Reviewer | **LEGAL SECOND PASS — GREEN (18 Sep 2026)** · Architecture approved · Live-data activation NOT yet approved — EIGHT mandatory implementation controls required (see §14) · SEPARATE open item: full intake-question wording review outstanding | Approved: intake architecture; practitioner factual summary architecture; current SaMD/MHRA boundary; static safety model; practitioner-authored Analysis & Plan separation. Still to review (separate item, not a control): complete question-set wording (sensitive fields, GP-contact permission, export wording) |
 | D. Data Protection / Governance | **Not yet reviewed** | Data minimisation; frozen case_snapshot scope; profile vs case data split; withdrawal/restriction behaviour; retention handling; audit trail |
 | E. Technical / Code | **Built as synthetic branch preview only** | Evidence: branch `care-v2-preview-synthetic`; registry/mapping/preview commits with 55/55 intakeV2 tests, type-check/lint/build passing; controlled-language sweep clean (negations/attributed IDs only); no real or anonymised data; no assignment/0052/0055/pricing changes; no migrations; main and production untouched |
 
@@ -201,22 +201,38 @@ clinical reviewer, solicitor/legal-governance reviewer and technical
 verifier have all signed off. Live-data wiring requires separate KR
 authorisation and the approved Sprint 3-compatible data-access model.
 
-## 14. Solicitor ruling — architecture approved (18 Sep 2026)
+## 14. Solicitor ruling (18 Sep 2026) — LEGAL SECOND PASS — GREEN
 
-Recorded in `docs/governance/solicitor-rulings-2026-09.md`. Architecture
-(intake, factual synopsis, SaMD/MHRA boundary, static safety model,
-Analysis & Plan separation) is APPROVED — GREEN. **Seven controls are
-required before live-data activation** — each becomes a build/process item
-on the live-data gate, in addition to the Sprint 3 dependency in §10:
+Recorded in `docs/governance/solicitor-rulings-2026-09.md` (corrected
+record: EIGHT mandatory implementation controls, not seven — the first
+record had merged controls 1 and 5).
 
-1. Field-purpose / lawful-basis / retention metadata on the field registry
-   (extend `V2FieldDef` when the live-data task is authorised).
-2. "Not continuously monitored" / emergency wording on client surfaces.
-3. Safeguarding SOP (operational).
-4. Summary provenance/audit metadata.
-5. Student access/audit controls.
-6. Practitioner-only Analysis & Plan enforced at the data layer.
-7. Legal/MHRA change-control gate on changes to these surfaces.
+**Architecture approved.** **Live-data activation not yet approved.**
 
-Outstanding: full wording review of the complete question set —
-architecture approval does not clear question copy for real-client use.
+**The eight mandatory implementation controls before activation** — each
+its own gate item, never merged, on top of the Sprint 3 dependency in §10:
+
+1. Field-purpose / data-minimisation metadata.
+2. Clear "not continuously monitored / not for emergencies" wording.
+3. Safeguarding / escalation SOP for serious information actually seen by NI.
+4. Complete summary provenance / audit metadata.
+5. Retention / deletion rules in the field registry.
+6. Supervised/student access and audit controls.
+7. Practitioner-only Analysis & Plan / sign-off.
+8. Hard **LEGAL/MHRA REVIEW REQUIRED** change-control gate — its own
+   governance gate — before adding: confidence scores; NI-generated
+   severity/risk scores; diagnostic or dysfunction labels; disease
+   prediction; personalised red-flag triage; inferred causes/root causes;
+   treatment recommendations; supplement recommendations; dosage guidance;
+   ranked practitioner options; practitioner-facing clinical decision
+   support; automated Analysis & Plan content; automatic care-plan
+   generation; or claims that NI diagnoses, detects, predicts, treats,
+   manages or recommends.
+
+**Separate open legal-review item (NOT one of the eight controls):**
+Full intake-question wording review outstanding — architecture approval
+does not clear question copy for real-client use.
+
+Unchanged by this ruling: the Sprint 3 live-data dependency (§10),
+clinician sign-off, and KR final authorisation all remain required before
+any real case is processed or rendered.

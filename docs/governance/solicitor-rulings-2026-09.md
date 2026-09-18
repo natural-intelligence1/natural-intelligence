@@ -72,7 +72,10 @@ pricing-page claims · practitioner-facing functionality.
 
 ## Ruling: Intake V2 + Practitioner Synopsis V2 architecture (18 Sep 2026)
 
-**Status: ARCHITECTURE APPROVED — GREEN** (relayed by KR, 18 Sep 2026).
+**LEGAL SECOND PASS — GREEN.** **Architecture approved.**
+**Live-data activation not yet approved.** (Relayed by KR; corrected
+record 18 Sep 2026 — the ruling carries EIGHT mandatory implementation
+controls, not seven as first recorded.)
 
 Approved:
 - Intake architecture (ask-once profile/care-profile, intake_v2 factual
@@ -84,24 +87,33 @@ Approved:
 - Practitioner-authored Analysis & Plan separation (separate tab, empty by
   default, never pre-filled)
 
-**Controls REQUIRED before live-data activation** (each is a build/process
-item on the live-data gate — none exists yet, none may be skipped):
-1. Field-purpose / lawful-basis / retention metadata on the field registry.
-2. "Not continuously monitored" / emergency wording on client-facing
-   surfaces (alongside the existing static 111/GP/999 text).
-3. Safeguarding SOP (operational, human-owned).
-4. Summary provenance/audit metadata (who saw/produced what, when).
-5. Student access/audit controls.
-6. Practitioner-only Analysis & Plan enforcement at the data layer (today
-   enforced in the registry/tests; live wiring needs DB-level enforcement).
-7. Legal/MHRA change-control gate on any change to these surfaces.
+**EIGHT mandatory implementation controls before activation** (each its own
+gate item; none may be merged, skipped or traded off):
 
-**Outstanding:** full wording review of the complete question set (the
-standing DRAFT-text review). Architecture approval does NOT clear question
-copy for real-client use.
+1. Field-purpose / data-minimisation metadata.
+2. Clear "not continuously monitored / not for emergencies" wording.
+3. Safeguarding / escalation SOP for serious information actually seen by NI.
+4. Complete summary provenance / audit metadata.
+5. Retention / deletion rules in the field registry.
+6. Supervised/student access and audit controls.
+7. Practitioner-only Analysis & Plan / sign-off.
+8. Hard **LEGAL/MHRA REVIEW REQUIRED** change-control gate — its own
+   governance gate, never combined with another control — before adding:
+   confidence scores; NI-generated severity/risk scores; diagnostic or
+   dysfunction labels; disease prediction; personalised red-flag triage;
+   inferred causes/root causes; treatment recommendations; supplement
+   recommendations; dosage guidance; ranked practitioner options;
+   practitioner-facing clinical decision support; automated Analysis & Plan
+   content; automatic care-plan generation; or claims that NI diagnoses,
+   detects, predicts, treats, manages or recommends.
+
+**Separate open legal-review item (NOT one of the eight controls):**
+Full intake-question wording review outstanding — the exact wording of the
+complete (~384-field) question set. Architecture approval does not clear
+question copy for real-client use.
 
 This ruling sits on top of, and does not relax, the standing Sprint 3
 live-data dependency: consent enforcement, de-identification/review-pack
-boundary, client_cases access controls, clinician sign-off and KR
-authorisation are all still required before any real case is processed or
+boundary and client_cases access controls remain required, as do clinician
+sign-off and KR final authorisation, before any real case is processed or
 rendered.

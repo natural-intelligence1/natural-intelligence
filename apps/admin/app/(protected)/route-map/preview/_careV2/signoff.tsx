@@ -69,23 +69,23 @@ const SIGN_OFF_PARTIES: SignOffParty[] = [
     key: 'C',
     party: 'Solicitor / Legal-Governance Reviewer',
     // Recorded ruling, relayed by KR 18 Sep 2026 (docs/governance/
-    // solicitor-rulings-2026-09.md): ARCHITECTURE APPROVED — GREEN.
-    // Approved: intake architecture, practitioner factual summary
-    // architecture, current SaMD/MHRA boundary, static safety model,
-    // practitioner-authored Analysis & Plan separation. NOT approved for
-    // live data: seven controls are required first, and the full wording
-    // review of the complete question set is still outstanding.
-    status: 'Architecture approved — GREEN (18 Sep 2026); wording review outstanding; live-data controls required',
+    // solicitor-rulings-2026-09.md): LEGAL SECOND PASS — GREEN.
+    // Architecture approved. Live-data activation NOT yet approved: EIGHT
+    // mandatory implementation controls are required first (each its own
+    // gate — never merged), and the full intake-question wording review is
+    // a SEPARATE open legal-review item, not one of the eight.
+    status: 'LEGAL SECOND PASS — GREEN · Architecture approved · Live-data activation not yet approved (8 controls required)',
     statusOptions: ['Not yet reviewed', 'Reviewed with changes', 'Approved for synthetic preview', 'Approved for live-data use'],
     items: [
-      'OUTSTANDING: full wording review of the complete question set',
-      'Before live data: field-purpose / lawful-basis / retention metadata',
-      'Before live data: not-continuously-monitored / emergency wording',
-      'Before live data: safeguarding SOP',
-      'Before live data: summary provenance/audit metadata',
-      'Before live data: student access/audit controls',
-      'Before live data: practitioner-only Analysis & Plan (data-layer enforcement)',
-      'Before live data: Legal/MHRA change-control gate',
+      'Control 1: field-purpose / data-minimisation metadata',
+      'Control 2: clear "not continuously monitored / not for emergencies" wording',
+      'Control 3: safeguarding / escalation SOP for serious information actually seen by NI',
+      'Control 4: complete summary provenance / audit metadata',
+      'Control 5: retention / deletion rules in the field registry',
+      'Control 6: supervised/student access and audit controls',
+      'Control 7: practitioner-only Analysis & Plan / sign-off',
+      'Control 8: hard LEGAL/MHRA REVIEW REQUIRED change-control gate (its own gate) before adding confidence scores; NI-generated severity/risk scores; diagnostic or dysfunction labels; disease prediction; personalised red-flag triage; inferred causes/root causes; treatment recommendations; supplement recommendations; dosage guidance; ranked practitioner options; practitioner-facing clinical decision support; automated Analysis & Plan content; automatic care-plan generation; or claims that NI diagnoses, detects, predicts, treats, manages or recommends',
+      'SEPARATE open item (not one of the eight): full intake-question wording review outstanding',
     ],
   },
   {
