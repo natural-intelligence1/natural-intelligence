@@ -117,3 +117,17 @@ live-data dependency: consent enforcement, de-identification/review-pack
 boundary and client_cases access controls remain required, as do clinician
 sign-off and KR final authorisation, before any real case is processed or
 rendered.
+
+### Implementation record (18 Sep 2026, KR-authorised branch build)
+
+The eight controls are implemented/modelled on branch
+`care-v2-preview-synthetic` — full per-control status in
+`docs/planning/intake-to-synopsis-field-registry-v1.md` §15. Code state
+only: Article 6/9 bases and retention periods remain
+`legal_review_required` / `retention_policy_pending` (nothing guessed);
+the safeguarding SOP is DRAFT pending clinical + legal approval; student
+and Analysis & Plan enforcement bind to the Sprint 3 live-data wiring.
+The question-wording review pack for the separate outstanding item is at
+`docs/legal/intake-v2-question-wording-review.md` (115 questions,
+generated from the canonical registry). The solicitor-approved heading
+“Safety-related information reported by client” is now in the code.

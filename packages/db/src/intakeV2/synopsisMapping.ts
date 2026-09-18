@@ -29,7 +29,9 @@ export interface V2SynopsisSectionDef {
   note?: string
 }
 
-export const V2_SAFETY_BLOCK_TITLE = 'Safety answers for practitioner review'
+// Solicitor-approved heading (control 9 terminology ruling, 18 Sep 2026) —
+// replaces the earlier "Safety answers for practitioner review".
+export const V2_SAFETY_BLOCK_TITLE = 'Safety-related information reported by client'
 
 export const V2_SAFETY_BOUNDARY_TEXT =
   'Natural Intelligence surfaces reported answers for practitioner review. ' +
@@ -37,6 +39,49 @@ export const V2_SAFETY_BOUNDARY_TEXT =
 
 export const V2_SAFETY_EMPTY_STATE =
   'No safety-review answers are currently available from the approved trigger set.'
+
+// ─── Static emergency / non-monitoring wording (solicitor control 2) ─────────
+// STATIC by design: always visible, never triggered by answers, never
+// personalised — no software assessment of urgency exists anywhere.
+
+export const V2_NON_MONITORING_WORDING =
+  'Natural Intelligence is not an emergency service, and information submitted through this ' +
+  'intake is not continuously monitored. If you need urgent medical help, contact your GP, ' +
+  'NHS 111 or 999 as appropriate.'
+
+// ─── Summary provenance / audit metadata (solicitor control 4) ────────────────
+// Every generated practitioner synopsis carries this audit record. Field-level
+// provenance (client_reported / practitioner_verified / corrected with
+// author + time / missing) lives on each fact via V2SourcedFact — the
+// original client answer is preserved verbatim and a correction sits beside
+// it, never over it.
+
+export const V2_INTAKE_SCHEMA_VERSION = 'intake-v2.registry.v1'
+export const V2_SYNOPSIS_WORKFLOW_VERSION = 'synopsis-v2.workflow.v1'
+
+export interface V2SynopsisAuditMetadata {
+  generatedAt: string
+  /** Reference to the source intake submission (session id / snapshot ref). */
+  sourceSubmissionRef: string
+  intakeSchemaVersion: typeof V2_INTAKE_SCHEMA_VERSION
+  synopsisWorkflowVersion: typeof V2_SYNOPSIS_WORKFLOW_VERSION
+  /** Every registry field id that contributed to this synopsis. */
+  sourceFieldIds: string[]
+}
+
+export function buildV2SynopsisAuditMetadata(input: {
+  generatedAt: string
+  sourceSubmissionRef: string
+  sourceFieldIds: string[]
+}): V2SynopsisAuditMetadata {
+  return Object.freeze({
+    generatedAt: input.generatedAt,
+    sourceSubmissionRef: input.sourceSubmissionRef,
+    intakeSchemaVersion: V2_INTAKE_SCHEMA_VERSION,
+    synopsisWorkflowVersion: V2_SYNOPSIS_WORKFLOW_VERSION,
+    sourceFieldIds: [...input.sourceFieldIds],
+  })
+}
 
 export const V2_SYNOPSIS_SECTIONS: V2SynopsisSectionDef[] = [
   { id: 'safety_review', order: 1, title: V2_SAFETY_BLOCK_TITLE, note: V2_SAFETY_BOUNDARY_TEXT },

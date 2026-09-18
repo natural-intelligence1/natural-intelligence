@@ -21,8 +21,22 @@ export type { V2FieldDef, V2FieldSource, V2FieldDomain, V2SynopsisSectionId } fr
 export {
   V2_SYNOPSIS_SECTIONS, V2_INTAKE_SCREEN_SEQUENCE, v2FieldsForSynopsisSection,
   deriveV2SafetyReviewItems, V2_SAFETY_BLOCK_TITLE, V2_SAFETY_BOUNDARY_TEXT, V2_SAFETY_EMPTY_STATE,
+  V2_NON_MONITORING_WORDING, V2_INTAKE_SCHEMA_VERSION, V2_SYNOPSIS_WORKFLOW_VERSION,
+  buildV2SynopsisAuditMetadata,
 } from './synopsisMapping'
-export type { V2SynopsisSectionDef, V2SafetyReviewItem } from './synopsisMapping'
+export type { V2SynopsisSectionDef, V2SafetyReviewItem, V2SynopsisAuditMetadata } from './synopsisMapping'
+export {
+  resolveV2FieldGovernance, resolveAllV2FieldGovernance,
+  V2_CANDIDATE_LAWFUL_BASES, V2_REQUIRED_FIELD_IDS,
+} from './fieldGovernance'
+export type { V2FieldGovernance, V2DeletionEligibility, V2LegalBasisState } from './fieldGovernance'
+export {
+  V2_STUDENT_ACCESS_REQUIREMENTS, canStudentAccessCase, canVerifyClinicalFacts,
+  canSignClinicalConclusions, studentEntryRequiresClientConfirmation, canWriteAnalysisField,
+  LEGAL_MHRA_GATE_LABEL, LEGAL_MHRA_GATED_CAPABILITIES, LEGAL_MHRA_GATE_STATEMENT,
+} from './governanceControls'
+export type { V2Actor, V2StudentAccessContext } from './governanceControls'
+export { buildV2QuestionWordingReview } from './wordingReview'
 export { V2_PROVENANCE_STATES, clientReported, missingFact, verifyFact, correctFact } from './provenance'
 export type { V2Provenance, V2SourcedFact, V2Correction } from './provenance'
 export { buildCaseSnapshot } from './caseSnapshot'

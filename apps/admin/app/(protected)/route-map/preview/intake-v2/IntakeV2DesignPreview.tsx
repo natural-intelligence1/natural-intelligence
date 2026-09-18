@@ -13,7 +13,7 @@
 // by the client before they join the timeline.
 
 import { useState } from 'react'
-import { V2_INTAKE_SCREEN_SEQUENCE } from '@natural-intelligence/db/intakeV2'
+import { V2_INTAKE_SCREEN_SEQUENCE, V2_NON_MONITORING_WORDING } from '@natural-intelligence/db/intakeV2'
 import { C, display, body } from '../_careV2/ui'
 
 const STEPS = V2_INTAKE_SCREEN_SEQUENCE
@@ -575,10 +575,10 @@ export function IntakeV2DesignPreview() {
         </div>
       )}
 
+      {/* Static — solicitor-required wording (control 2); never conditional. */}
       <p className="text-[11px] leading-relaxed mt-8" style={{ ...body, color: C.muted }}>
-        If you feel seriously unwell, unsafe, or worried about symptoms that may need urgent help, contact NHS 111,
-        your GP, or 999 in an emergency. This intake collects and organises your story for your practitioner — it
-        does not assess symptoms.
+        {V2_NON_MONITORING_WORDING} This intake collects and organises your story for your
+        practitioner — it does not assess symptoms.
       </p>
     </div>
   )

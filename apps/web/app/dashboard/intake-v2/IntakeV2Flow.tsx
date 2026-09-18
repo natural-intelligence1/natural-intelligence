@@ -22,6 +22,7 @@ import {
   type V2Answers, type V2QuestionDef, type V2SectionDef,
   visibleSections, visibleQuestions,
   createV2AutosaveQueue, type V2SaveState,
+  V2_NON_MONITORING_WORDING,
 } from '@natural-intelligence/db/intakeV2'
 import { saveV2Screen, submitV2 } from './actions'
 
@@ -552,12 +553,11 @@ export function IntakeV2Flow({ initialAnswers, submitted: initiallySubmitted }: 
             )}
           </section>
 
-          {/* Static safety information — never conditional on answers */}
+          {/* Static safety information — solicitor-required wording (control 2).
+              Always visible, never conditional on answers, never personalised. */}
           <p className="text-[11px] text-text-muted mt-4 leading-relaxed max-w-2xl">
-            If you feel seriously unwell, unsafe, or worried about symptoms that
-            may need urgent help, contact NHS 111, your GP, or 999 in an
-            emergency. This intake collects and organises your story for your
-            practitioner — it does not assess symptoms.
+            {V2_NON_MONITORING_WORDING} This intake collects and organises your
+            story for your practitioner — it does not assess symptoms.
           </p>
         </div>
       </div>

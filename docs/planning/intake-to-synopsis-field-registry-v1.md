@@ -84,7 +84,7 @@ placeholderOnly / callSheet`.
 
 ## 5. Synopsis destinations (approved 13-section order)
 
-`V2_SYNOPSIS_SECTIONS` — (1) Safety answers for practitioner review,
+`V2_SYNOPSIS_SECTIONS` — (1) Safety-related information reported by client,
 (2) Case snapshot, (3) Presenting concerns, (4) Diagnoses/investigations/
 referrals (as reported), (5) Health timeline, (6) Medication & supplements,
 (7) Family history, (8) Early life & past health, (9) Systems review,
@@ -111,7 +111,7 @@ tab, work stops for Legal/MHRA review.**
 
 ## 8. Safety display model
 
-- Title: “Safety answers for practitioner review”.
+- Title: “Safety-related information reported by client” (solicitor-approved heading, 18 Sep 2026).
 - Boundary text: “Natural Intelligence surfaces reported answers for
   practitioner review. It does not assess risk, rank urgency or make
   referral decisions.”
@@ -236,3 +236,34 @@ does not clear question copy for real-client use.
 Unchanged by this ruling: the Sprint 3 live-data dependency (§10),
 clinician sign-off, and KR final authorisation all remain required before
 any real case is processed or rendered.
+
+## 15. Eight-control implementation record (18 Sep 2026 — KR-authorised branch build)
+
+Implementation status describes CODE STATE ONLY; no control is legally
+complete until its pending external approvals land, and nothing below
+implies clinician, Data Protection or KR approval.
+
+| # | Control | Status |
+|---|---|---|
+| 1 | Field-purpose / data-minimisation metadata | **Implemented** — `fieldGovernance.ts`: every one of the 384 fields resolves purpose, required/optional (only the 4 legally-required fields are required), conditional rule, sensitivity, access scope, sharing scope, export eligibility and provenance behaviour, via domain inheritance + field flags; tested. Article 6/9: **pending external approval** — every field resolves the explicit state `legal_review_required`; the published privacy-policy §4 bases are carried verbatim as candidates only (`V2_CANDIDATE_LAWFUL_BASES`). Nothing guessed. |
+| 2 | "Not continuously monitored / not for emergencies" wording | **Implemented** — `V2_NON_MONITORING_WORDING` (exact solicitor sentence, test-pinned) renders statically in the live intake flow footer and the design preview; never answer-triggered, never personalised; consolidated with (not duplicating) the existing static 111/GP/999 line. |
+| 3 | Safeguarding / escalation SOP | **Drafted** — `docs/governance/safeguarding-escalation-sop.md`, status DRAFT — REQUIRES CLINICAL + LEGAL/GOVERNANCE APPROVAL BEFORE REAL-CLIENT USE. Process-level only; contains no symptom thresholds, urgency scores, red-flag scoring, referral algorithms or triage criteria — clinical escalation criteria remain with the clinical reviewer. |
+| 4 | Summary provenance / audit metadata | **Modelled** — `V2SynopsisAuditMetadata` + `buildV2SynopsisAuditMetadata` (generated at, source submission ref, intake schema version, synopsis workflow version, source field ids; frozen; tested) on top of the existing field-level provenance (verbatim original + correction-beside with author/time). Rendered on the synopsis preview. **Pending live-data enforcement** — persisted audit rows arrive with live wiring; no schema change was needed for the model, so no migration proposal was required. |
+| 5 | Retention / deletion rules | **Modelled** — every field resolves `retention_rule_id`, `retention_status` (`retention_policy_pending` — no period invented), deletion eligibility on the solicitor's A/B distinction (health record fields = B, retained subject to documented rule, matching the approved Screen 1 retention wording) and a written reason; tested, including that no retention period appears anywhere. Nothing implies immediate deletion. |
+| 6 | Student access / supervision / audit | **Modelled** — `governanceControls.ts`: fail-closed `canStudentAccessCase` (client informed + named supervisor + active supervision + active case involvement), students can never independently verify facts, sign conclusions or author Analysis & Plan, student entries require client confirmation; the nine approved requirements recorded as a constant; tested. **Real-client student access remains disabled** (no student role exists live); enforcement point documented: Sprint 3 data-access wiring (RLS + server actions, 0052-era work). No parallel auth system built. |
+| 7 | Practitioner-only Analysis & Plan | **Implemented at model/test level** — `canWriteAnalysisField` grants only `practitioner` on `practitioner.analysis.*`; tests prove intake, AI, NI admin, student, automated jobs and synopsis generation are all refused, on every one of the 11 fields; registry tests still prove not intake-writable and empty by default. **Server-side/RLS enforcement** lands with live practitioner wiring (documented in the module); preview remains inert. |
+| 8 | Hard LEGAL/MHRA REVIEW REQUIRED change-control gate | **Implemented** — central governance manifest (`LEGAL_MHRA_GATE_LABEL`, `LEGAL_MHRA_GATED_CAPABILITIES` — all fifteen gated capabilities, `LEGAL_MHRA_GATE_STATEMENT`), developer integration note in the module, and tests guarding current behaviour (no scoring/severity/risk/prediction/triage concept exists in the registry; safety derivation output shape pinned flat). Its own gate — never combined with another control. No keyword-based runtime clinical logic was built. |
+
+Separate open legal-review item (not one of the eight): **full
+intake-question wording review** — generated pack at
+`docs/legal/intake-v2-question-wording-review.md` (115 user-facing
+questions, verbatim from the canonical registry; regenerate with
+`packages/db/scripts/generate-question-wording-review.ts`).
+
+Safety terminology (18 Sep 2026): the practitioner heading is now the
+solicitor-approved **“Safety-related information reported by client”**
+(constant + tests updated); boundary text unchanged.
+
+Unchanged and still required before any real case: Sprint 3 data-access
+model, clinician sign-off, Data Protection/governance review, KR final
+authorisation, and the solicitor question-wording review.

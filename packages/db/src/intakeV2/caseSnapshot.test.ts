@@ -65,3 +65,13 @@ describe('provenance — original answer preservation', () => {
     expect(missingFact().provenance).toBe('missing')
   })
 })
+
+describe('provenance — repeated corrections still preserve the original', () => {
+  it('a second correction replaces the first correction, never the client answer', () => {
+    const original = clientReported('Original client wording')
+    const first = correctFact(original, 'First correction', 'Practitioner A', '2026-09-18T09:00:00Z')
+    const second = correctFact(first, 'Second correction', 'Practitioner B', '2026-09-18T10:00:00Z')
+    expect(second.value).toBe('Original client wording') // verbatim, always
+    expect(second.correction).toEqual({ value: 'Second correction', actor: 'Practitioner B', at: '2026-09-18T10:00:00Z' })
+  })
+})

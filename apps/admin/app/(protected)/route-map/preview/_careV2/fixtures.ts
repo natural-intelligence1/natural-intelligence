@@ -21,7 +21,8 @@
 // no scoring, no triage and no recommendation appears anywhere.
 
 import {
-  buildCaseSnapshot, deriveV2SafetyReviewItems,
+  buildCaseSnapshot, deriveV2SafetyReviewItems, buildV2SynopsisAuditMetadata,
+  V2_FIELD_REGISTRY,
   type V2Provenance, type V2SafetyReviewItem,
 } from '@natural-intelligence/db/intakeV2'
 
@@ -397,4 +398,15 @@ export const FIXTURE_SNAPSHOT = buildCaseSnapshot({
   },
   intakeAnswers: { 'intake.concerns[0].own_words': FIXTURE_CASE.concerns[0].ownWords.value },
   submittedAt: '2026-09-10T19:55:00Z',
+})
+
+/** Synopsis audit metadata for the synthetic case (solicitor control 4):
+ *  generated time, source submission reference, schema + workflow versions
+ *  and the contributing registry field ids. */
+export const FIXTURE_AUDIT = buildV2SynopsisAuditMetadata({
+  generatedAt: '2026-09-10T19:56:00Z',
+  sourceSubmissionRef: 'synthetic-fixture:rowan-example (no live record)',
+  sourceFieldIds: V2_FIELD_REGISTRY
+    .filter((field) => field.synopsisSection !== null)
+    .map((field) => field.id),
 })

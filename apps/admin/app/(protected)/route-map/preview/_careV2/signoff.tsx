@@ -76,16 +76,20 @@ const SIGN_OFF_PARTIES: SignOffParty[] = [
     // a SEPARATE open legal-review item, not one of the eight.
     status: 'LEGAL SECOND PASS — GREEN · Architecture approved · Live-data activation not yet approved (8 controls required)',
     statusOptions: ['Not yet reviewed', 'Reviewed with changes', 'Approved for synthetic preview', 'Approved for live-data use'],
+    // Implementation status per control (18 Sep 2026, KR-authorised branch
+    // build). "Implemented"/"modelled" describe CODE STATE ONLY — no control
+    // is legally complete until the pending external approvals land, and
+    // nothing here implies clinician / Data Protection / KR approval.
     items: [
-      'Control 1: field-purpose / data-minimisation metadata',
-      'Control 2: clear "not continuously monitored / not for emergencies" wording',
-      'Control 3: safeguarding / escalation SOP for serious information actually seen by NI',
-      'Control 4: complete summary provenance / audit metadata',
-      'Control 5: retention / deletion rules in the field registry',
-      'Control 6: supervised/student access and audit controls',
-      'Control 7: practitioner-only Analysis & Plan / sign-off',
-      'Control 8: hard LEGAL/MHRA REVIEW REQUIRED change-control gate (its own gate) before adding confidence scores; NI-generated severity/risk scores; diagnostic or dysfunction labels; disease prediction; personalised red-flag triage; inferred causes/root causes; treatment recommendations; supplement recommendations; dosage guidance; ranked practitioner options; practitioner-facing clinical decision support; automated Analysis & Plan content; automatic care-plan generation; or claims that NI diagnoses, detects, predicts, treats, manages or recommends',
-      'SEPARATE open item (not one of the eight): full intake-question wording review outstanding',
+      'Control 1 (field-purpose / data-minimisation metadata): IMPLEMENTED in the field registry (fieldGovernance.ts, all 384 fields resolve; tested) — Article 6/9 values pending external approval (legal_review_required)',
+      'Control 2 (not continuously monitored / not for emergencies wording): IMPLEMENTED — exact static wording live in the intake flow and preview, tested',
+      'Control 3 (safeguarding / escalation SOP): DRAFTED (docs/governance/safeguarding-escalation-sop.md) — pending clinical + legal/governance approval; clinical criteria left to clinicians',
+      'Control 4 (summary provenance / audit metadata): MODELLED (typed audit record + builder, field-level provenance, tested; shown on the synopsis preview) — pending live-data enforcement',
+      'Control 5 (retention / deletion rules): MODELLED in the field registry (rule ids, A/B deletion eligibility, reasons; tested) — retention periods pending external approval (retention_policy_pending)',
+      'Control 6 (student access / supervision / audit): MODELLED (fail-closed guards + the nine approved requirements, tested) — real-client student access remains disabled; live enforcement lands with the Sprint 3 data-access wiring',
+      'Control 7 (practitioner-only Analysis & Plan): IMPLEMENTED at model/test level (write guard refuses intake, AI, admin, student, automated jobs and synopsis generation; registry + guard tests) — server-side/RLS enforcement lands with live practitioner wiring',
+      'Control 8 (hard LEGAL/MHRA REVIEW REQUIRED gate): IMPLEMENTED as a standing governance gate (central manifest of all fifteen gated capabilities + tests guarding current behaviour + developer integration note) — its own gate, never combined',
+      'SEPARATE open item (not one of the eight): full intake-question wording review OUTSTANDING — review pack generated at docs/legal/intake-v2-question-wording-review.md (115 questions)',
     ],
   },
   {

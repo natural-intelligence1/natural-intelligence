@@ -4,7 +4,10 @@ import { describe, it, expect } from 'vitest'
 import {
   V2_SYNOPSIS_SECTIONS, V2_INTAKE_SCREEN_SEQUENCE, v2FieldsForSynopsisSection,
   deriveV2SafetyReviewItems, V2_SAFETY_BLOCK_TITLE, V2_SAFETY_BOUNDARY_TEXT, V2_SAFETY_EMPTY_STATE,
+  V2_NON_MONITORING_WORDING, buildV2SynopsisAuditMetadata,
+  V2_INTAKE_SCHEMA_VERSION, V2_SYNOPSIS_WORKFLOW_VERSION,
 } from './synopsisMapping'
+import { buildV2QuestionWordingReview } from './wordingReview'
 import { V2_FIELD_REGISTRY } from './fieldRegistry'
 import { V2_QUESTIONS } from './registry'
 
@@ -21,7 +24,8 @@ describe('synopsis section sequence', () => {
   })
 
   it('carries the exact approved safety boundary and empty-state wording', () => {
-    expect(V2_SAFETY_BLOCK_TITLE).toBe('Safety answers for practitioner review')
+    // Solicitor-approved heading (18 Sep 2026 terminology ruling).
+    expect(V2_SAFETY_BLOCK_TITLE).toBe('Safety-related information reported by client')
     expect(V2_SAFETY_BOUNDARY_TEXT).toBe(
       'Natural Intelligence surfaces reported answers for practitioner review. It does not assess risk, rank urgency or make referral decisions.')
     expect(V2_SAFETY_EMPTY_STATE).toBe('No safety-review answers are currently available from the approved trigger set.')
@@ -78,5 +82,50 @@ describe('safety review derivation — clinician-owned metadata only', () => {
     const items = deriveV2SafetyReviewItems([{ questionId: flaggedQuestion.id, value: [flaggedOption] }])
     expect(Object.keys(items[0]).sort()).toEqual(
       ['capturedAt', 'matchedOptions', 'questionLabel', 'rawAnswer', 'reviewStatus', 'sourceQuestionId'])
+  })
+})
+
+describe('control 2 — static emergency / non-monitoring wording', () => {
+  it('carries the exact solicitor-required sentence, as a static constant', () => {
+    expect(V2_NON_MONITORING_WORDING).toBe(
+      'Natural Intelligence is not an emergency service, and information submitted through this ' +
+      'intake is not continuously monitored. If you need urgent medical help, contact your GP, ' +
+      'NHS 111 or 999 as appropriate.')
+  })
+})
+
+describe('control 4 — synopsis provenance / audit metadata', () => {
+  it('the audit record carries every solicitor-required property and is frozen', () => {
+    const metadata = buildV2SynopsisAuditMetadata({
+      generatedAt: '2026-09-18T10:00:00Z',
+      sourceSubmissionRef: 'intake-session:synthetic-fixture',
+      sourceFieldIds: ['intake.concerns[n].own_words', 'intake.medications[n].name'],
+    })
+    expect(metadata.generatedAt).toBe('2026-09-18T10:00:00Z')
+    expect(metadata.sourceSubmissionRef).toBe('intake-session:synthetic-fixture')
+    expect(metadata.intakeSchemaVersion).toBe(V2_INTAKE_SCHEMA_VERSION)
+    expect(metadata.synopsisWorkflowVersion).toBe(V2_SYNOPSIS_WORKFLOW_VERSION)
+    expect(metadata.sourceFieldIds).toEqual(['intake.concerns[n].own_words', 'intake.medications[n].name'])
+    expect(Object.isFrozen(metadata)).toBe(true)
+    expect(Object.keys(metadata).sort()).toEqual(
+      ['generatedAt', 'intakeSchemaVersion', 'sourceFieldIds', 'sourceSubmissionRef', 'synopsisWorkflowVersion'])
+  })
+})
+
+describe('task 10 — question-wording review pack', () => {
+  const pack = buildV2QuestionWordingReview()
+
+  it('is generated from the canonical registry: every question id appears with its verbatim label', () => {
+    for (const question of V2_QUESTIONS) {
+      expect(pack).toContain(`\`${question.id}\``)
+      expect(pack).toContain(question.label)
+    }
+    expect(pack).toContain('SOLICITOR WORDING REVIEW REQUIRED')
+    expect(pack).toContain('LEGAL SECOND PASS — GREEN')
+  })
+
+  it('contains no synthetic client answers and no legal conclusions', () => {
+    expect(pack).not.toContain('Rowan')
+    expect(pack).not.toMatch(/we (conclude|advise|consider) /i)
   })
 })

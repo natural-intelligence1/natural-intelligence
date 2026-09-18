@@ -23,7 +23,7 @@ import {
   V2_SYNOPSIS_SECTIONS, V2_SAFETY_BOUNDARY_TEXT, V2_SAFETY_EMPTY_STATE,
 } from '@natural-intelligence/db/intakeV2'
 import {
-  FIXTURE_CASE, FIXTURE_SAFETY_ITEMS, FIXTURE_SNAPSHOT,
+  FIXTURE_CASE, FIXTURE_SAFETY_ITEMS, FIXTURE_SNAPSHOT, FIXTURE_AUDIT,
   type FixtureMedication, type Sourced,
 } from '../_careV2/fixtures'
 import { C, display, body, SyntheticBanner, ProvenanceChip, Fact, Section, InertControl } from '../_careV2/ui'
@@ -81,6 +81,12 @@ export function SynopsisV2Preview() {
           <p className="text-[13px] mt-1" style={{ ...body, color: C.text2 }}>
             Everything the client shared, organised — nothing concluded. Analysis belongs to you, on its own tab.
           </p>
+          {/* Provenance / audit strip (solicitor control 4) */}
+          <p className="font-mono text-[10px] mt-2" style={{ color: C.muted }}>
+            Generated {new Date(FIXTURE_AUDIT.generatedAt).toLocaleString('en-GB')} · source {FIXTURE_AUDIT.sourceSubmissionRef}
+            {' '}· {FIXTURE_AUDIT.intakeSchemaVersion} · {FIXTURE_AUDIT.synopsisWorkflowVersion}
+            {' '}· {FIXTURE_AUDIT.sourceFieldIds.length} source fields
+          </p>
         </div>
         <div className="flex gap-1 rounded-full p-1" style={{ background: C.sand }}>
           {([['synopsis', 'Case synopsis'], ['plan', 'Analysis & Plan']] as const).map(([key, label]) => (
@@ -95,7 +101,7 @@ export function SynopsisV2Preview() {
 
       {tab === 'synopsis' && (
         <>
-          {/* 1 ── Safety answers for practitioner review */}
+          {/* 1 ── Safety-related information reported by client */}
           <Section number={num('safety_review')} title={sectionTitle('safety_review')} tone="gold"
             note={V2_SAFETY_BOUNDARY_TEXT}>
             {FIXTURE_SAFETY_ITEMS.length === 0 ? (
