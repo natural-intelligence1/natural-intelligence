@@ -4,6 +4,7 @@ import { createServerSupabaseClient, createAdminClient } from '@natural-intellig
 import { Avatar, Badge, VettedBadge } from '@natural-intelligence/ui'
 import { copy } from '@/lib/copy'
 import PractitionerActionsClient from './PractitionerActionsClient'
+import { CredentialingPanel } from './CredentialingPanel'
 
 type BadgeVariant = 'default' | 'info' | 'success' | 'danger' | 'warning'
 const lifecycleBadge: Record<string, BadgeVariant> = {
@@ -243,6 +244,9 @@ export default async function PractitionerDetailPage({ params }: Props) {
             </Link>
           </section>
         )}
+
+        {/* Sprint 4 — credentialing & the authoritative assignment gate */}
+        <CredentialingPanel practitioner={p as unknown as Record<string, unknown>} />
 
         {/* Internal notes */}
         {p.support_needs && (

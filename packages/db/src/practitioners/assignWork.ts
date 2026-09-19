@@ -1,11 +1,17 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types'
 import type { AssignWorkInput } from './types'
+import { assertPractitionerAssignable } from './credentialing'
 
 export async function assignWork(
   adminClient: ReturnType<typeof createClient<Database>>,
   input: AssignWorkInput,
 ): Promise<string> {
+  // Sprint 4: one authoritative eligibility path. Post-0056 this surfaces
+  // the named refusal reasons; the 0056 BEFORE INSERT trigger is the
+  // uncircumventable backstop underneath.
+  await assertPractitionerAssignable(adminClient, input.practitionerId)
+
   const { data, error } = await adminClient
     .from('case_practitioner_work')
     .insert({
