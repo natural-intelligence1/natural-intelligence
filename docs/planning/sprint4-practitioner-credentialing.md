@@ -92,4 +92,3 @@ acceptances, the synthetic test agreement) deleted; baseline restored
 - The three real practitioner agreement documents (solicitor) — the 0051
   machinery consumes them as new versions without redesign; every
   practitioner then re-accepts (version+hash gate).
-- KR authorisation to apply 0056.
