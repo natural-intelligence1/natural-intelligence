@@ -111,3 +111,35 @@ D. Synthetic generated pack passes adversarial de-identification ✅
 authorisation. Fixture note: work-item fixtures now require 0056-eligible
 synthetic practitioners (`makePractitionerAssignable` helper) — Sprint 4
 and 5 test layers compose.
+
+## 7. SPRINT 5 CLOSED (19 Sep 2026)
+
+KR founder authorisation received; **0052 APPLIED** to the shared Supabase
+project (yftxzvdrxnhwpcnsrktn) — file byte-identical to the reviewed
+version (sha256 814369754906b2b7…, last commit 10acbd8), applied after
+0056 in the migration history. Results, all proven at the DB layer:
+
+- **Five in-migration assertions PASS** by live inspection: client_cases
+  SELECT policies = `client_cases_member_select` only; the case-index
+  view exposes exactly id/status/case_complexity_score/
+  escalation_required/created_at (no client_id, no primary_concern);
+  active-only status list with no 'completed'; both identity/
+  personalisation views self-or-admin with no work-history branch.
+- **LEGACY ACCESS PROVABLY GONE**: zero `practitioners_read_assigned_client`
+  policies remain (was 5); zero `case_practitioner_select` on
+  client_cases (was 1). Not layered over — dropped.
+- **Six armed 0052 tests ran with ZERO skips and passed**, plus the new
+  post-0052 ATTACK MATRIX (rls/attack0052.test.ts) A–J all passed with
+  real DB identities: active-work practitioner gets zero rows from every
+  raw source table and from profiles/identity/personalisation views and
+  client_cases; cross-member pack unreadable; cancelled work removes pack
+  AND case-index access; withdrawal blocks regeneration; anonymous reads
+  nothing anywhere; admin/service and member-self access intact; positive
+  control — active work grants ONLY the pack + the five-column case index.
+- **Pack-mode re-verified post-apply**: packModeE2E 5/5 again (generation,
+  adversarial de-id, RLS retrieval, immutable regeneration, withdrawal).
+- **Cleanup verified by SQL**: work rows at the pre-existing baseline 3,
+  0 synthetic cases/packs/audits/agreements/acceptances/users/intakes.
+  No real client content read, modified, printed or logged.
+
+0055 remains unapplied. Sprint 6 (Care Team live wiring) NOT started.
