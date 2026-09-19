@@ -66,3 +66,9 @@ export {
   setCredentialsVerification, setScopeApproval,
 } from './credentialing'
 export type { PractitionerEligibilitySnapshot, EligibilityReason, DbsStatus } from './credentialing'
+export {
+  adminAssignCareTeamMember, grantPractitionerAccess, withdrawPractitionerAccess,
+  listAssignedClients, addCaseContribution, writeAnalysisSection,
+  recordLeadCoordinationReview, releaseCarePlan,
+} from './careTeamLive'
+export type { AssignedClientRow } from './careTeamLive'

@@ -73,7 +73,7 @@ export type ConnectionType =
   | 'added_by_system'
 
 // "Role" in the context of a client-practitioner link (distinct from auth roles)
-export type LinkRole = 'lead' | 'specialist' | 'reviewer' | 'temporary'
+export type LinkRole = 'lead' | 'specialist' | 'reviewer' | 'temporary' | 'student' // 'student' arrives with 0057
 
 export type ControlLevel = 'keep' | 'flexible' | 'one_off'
 
@@ -97,6 +97,8 @@ export interface CreateClientPractitionerLinkInput {
   creationActor:  CreationActor
   createdBy?:     string
   notes?:         string
+  /** Sprint 6: required when role === 'student' (0057 CHECK + trigger). */
+  supervisorId?:  string
 }
 
 // ─── Inbox ────────────────────────────────────────────────────────────────────

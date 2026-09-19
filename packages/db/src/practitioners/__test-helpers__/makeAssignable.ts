@@ -13,13 +13,16 @@ type AnyClient = SupabaseClient<any>
 
 export async function makePractitionerAssignable(
   admin: AnyClient, practitionerId: string,
+  options?: { category?: 'regulated_clinician' | 'voluntary_registered' | 'unregistered' },
 ): Promise<() => Promise<void>> {
+  const category = options?.category ?? 'unregistered'
+  const registered = category !== 'unregistered'
   let syntheticAgreementId: string | null = null
 
   const { data: existing } = await (admin as AnyClient)
     .from('practitioner_agreements')
     .select('id, version, body')
-    .eq('category', 'unregistered')
+    .eq('category', category)
     .eq('is_current', true)
     .maybeSingle()
 
@@ -28,7 +31,7 @@ export async function makePractitionerAssignable(
     const { data: created, error } = await (admin as AnyClient)
       .from('practitioner_agreements')
       .insert({
-        category: 'unregistered', version: `synthetic-test-${Date.now()}`,
+        category, version: `synthetic-test-${Date.now()}`,
         title: 'SYNTHETIC TEST AGREEMENT — test fixtures only (not a real agreement)',
         body: 'SYNTHETIC TEST BODY — exists only while a test suite runs; never shown to any practitioner.',
         is_current: true,
@@ -43,11 +46,14 @@ export async function makePractitionerAssignable(
   const { error: updErr } = await (admin as AnyClient)
     .from('practitioners')
     .update({
-      status: 'active', is_active: true, category: 'unregistered',
+      status: 'active', is_active: true, category,
       credentials_verification_status: 'verified',
       credentials_verified_by: practitionerId,
       credentials_verified_at: new Date().toISOString(),
-      dbs_status: 'not_required', registration_status: 'not_applicable',
+      dbs_status: 'not_required',
+      registration_status: registered ? 'registered' : 'not_applicable',
+      registration_body: registered ? 'Synthetic Test Register' : null,
+      registration_number: registered ? `SYN-${practitionerId.slice(0, 8)}` : null,
       insurance_expiry: '2030-01-01', indemnity_required: true,
       scope_of_practice: 'Synthetic test scope', scope_status: 'approved',
       scope_approved_by: practitionerId, scope_approved_at: new Date().toISOString(),
