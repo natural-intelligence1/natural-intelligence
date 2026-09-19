@@ -131,3 +131,36 @@ The question-wording review pack for the separate outstanding item is at
 `docs/legal/intake-v2-question-wording-review.md` (115 questions,
 generated from the canonical registry). The solicitor-approved heading
 “Safety-related information reported by client” is now in the code.
+
+## Solicitor follow-up (19 Sep 2026): Article 6/9 framework + adult retention baseline APPROVED
+
+Legal status, recorded accurately:
+- Architecture: GREEN (18 Sep second pass).
+- Article 6/9 framework: APPROVED — encoded as pathway profiles in
+  `packages/db/src/intakeV2/legalProfiles.ts` (SELF_SERVE_HEALTH,
+  QUALIFYING_HEALTHCARE, OPTIONAL_SPECIAL_CATEGORY, SECURITY_ACCESS_AUDIT,
+  SAFEGUARDING — case-specific only, VITAL_INTERESTS — genuine emergency
+  only, plus ACCOUNT_OPERATION composed of approved elements and flagged
+  for confirmation). Article 9(2)(h) is NEVER automatic: it applies only
+  where the qualifying professional/confidentiality requirements are
+  actually satisfied (`resolvePractitionerCareArticle9`); Category-2-only
+  cases stay on explicit Article 9(2)(a) consent.
+- Adult retention/deletion baseline: APPROVED — encoded as retention
+  profiles (identity 90-day closure rule; self-serve health user-deletable
+  with dormant review; practitioner-care record incl. snapshot,
+  corrections, Analysis & Plan and clinical provenance 8 years after the
+  episode ends; assignment/access history with the case; student case
+  activity 8 years when part of care; governance packs 6 years after
+  supersession; consent records reliance + 6 years; rights requests 3
+  years, up to 6 where disputed; safeguarding normally 8 years, longer
+  under legal hold). MINORS: hard gate — MINOR RETENTION / SAFEGUARDING
+  SCHEDULE REQUIRED BEFORE PRACTITIONER-LED UNDER-18 SERVICE ACTIVATION;
+  the adult schedule is never silently inherited (test-enforced).
+- Safeguarding process architecture: APPROVED — SOP updated with the eight
+  express points; safeguarding basis remains case-specific, never a
+  generic health-data permission.
+
+STILL OUTSTANDING with the solicitor (not marked complete anywhere):
+1. The actual 115-question wording pass
+   (docs/legal/intake-v2-question-wording-review.md).
+2. Final safeguarding SOP wording (+ clinician-owned criteria annex).

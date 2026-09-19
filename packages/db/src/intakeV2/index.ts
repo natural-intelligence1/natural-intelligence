@@ -37,6 +37,24 @@ export {
 } from './governanceControls'
 export type { V2Actor, V2StudentAccessContext } from './governanceControls'
 export { buildV2QuestionWordingReview } from './wordingReview'
+export { V2_SYNOPSIS_DEFAULT_VIEW } from './synopsisMapping'
+export {
+  LAWFUL_BASIS_PROFILES, RETENTION_PROFILES, resolvePractitionerCareArticle9,
+  resolveRetention, MINOR_RETENTION_GATE,
+} from './legalProfiles'
+export type {
+  LawfulBasisProfileId, RetentionProfileId, LawfulBasisProfile, RetentionProfile,
+  Article6Basis, Article9Condition,
+} from './legalProfiles'
+export {
+  CARE_TEAM_ROLES, CARE_TEAM_ROLE_LABELS, PROFESSION_MODALITIES,
+  CARE_TEAM_APPROVAL_TEXT, CARE_TEAM_APPROVAL_EXPLANATION, CARE_TEAM_APPROVAL_TEXT_VERSION,
+  canCreateAssignment, isMembershipVisible, canAccessHealthProfile,
+  validateLeadAssignment, validateRoleForMembership,
+  approveMembership, withdrawMembership, endAssignment,
+  healthProfileAccessBundle, addContribution,
+} from './careTeam'
+export type { CareTeamMembership, CareTeamRole, CareTeamContribution, AssignmentStatus, ClientApprovalStatus } from './careTeam'
 export { V2_PROVENANCE_STATES, clientReported, missingFact, verifyFact, correctFact } from './provenance'
 export type { V2Provenance, V2SourcedFact, V2Correction } from './provenance'
 export { buildCaseSnapshot } from './caseSnapshot'

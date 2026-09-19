@@ -59,39 +59,55 @@ describe('control 1 — field purpose / data-minimisation metadata', () => {
   })
 })
 
-describe('controls 1 & 5 — legal placeholders are explicit, never guessed', () => {
-  it('every field resolves Article 6 and Article 9 to the explicit legal_review_required state', () => {
+describe('controls 1 & 5 — approved lawful-basis framework (solicitor follow-up)', () => {
+  it('every field resolves an approved profile with concrete Article 6 and Article 9 values', () => {
     for (const { field, governance } of resolved) {
-      expect(governance.article6Basis, field.id).toBe('legal_review_required')
-      expect(governance.article9Condition, field.id).toBe('legal_review_required')
+      expect(governance.lawfulBasisProfile, field.id).toBeTruthy()
+      expect(governance.article6Basis, field.id).not.toBe('legal_review_required')
+      expect(governance.article9Condition, field.id).not.toBe('legal_review_required')
     }
   })
 
-  it('candidate bases are quoted from the published privacy policy, as candidates only', () => {
+  it('practitioner-care health fields default to the SAFE 9(2)(a) — 9(2)(h) is never automatic', () => {
+    const { governance } = resolved.find(({ field }) => field.id === 'intake.concerns[n].own_words')!
+    expect(governance.lawfulBasisProfile).toBe('QUALIFYING_HEALTHCARE')
+    expect(governance.article6Basis).toBe('art6_1_b_contract')
+    expect(governance.article9Condition).toBe('art9_2_a_explicit_consent') // safe default
+  })
+
+  it('identity fields resolve ACCOUNT_OPERATION (contract, not special category); faith practices resolve OPTIONAL_SPECIAL_CATEGORY', () => {
+    const identity = resolved.find(({ field }) => field.id === 'profile.email')!
+    expect(identity.governance.lawfulBasisProfile).toBe('ACCOUNT_OPERATION')
+    expect(identity.governance.article9Condition).toBe('not_special_category')
+    const faith = resolved.find(({ field }) => field.id === 'intake.lifestyle.faith_cultural_practices')!
+    expect(faith.governance.lawfulBasisProfile).toBe('OPTIONAL_SPECIAL_CATEGORY')
+    expect(faith.governance.article9Condition).toBe('art9_2_a_explicit_consent')
+  })
+
+  it('candidate bases remain quoted from the published privacy policy', () => {
     expect(V2_CANDIDATE_LAWFUL_BASES.source).toContain('legal/privacy')
     expect(V2_CANDIDATE_LAWFUL_BASES.candidates.some((entry) => entry.includes('Article 9(2)(a)'))).toBe(true)
   })
 })
 
-describe('control 5 — retention / deletion metadata', () => {
-  it('every field resolves retention rule id, status, deletion eligibility and reason', () => {
+describe('control 5 — approved adult retention baseline', () => {
+  it('every field resolves an approved retention profile with rule id, A/B eligibility and reason', () => {
     for (const { field, governance } of resolved) {
       expect(governance.retentionRuleId, field.id).toMatch(/^retention\./)
-      expect(governance.retentionStatus, field.id).toBe('retention_policy_pending')
-      expect(['eligible_for_deletion_on_request', 'retained_subject_to_documented_rule',
-        'retention_policy_pending', 'legal_review_required']).toContain(governance.deletionEligibility)
+      expect(governance.retentionStatus, field.id).toBe('adult_baseline_approved')
+      expect(['eligible_for_deletion_on_request', 'retained_subject_to_documented_rule']).toContain(governance.deletionEligibility)
       expect(governance.retentionReason.length, field.id).toBeGreaterThan(20)
     }
   })
 
-  it('health-record fields are category B (retained subject to documented rule) — nothing implies immediate deletion', () => {
-    const healthField = v2FieldById('intake.concerns[n].own_words')!
-    const { governance } = resolved.find(({ field }) => field.id === healthField.id)!
-    expect(governance.deletionEligibility).toBe('retained_subject_to_documented_rule')
-    expect(governance.retentionRuleId).toBe('retention.health_record.v1')
-    // No retention PERIOD is stated anywhere (not approved yet).
-    for (const { governance: entry } of resolved) {
-      expect(JSON.stringify(entry)).not.toMatch(/\b\d+\s*(year|month|day)s?\b/i)
-    }
+  it('practitioner-care record fields carry the approved 8-year baseline; identity carries the 90-day closure rule', () => {
+    const health = resolved.find(({ field }) => field.id === v2FieldById('intake.concerns[n].own_words')!.id)!
+    expect(health.governance.retentionProfileId).toBe('practitioner_care_record')
+    expect(health.governance.deletionEligibility).toBe('retained_subject_to_documented_rule')
+    expect(health.governance.retentionReason).toContain('8 years')
+    const identity = resolved.find(({ field }) => field.id === 'profile.email')!
+    expect(identity.governance.retentionProfileId).toBe('account_identity')
+    expect(identity.governance.deletionEligibility).toBe('eligible_for_deletion_on_request')
+    expect(identity.governance.retentionReason).toContain('90 days')
   })
 })

@@ -1,7 +1,24 @@
 # Safeguarding / Escalation SOP (Solicitor Control 3)
 
-**STATUS: DRAFT — REQUIRES CLINICAL + LEGAL/GOVERNANCE APPROVAL BEFORE
-REAL-CLIENT USE.**
+**STATUS: DRAFT — process architecture approved by the solicitor (18 Sep 2026); FINAL SOLICITOR WORDING + CLINICIAN-OWNED CRITERIA STILL REQUIRED BEFORE REAL-CLIENT USE.**
+
+EXPRESS REPRESENTATIONS (solicitor follow-up, C3):
+1. NO CONTINUOUS MONITORING: nothing in this SOP or the platform monitors
+   submissions; the duty arises only on actual human awareness.
+2. Named safeguarding ownership: safeguarding lead + deputy placeholders in
+   §5 (to be named by KR before real-client use).
+3. Closed-loop handoff: §9 — every external handoff is explicit and
+   confirmed; a concern is never assumed handled.
+4. Minimum-necessary disclosure: §6.
+5. CONFIDENTIALITY IS QUALIFIED, NOT ABSOLUTE: §8 — departures only on a
+   recognised safeguarding basis, decided by named people.
+6. Decision record: §7 — every decision, by whom, why, disclosed to whom.
+7. Clinical criteria remain CLINICIAN-OWNED: none appear here.
+8. Retention / legal hold: §7 records follow the approved adult baseline —
+   normally 8 years after adult case closure, longer where a legal hold
+   applies; the minor schedule is separately gated (MINOR RETENTION /
+   SAFEGUARDING SCHEDULE REQUIRED BEFORE PRACTITIONER-LED UNDER-18 SERVICE
+   ACTIVATION).
 
 This SOP is deliberately high-level. It defines WHO does WHAT and HOW it is
 recorded when a human at NI actually becomes aware of an immediate serious
@@ -69,8 +86,9 @@ allows.
 Every raised concern is recorded: date/time, who became aware, what surface
 the information came from, what was decided, by whom, what was disclosed to
 whom, and why. Records are kept confidentially, separate from the client's
-health record, access-restricted, and retained per the retention schedule
-(retention_policy_pending — schedule to be approved).
+health record, access-restricted, and retained per the approved adult baseline: normally 8 years after adult
+case closure, longer where a legal hold applies (minors: separate schedule
+required before any under-18 practitioner-led service).
 
 ## 8. Confidentiality
 

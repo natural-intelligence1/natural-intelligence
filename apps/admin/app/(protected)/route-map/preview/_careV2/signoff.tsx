@@ -74,18 +74,18 @@ const SIGN_OFF_PARTIES: SignOffParty[] = [
     // mandatory implementation controls are required first (each its own
     // gate — never merged), and the full intake-question wording review is
     // a SEPARATE open legal-review item, not one of the eight.
-    status: 'LEGAL SECOND PASS — GREEN · Architecture approved · Live-data activation not yet approved (8 controls required)',
+    status: 'LEGAL SECOND PASS — GREEN · Architecture approved · Article 6/9 framework, adult retention baseline and safeguarding process architecture APPROVED · Live-data activation not yet approved',
     statusOptions: ['Not yet reviewed', 'Reviewed with changes', 'Approved for synthetic preview', 'Approved for live-data use'],
-    // Implementation status per control (18 Sep 2026, KR-authorised branch
+    // Implementation status per control (19 Sep 2026, KR-authorised branch
     // build). "Implemented"/"modelled" describe CODE STATE ONLY — no control
-    // is legally complete until the pending external approvals land, and
+    // is legally complete until the remaining external approvals land, and
     // nothing here implies clinician / Data Protection / KR approval.
     items: [
-      'Control 1 (field-purpose / data-minimisation metadata): IMPLEMENTED in the field registry (fieldGovernance.ts, all 384 fields resolve; tested) — Article 6/9 values pending external approval (legal_review_required)',
+      'Control 1 (field-purpose / data-minimisation metadata): IMPLEMENTED — all 384 fields resolve on the APPROVED Article 6/9 profile framework; 9(2)(h) never automatic, safe default 9(2)(a), Category-2-only stays on explicit consent',
       'Control 2 (not continuously monitored / not for emergencies wording): IMPLEMENTED — exact static wording live in the intake flow and preview, tested',
-      'Control 3 (safeguarding / escalation SOP): DRAFTED (docs/governance/safeguarding-escalation-sop.md) — pending clinical + legal/governance approval; clinical criteria left to clinicians',
-      'Control 4 (summary provenance / audit metadata): MODELLED (typed audit record + builder, field-level provenance, tested; shown on the synopsis preview) — pending live-data enforcement',
-      'Control 5 (retention / deletion rules): MODELLED in the field registry (rule ids, A/B deletion eligibility, reasons; tested) — retention periods pending external approval (retention_policy_pending)',
+      'Control 3 (safeguarding / escalation SOP): DRAFT with APPROVED process architecture — final solicitor wording + clinician-owned criteria still required before real-client use',
+      'Control 4 (summary provenance / audit metadata): MODELLED (typed audit record + builder, field-level provenance, tested; behind "Source details" in the decluttered synopsis) — pending live-data enforcement',
+      'Control 5 (retention / deletion rules): IMPLEMENTED on the APPROVED adult baseline (8-year care record; 90-day identity closure rule; consent, rights and safeguarding periods) — minors hard-gated, never inheriting the adult schedule',
       'Control 6 (student access / supervision / audit): MODELLED (fail-closed guards + the nine approved requirements, tested) — real-client student access remains disabled; live enforcement lands with the Sprint 3 data-access wiring',
       'Control 7 (practitioner-only Analysis & Plan): IMPLEMENTED at model/test level (write guard refuses intake, AI, admin, student, automated jobs and synopsis generation; registry + guard tests) — server-side/RLS enforcement lands with live practitioner wiring',
       'Control 8 (hard LEGAL/MHRA REVIEW REQUIRED gate): IMPLEMENTED as a standing governance gate (central manifest of all fifteen gated capabilities + tests guarding current behaviour + developer integration note) — its own gate, never combined',

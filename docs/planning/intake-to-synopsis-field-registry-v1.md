@@ -267,3 +267,33 @@ solicitor-approved **“Safety-related information reported by client”**
 Unchanged and still required before any real case: Sprint 3 data-access
 model, clinician sign-off, Data Protection/governance review, KR final
 authorisation, and the solicitor question-wording review.
+
+## 16. Solicitor follow-up applied + Care Team V1 + synopsis declutter (19 Sep 2026)
+
+- **Lawful basis / retention:** controls 1 and 5 now resolve on the APPROVED
+  framework (see legalProfiles.ts and §15 updates): concrete Article 6/9
+  values per pathway profile (9(2)(h) never automatic; Category-2-only =
+  explicit consent), approved adult retention periods, minors hard-gated.
+  `legal_review_required` no longer appears on any field; the type remains
+  for genuinely unresolved future fields.
+- **My Care Team V1** (`careTeam.ts`, tested; synthetic preview at
+  /route-map/preview/care-team): ADMIN ASSIGNS → CLIENT APPROVES →
+  PRACTITIONER CONTRIBUTES → LEAD COORDINATES. Fail-closed guards: no
+  assignment = no visibility; no approval = no Health Profile access;
+  students additionally need a named active supervisor; max one active
+  Lead; admin-only assignment; append-only contributions; history retained
+  on ending. ONE approval sentence + ONE standard access bundle (registry
+  accessScope). Smallest live schema delta documented in careTeam.ts (a
+  small care_team_memberships table + RLS) — NOT applied; real access stays
+  behind the Sprint 3 gate / INTAKE_ASSIGNMENT_ENABLED / locked 0052.
+- **Synopsis declutter (SK):** default view policy
+  `V2_SYNOPSIS_DEFAULT_VIEW` (test-pinned) — no question ids, no per-line
+  provenance chips/timestamps, no workflow metadata, no empty or
+  none-reported rows; provenance/audit fully retained in the model behind
+  one understated "Source details" disclosure per item plus an end-of-page
+  audit record. Structure: safety (only when relevant) → compact snapshot →
+  concerns (centre) → care/diagnoses (non-empty) → current meds (past
+  collapsed) → timeline → consolidated relevant history (collapsible
+  groups, only reported content) → Analysis & Plan tab (unchanged, empty).
+  Condensed labels are deterministic factual formatting — no AI
+  summarisation or interpretation.

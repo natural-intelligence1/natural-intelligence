@@ -1,92 +1,155 @@
 'use client'
 
-// ─── Practitioner Synopsis V2 — desktop preview (SYNTHETIC DATA ONLY) ─────────
-// Driven by the Intake-to-Synopsis FIELD REGISTRY v1 and the approved
-// 13-section sequence (V2_SYNOPSIS_SECTIONS). "Apple-clean for
-// practitioners": completeness with hierarchy — progressive disclosure,
-// never fewer facts.
+// ─── Practitioner Synopsis V2 — DECLUTTERED (SK feedback) ─────────────────────
+// The practitioner sees THE CLIENT STORY — not the database, the
+// questionnaire or the audit log. Default view = concise, editorial,
+// Apple-clean; the case should be understood in seconds.
 //
-// FIREWALL: this surface collects, organises, displays and structures facts.
-// It does not diagnose, infer, rank, score, triage or recommend anything.
-// Facts (Case synopsis tab) and practitioner-authored thinking (Analysis &
-// Plan tab) are separate surfaces; Analysis & Plan opens empty and only a
-// practitioner writes there.
+// Provenance/audit is FULLY RETAINED in the model (V2SourcedFact, audit
+// metadata, corrections-beside-originals) but hidden from the default flow
+// behind one understated "Source details" disclosure per item/section, per
+// the central V2_SYNOPSIS_DEFAULT_VIEW policy (test-pinned in packages/db).
+// No question IDs, no per-line chips/timestamps, no workflow metadata, no
+// empty rows in the default view. Condensed labels are faithful
+// deterministic formatting of client facts — no AI summarisation, no
+// inference, no interpretation.
 //
-// Safety block: derived ONLY from the clinician-owned safety_capture
-// metadata via deriveV2SafetyReviewItems. Gold, neutral, first. Raw answers,
-// source question ID, captured time, review status, acknowledgement and
-// action-note placeholders — never a rank, urgency label, referral or test
-// suggestion.
+// FIREWALL unchanged: facts here; practitioner-authored Analysis & Plan on
+// its own tab, empty by default. Safety derivation stays clinician-owned.
 
 import { useState } from 'react'
 import {
-  V2_SYNOPSIS_SECTIONS, V2_SAFETY_BOUNDARY_TEXT, V2_SAFETY_EMPTY_STATE,
+  V2_SYNOPSIS_SECTIONS, V2_SAFETY_BOUNDARY_TEXT, V2_SYNOPSIS_DEFAULT_VIEW,
 } from '@natural-intelligence/db/intakeV2'
 import {
   FIXTURE_CASE, FIXTURE_SAFETY_ITEMS, FIXTURE_SNAPSHOT, FIXTURE_AUDIT,
   type FixtureMedication, type Sourced,
 } from '../_careV2/fixtures'
-import { C, display, body, SyntheticBanner, ProvenanceChip, Fact, Section, InertControl } from '../_careV2/ui'
+import { C, display, body, SyntheticBanner } from '../_careV2/ui'
 import { PreviewContextBanner, SignOffPanel } from '../_careV2/signoff'
 
 const case_ = FIXTURE_CASE
-const sectionTitle = (id: string) => V2_SYNOPSIS_SECTIONS.find((s) => s.id === id)?.title ?? id
-const num = (id: string) => String(V2_SYNOPSIS_SECTIONS.find((s) => s.id === id)?.order ?? 0).padStart(2, '0')
+const title = (id: string) => V2_SYNOPSIS_SECTIONS.find((s) => s.id === id)?.title ?? id
 
-function MedCard({ item }: { item: FixtureMedication }) {
+// ─── Quiet building blocks ────────────────────────────────────────────────────
+
+/** One understated disclosure — the ONLY place provenance/audit surfaces. */
+function SourceDetails({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl p-4 space-y-2" style={{ background: '#fff', border: `1px solid ${C.border}` }}>
-      <Fact fact={item.name} />
-      {item.brand && <Fact label="Brand, as written" fact={item.brand} />}
-      <Fact label="Amount, exactly as written" fact={item.doseAsWritten} />
-      <div className="grid sm:grid-cols-2 gap-2">
-        <Fact label="How often" fact={item.frequency} />
-        <Fact label="Advised by" fact={item.suggestedBy} />
+    <details className="mt-1">
+      <summary className="cursor-pointer list-none inline-block text-[11px] select-none"
+        style={{ ...body, color: C.muted }}>
+        {V2_SYNOPSIS_DEFAULT_VIEW.provenanceDisclosureLabel} ▾
+      </summary>
+      <div className="mt-1.5 rounded-lg px-3 py-2 text-[11.5px] leading-relaxed"
+        style={{ ...body, background: C.goldWash, color: C.text2, border: `1px solid ${C.goldPale}` }}>
+        {children}
       </div>
-      <Fact label="Reason, in the client's words" fact={item.reason} />
-      {item.effects && <Fact label="Effects noticed (client's words)" fact={item.effects} />}
-      {item.status === 'past' && item.reasonStopped && (
-        <Fact label="Why it stopped (client's account)" fact={item.reasonStopped} />
-      )}
+    </details>
+  )
+}
+
+function provenanceLabel(fact: Sourced<unknown>): string {
+  return fact.provenance === 'client_reported' ? 'Client-reported'
+    : fact.provenance === 'practitioner_verified' ? 'Practitioner-verified'
+    : fact.provenance === 'corrected' ? 'Corrected' : 'Missing'
+}
+
+/** Default view: the fact reads as one clean line. If corrected, the
+ *  correction is what the practitioner reads (marked), and the verbatim
+ *  original sits inside Source details — never overwritten, never lost. */
+function Line({ label, fact }: { label: string; fact: Sourced }) {
+  if (!fact.value && fact.provenance !== 'corrected') return null // no empty rows in default view
+  const corrected = fact.provenance === 'corrected' && fact.correction
+  return (
+    <div className="py-1" style={body}>
+      <p className="text-[13.5px] leading-relaxed" style={{ color: C.text }}>
+        <span style={{ color: C.muted }}>{label} · </span>
+        {corrected ? fact.correction : fact.value}
+        {corrected && <span className="text-[10.5px] ml-1.5" style={{ color: C.goldInk }}>corrected</span>}
+      </p>
+      <SourceDetails>
+        {corrected && <>Original client answer (preserved verbatim): “{fact.value}”<br /></>}
+        {provenanceLabel(fact)}
+        {fact.correctedBy && <> · correction by {fact.correctedBy}{fact.correctedAt ? `, ${fact.correctedAt}` : ''}</>}
+      </SourceDetails>
     </div>
   )
 }
 
-function PairGrid({ rows }: { rows: [string, Sourced][] }) {
+/** Plain compact line without disclosure (for derived snapshot values). */
+function Plain({ label, value }: { label: string; value: string | number | null }) {
+  if (value === null || value === '' || value === undefined) return null
   return (
-    <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-      {rows.map(([label, fact]) => <Fact key={label} label={label} fact={fact} />)}
-    </div>
+    <span className="text-[13.5px]" style={{ ...body, color: C.text }}>
+      <span style={{ color: C.muted }}>{label} </span>{value}
+    </span>
   )
 }
+
+function SectionShell({ heading, tone = 'default', children, note }: {
+  heading: string; tone?: 'default' | 'gold'; note?: string; children: React.ReactNode
+}) {
+  return (
+    <section className="mb-8">
+      <h2 className="text-[20px] font-medium mb-1" style={{ ...display, color: tone === 'gold' ? C.goldInk : C.pine }}>
+        {heading}
+      </h2>
+      {note && <p className="text-[11.5px] mb-2" style={{ ...body, color: C.muted }}>{note}</p>}
+      <div className="rounded-2xl px-5 py-4" style={{ background: C.warm, border: `1px solid ${tone === 'gold' ? C.gold : C.border}` }}>
+        {children}
+      </div>
+    </section>
+  )
+}
+
+/** Collapsible history group: one faithful summary line collapsed; full
+ *  factual lines on expand. Renders nothing when there is nothing reported. */
+function HistoryGroup({ name, summary, children }: { name: string; summary: string; children: React.ReactNode }) {
+  if (!summary) return null
+  return (
+    <details className="py-2 border-b last:border-b-0" style={{ borderColor: C.border }}>
+      <summary className="cursor-pointer list-none flex items-baseline gap-3 select-none">
+        <span className="text-[13.5px] font-medium" style={{ ...body, color: C.pine }}>{name}</span>
+        <span className="text-[12.5px] truncate" style={{ ...body, color: C.text2 }}>{summary}</span>
+        <span className="ml-auto text-[11px] flex-shrink-0" style={{ ...body, color: C.muted }}>View details ▾</span>
+      </summary>
+      <div className="pt-2 pb-1">{children}</div>
+    </details>
+  )
+}
+
+const meds = [...case_.medications, ...case_.supplements]
+const currentMeds = meds.filter((item) => item.status === 'current')
+const pastMeds = meds.filter((item) => item.status === 'past')
+
+function medLine(item: FixtureMedication): string {
+  const name = item.name.provenance === 'corrected' && item.name.correction ? item.name.correction : item.name.value
+  return `${name} — ${item.doseAsWritten.value}`
+}
+
+// ─── The synopsis ─────────────────────────────────────────────────────────────
 
 export function SynopsisV2Preview() {
   const [tab, setTab] = useState<'synopsis' | 'plan'>('synopsis')
-  const [openSystems, setOpenSystems] = useState<Record<string, boolean>>({})
-  const [openConcerns, setOpenConcerns] = useState<Record<number, boolean>>({ 0: true })
+
+  const systemsWithContent = case_.systems.filter((sys) =>
+    sys.answers.some((answer) => Array.isArray(answer.answer.value) ? answer.answer.value.length > 0 : Boolean(answer.answer.value)))
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10" style={{ background: C.cream, minHeight: '100vh' }}>
+    <div className="max-w-3xl mx-auto px-6 py-10" style={{ background: C.cream, minHeight: '100vh' }}>
       <PreviewContextBanner />
       <SyntheticBanner text={case_.banner} />
 
-      <div className="flex items-end justify-between mb-6 flex-wrap gap-4">
+      {/* Header — calm; no workflow metadata in the default flow */}
+      <div className="flex items-end justify-between mb-8 flex-wrap gap-4">
         <div>
           <p className="font-mono text-[11px] tracking-[0.14em] uppercase mb-2" style={{ color: C.goldInk }}>
-            Practitioner Synopsis · V2 preview · Field Registry v1
+            Practitioner Synopsis
           </p>
           <h1 className="text-[34px] font-medium leading-tight" style={{ ...display, color: C.pine }}>
-            {case_.client.fullName}
+            {case_.client.preferredName} — the story so far
           </h1>
-          <p className="text-[13px] mt-1" style={{ ...body, color: C.text2 }}>
-            Everything the client shared, organised — nothing concluded. Analysis belongs to you, on its own tab.
-          </p>
-          {/* Provenance / audit strip (solicitor control 4) */}
-          <p className="font-mono text-[10px] mt-2" style={{ color: C.muted }}>
-            Generated {new Date(FIXTURE_AUDIT.generatedAt).toLocaleString('en-GB')} · source {FIXTURE_AUDIT.sourceSubmissionRef}
-            {' '}· {FIXTURE_AUDIT.intakeSchemaVersion} · {FIXTURE_AUDIT.synopsisWorkflowVersion}
-            {' '}· {FIXTURE_AUDIT.sourceFieldIds.length} source fields
-          </p>
         </div>
         <div className="flex gap-1 rounded-full p-1" style={{ background: C.sand }}>
           {([['synopsis', 'Case synopsis'], ['plan', 'Analysis & Plan']] as const).map(([key, label]) => (
@@ -101,327 +164,241 @@ export function SynopsisV2Preview() {
 
       {tab === 'synopsis' && (
         <>
-          {/* 1 ── Safety-related information reported by client */}
-          <Section number={num('safety_review')} title={sectionTitle('safety_review')} tone="gold"
-            note={V2_SAFETY_BOUNDARY_TEXT}>
-            {FIXTURE_SAFETY_ITEMS.length === 0 ? (
-              <p className="text-[13px]" style={{ ...body, color: C.muted }}>{V2_SAFETY_EMPTY_STATE}</p>
-            ) : (
-              <div className="space-y-3">
-                {FIXTURE_SAFETY_ITEMS.map((item) => (
-                  <div key={item.sourceQuestionId} className="rounded-xl p-4" style={{ background: '#fff', border: `1px solid ${C.goldPale}` }}>
-                    <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
-                      <p className="text-[11px]" style={{ ...body, color: C.muted }}>{item.questionLabel}</p>
-                      <p className="font-mono text-[10px]" style={{ color: C.muted }}>
-                        {item.sourceQuestionId}{item.capturedAt ? ` · captured ${new Date(item.capturedAt).toLocaleString('en-GB')}` : ''}
-                      </p>
-                    </div>
-                    <p className="text-[14px] mb-2" style={{ ...body, color: C.text }}>
-                      Raw answer: <span style={{ color: C.goldInk, fontWeight: 500 }}>{item.matchedOptions.join(' · ')}</span>
-                      {item.rawAnswer.filter((option) => !item.matchedOptions.includes(option)).length > 0 && (
-                        <span style={{ color: C.text2 }}> (alongside: {item.rawAnswer.filter((option) => !item.matchedOptions.includes(option)).join(' · ')})</span>
-                      )}
-                      {' '}<ProvenanceChip provenance="client_reported" />
-                    </p>
-                    <div className="flex gap-2 flex-wrap items-center">
-                      <span className="text-[11px]" style={{ ...body, color: C.muted }}>Review status: {item.reviewStatus}</span>
-                      <InertControl variant="gold">Acknowledge — discussed in consultation</InertControl>
-                      <InertControl>Add action note</InertControl>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
-
-          {/* 2 ── Case snapshot (frozen at submission, derived numbers only) */}
-          <Section number={num('case_snapshot')} title={sectionTitle('case_snapshot')}
-            note="Frozen at submission. Age and BMI are derived numbers only — never labelled or categorised. Contact details are operational and excluded from the practitioner view by default.">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
-              <Fact label="Preferred name" fact={{ value: FIXTURE_SNAPSHOT.profileFrozen.preferredName, provenance: 'client_reported' }} />
-              <Fact label="Age at submission (derived)" fact={{ value: String(FIXTURE_SNAPSHOT.ageDerived ?? '—'), provenance: 'client_reported' }} />
-              <Fact label="BMI (derived, number only)" fact={{ value: FIXTURE_SNAPSHOT.bmiDerived === null ? '—' : String(FIXTURE_SNAPSHOT.bmiDerived), provenance: 'client_reported' }} />
-              <Fact label="Pathway" fact={{ value: case_.client.pathway, provenance: 'client_reported' }} />
-              <Fact label="Occupation" fact={case_.client.occupation} />
-              <Fact label="GP practice" fact={case_.client.gp} />
-              <Fact label="GP contact permission" fact={case_.client.gpContactPermission} />
-              <Fact label="Submitted" fact={{ value: new Date(FIXTURE_SNAPSHOT.submittedAt).toLocaleString('en-GB'), provenance: 'client_reported' }} />
-              <Fact label="Coverage" fact={{ value: case_.client.chaptersCompleted, provenance: 'client_reported' }} />
-            </div>
-          </Section>
-
-          {/* 3 ── Presenting concerns */}
-          <Section number={num('concerns')} title={sectionTitle('concerns')}
-            note="The client's own words first, then the moderate-depth facts they gave. Deeper questioning belongs to your call sheet.">
-            <div className="space-y-3">
-              {case_.concerns.map((concern, index) => {
-                const open = openConcerns[index] ?? false
-                return (
-                  <div key={concern.title} className="rounded-xl overflow-hidden" style={{ background: '#fff', border: `1px solid ${C.border}` }}>
-                    <button type="button" className="w-full text-left px-4 py-3 flex items-center justify-between"
-                      onClick={() => setOpenConcerns((cur) => ({ ...cur, [index]: !open }))}>
-                      <span className="text-[15px] font-medium" style={{ ...body, color: C.pine }}>{concern.title}</span>
-                      <span className="text-[11px]" style={{ ...body, color: C.muted }}>{open ? 'Collapse' : 'Expand history'}</span>
-                    </button>
-                    {open && (
-                      <div className="px-4 pb-4 space-y-3" style={{ borderTop: `1px solid ${C.border}` }}>
-                        <div className="pt-3"><Fact label="In their own words (verbatim)" fact={concern.ownWords} /></div>
-                        <PairGrid rows={[
-                          ['How long', concern.duration],
-                          ['Course over time (as the client tells it)', concern.course],
-                          ['Where it is felt', concern.location],
-                          ['What it feels like', concern.character],
-                          ['How often', concern.frequency],
-                          ['Already tried', concern.alreadyTried],
-                          ['Eases with (client-reported)', concern.betterWith],
-                          ['Harder with (client-reported)', concern.worseWith],
-                          ['Reported diagnosis connected to this', concern.relatedDiagnosis],
-                          ['What they hope for', concern.desiredOutcome],
-                        ]} />
-                      </div>
+          {/* 1 ── Safety — only when relevant; prominent, neutral, quiet detail */}
+          {FIXTURE_SAFETY_ITEMS.length > 0 && (
+            <SectionShell heading={title('safety_review')} tone="gold" note={V2_SAFETY_BOUNDARY_TEXT}>
+              {FIXTURE_SAFETY_ITEMS.map((item) => (
+                <div key={item.sourceQuestionId} className="py-1.5" style={body}>
+                  <p className="text-[14px]" style={{ color: C.text }}>
+                    <span style={{ fontWeight: 500, color: C.goldInk }}>{item.matchedOptions.join(' · ')}</span>
+                    {item.rawAnswer.length > item.matchedOptions.length && (
+                      <span style={{ color: C.text2 }}> — reported alongside {item.rawAnswer.filter((o) => !item.matchedOptions.includes(o)).join(', ')}</span>
                     )}
-                  </div>
-                )
-              })}
-            </div>
-          </Section>
-
-          {/* 4 ── Diagnoses / investigations / referrals — as reported */}
-          <Section number={num('diagnoses')} title={sectionTitle('diagnoses')}
-            note="Everything here is attributed and client-reported. NI records who said what and when — it never asserts a diagnosis itself.">
-            <div className="grid lg:grid-cols-2 gap-3 mb-4">
-              {case_.diagnoses.map((diagnosis, index) => (
-                <div key={index} className="rounded-xl p-4 space-y-2" style={{ background: '#fff', border: `1px solid ${C.border}` }}>
-                  <Fact fact={diagnosis.condition} />
-                  <PairGrid rows={[
-                    ['Reported by', diagnosis.diagnosedBy],
-                    ['When (approx.)', diagnosis.approxDate],
-                    ['Status, as reported', diagnosis.status],
-                    ['Tests done, as reported', diagnosis.testsDone],
-                    ['Tests pending, as reported', diagnosis.testsPending],
-                    ['Referral status, as reported', diagnosis.referralStatus],
-                  ]} />
+                  </p>
+                  <SourceDetails>
+                    Client-reported, raw and unassessed. Question: “{item.questionLabel}” ({item.sourceQuestionId})
+                    {item.capturedAt && <> · captured {new Date(item.capturedAt).toLocaleString('en-GB')}</>}
+                    · review status: {item.reviewStatus} — yours to adjudicate in consultation.
+                  </SourceDetails>
                 </div>
               ))}
-            </div>
-            <div className="grid lg:grid-cols-2 gap-3">
-              <div className="rounded-xl p-4 space-y-2" style={{ background: '#fff', border: `1px solid ${C.border}` }}>
-                <p className="text-[12px] font-medium uppercase tracking-wide" style={{ ...body, color: C.pine }}>Care already in place</p>
-                {case_.careInPlace.specialists.map((entry, index) => (
-                  <PairGrid key={index} rows={[[`Specialist — ${entry.specialty.value}`, entry.name], ['Seen', entry.status]]} />
-                ))}
-                {case_.careInPlace.otherPractitioners.map((entry, index) => (
-                  <Fact key={index} label={`Other practitioner — ${entry.discipline.value}`} fact={entry.name} />
-                ))}
-              </div>
-              <div className="rounded-xl p-4 space-y-2" style={{ background: '#fff', border: `1px solid ${C.border}` }}>
-                <p className="text-[12px] font-medium uppercase tracking-wide" style={{ ...body, color: C.pine }}>Pending, as reported</p>
-                {case_.careInPlace.pendingReferrals.map((entry, index) => (
-                  <PairGrid key={index} rows={[['Referral', entry.description], ['Status', entry.status]]} />
-                ))}
-                {case_.careInPlace.pendingInvestigations.map((entry, index) => (
-                  <PairGrid key={index} rows={[['Investigation', entry.description], ['Status', entry.status]]} />
-                ))}
-                <p className="text-[11px] italic" style={{ ...body, color: C.muted }}>
-                  Document uploads: design placeholder only in this build — storage, retention and legal handling await authorisation.
-                </p>
-              </div>
-            </div>
-          </Section>
+            </SectionShell>
+          )}
 
-          {/* 5 ── Health timeline */}
-          <Section number={num('timeline')} title={sectionTitle('timeline')}
-            note="Dense but legible. Gold markers are the moments the client marked as key — their emphasis. Entries suggested from their own answers were confirmed by them before submission.">
-            <div className="relative pl-6" style={{ borderLeft: `2px solid ${C.sand}` }}>
+          {/* 2 ── Client snapshot — one compact strip, no operational clutter */}
+          <SectionShell heading={title('case_snapshot')}>
+            <div className="flex flex-wrap gap-x-6 gap-y-1.5">
+              <Plain label="Age" value={FIXTURE_SNAPSHOT.ageDerived} />
+              <Plain label="Sex" value={FIXTURE_SNAPSHOT.careProfileFrozen.sex ?? null} />
+              <Plain label="Pathway" value={case_.client.pathway} />
+              <Plain label="Occupation" value={case_.client.occupation.value} />
+              <Plain label="Household" value={FIXTURE_SNAPSHOT.careProfileFrozen.household ?? null} />
+              <Plain label="GP contact" value={case_.client.gpContactPermission.value.startsWith('Yes') ? 'permitted' : case_.client.gpContactPermission.value} />
+            </div>
+            <SourceDetails>
+              Snapshot frozen at submission ({new Date(FIXTURE_SNAPSHOT.submittedAt).toLocaleString('en-GB')}) ·
+              {' '}{case_.client.chaptersCompleted} · GP: {case_.client.gp.value} ·
+              derived values are numbers only, never categorised.
+            </SourceDetails>
+          </SectionShell>
+
+          {/* 3 ── Presenting concerns — the centre of the synopsis */}
+          <SectionShell heading={title('concerns')}>
+            {case_.concerns.map((concern, index) => (
+              <div key={concern.title} className={index > 0 ? 'pt-4 mt-4 border-t' : ''} style={{ borderColor: C.border }}>
+                <p className="text-[16px] font-medium mb-1" style={{ ...display, color: C.pine }}>{concern.title}</p>
+                <p className="text-[14px] italic leading-relaxed mb-2" style={{ ...body, color: C.text }}>
+                  “{concern.ownWords.value}”
+                </p>
+                <Line label="Duration · course" fact={{ value: `${concern.duration.value} — ${concern.course.value}`, provenance: 'client_reported' }} />
+                <Line label="Pattern" fact={{ value: `${concern.frequency.value}; ${concern.location.value.toLowerCase?.() ?? concern.location.value}`, provenance: 'client_reported' }} />
+                <Line label="Worse · better" fact={{ value: `${concern.worseWith.value} · eases with ${concern.betterWith.value.toLowerCase?.() ?? concern.betterWith.value}`, provenance: 'client_reported' }} />
+                <Line label="Tried" fact={concern.alreadyTried} />
+                {concern.relatedDiagnosis.value !== 'None reported' && <Line label="Reported diagnosis" fact={concern.relatedDiagnosis} />}
+                <Line label="Hopes for" fact={concern.desiredOutcome} />
+              </div>
+            ))}
+          </SectionShell>
+
+          {/* 4 ── Current care / diagnoses / investigations — non-empty only */}
+          <SectionShell heading={title('diagnoses')} note="Everything attributed, as the client reported it.">
+            {case_.diagnoses.map((diagnosis, index) => (
+              <div key={index} className="py-1" style={body}>
+                <p className="text-[13.5px]" style={{ color: C.text }}>
+                  {diagnosis.condition.value} <span style={{ color: C.muted }}>· {diagnosis.diagnosedBy.value}, {diagnosis.approxDate.value}</span>
+                </p>
+                <SourceDetails>
+                  Status: {diagnosis.status.value} · tests done: {diagnosis.testsDone.value} · pending: {diagnosis.testsPending.value} ·
+                  referral: {diagnosis.referralStatus.value} · client-reported.
+                </SourceDetails>
+              </div>
+            ))}
+            <div className="pt-1">
+              {case_.careInPlace.specialists.map((entry, index) => (
+                <p key={index} className="text-[13.5px] py-0.5" style={{ ...body, color: C.text }}>
+                  <span style={{ color: C.muted }}>Specialist · </span>{entry.specialty.value} — {entry.name.value} ({entry.status.value})
+                </p>
+              ))}
+              {case_.careInPlace.pendingInvestigations.map((entry, index) => (
+                <p key={index} className="text-[13.5px] py-0.5" style={{ ...body, color: C.text }}>
+                  <span style={{ color: C.muted }}>Pending · </span>{entry.description.value} — {entry.status.value}
+                </p>
+              ))}
+              {case_.careInPlace.pendingReferrals.map((entry, index) => (
+                <p key={index} className="text-[13.5px] py-0.5" style={{ ...body, color: C.text }}>
+                  <span style={{ color: C.muted }}>Referral · </span>{entry.description.value} — {entry.status.value}
+                </p>
+              ))}
+            </div>
+          </SectionShell>
+
+          {/* 5 ── Current medication & supplements — past collapsed */}
+          <SectionShell heading="Current medication & supplements" note="Amounts exactly as written.">
+            {currentMeds.map((item, index) => (
+              <div key={index} className="py-1" style={body}>
+                <p className="text-[13.5px]" style={{ color: C.text }}>
+                  {medLine(item)}
+                  <span style={{ color: C.muted }}> · {item.suggestedBy.value}</span>
+                  {item.name.provenance === 'corrected' && <span className="text-[10.5px] ml-1.5" style={{ color: C.goldInk }}>corrected</span>}
+                </p>
+                <SourceDetails>
+                  {item.name.provenance === 'corrected' && item.name.correction && (
+                    <>Original client answer (preserved verbatim): “{item.name.value}” · correction by {item.name.correctedBy}, {item.name.correctedAt}<br /></>
+                  )}
+                  Reason: {item.reason.value} · frequency: {item.frequency.value}
+                  {item.effects && <> · effects noticed: {item.effects.value}</>} · {provenanceLabel(item.name)}.
+                </SourceDetails>
+              </div>
+            ))}
+            {pastMeds.length > 0 && (
+              <details className="mt-2">
+                <summary className="cursor-pointer list-none text-[12px]" style={{ ...body, color: C.muted }}>
+                  Past — with the client&apos;s reasons ({pastMeds.length}) ▾
+                </summary>
+                <div className="pt-1">
+                  {pastMeds.map((item, index) => (
+                    <p key={index} className="text-[13px] py-0.5" style={{ ...body, color: C.text2 }}>
+                      {medLine(item)}{item.reasonStopped && <> — stopped: {item.reasonStopped.value}</>}
+                    </p>
+                  ))}
+                </div>
+              </details>
+            )}
+          </SectionShell>
+
+          {/* 6 ── Timeline — visually strong, concise */}
+          <SectionShell heading={title('timeline')} note="Gold = the client's own key moments.">
+            <div className="relative pl-5" style={{ borderLeft: `2px solid ${C.sand}` }}>
               {case_.timeline.map((moment) => (
-                <div key={`${moment.when}-${moment.event}`} className="relative pb-5 last:pb-0">
-                  <span className="absolute -left-[31px] top-1 w-3 h-3 rounded-full"
+                <div key={`${moment.when}-${moment.event}`} className="relative pb-3.5 last:pb-0">
+                  <span className="absolute -left-[27px] top-1.5 w-2.5 h-2.5 rounded-full"
                     style={{
                       background: moment.keyMoment ? C.gold : moment.category === 'health' ? C.pine : C.sage,
                       boxShadow: moment.keyMoment ? `0 0 0 3px ${C.goldPale}` : 'none',
                     }} />
-                  <div className="flex flex-wrap items-baseline gap-x-3">
-                    <span className="font-mono text-[11px]" style={{ color: C.muted }}>{moment.when}</span>
-                    <span className="text-[10px] uppercase tracking-wide" style={{ ...body, color: moment.category === 'health' ? C.pine : C.olive }}>
-                      {moment.category}
-                    </span>
-                    {moment.keyMoment && (
-                      <span className="text-[10px] uppercase tracking-wide font-medium" style={{ ...body, color: C.goldInk }}>
-                        Client-marked key moment
-                      </span>
-                    )}
-                    {moment.source === 'suggested-confirmed' && (
-                      <span className="text-[10px]" style={{ ...body, color: C.muted }}>from their own entry · client-confirmed</span>
-                    )}
+                  <p className="text-[13.5px] leading-snug" style={{ ...body, color: C.text }}>
+                    <span className="font-mono text-[11px] mr-2" style={{ color: C.muted }}>{moment.when}</span>
+                    {moment.event}
+                  </p>
+                  {moment.note && <p className="text-[12px] italic" style={{ ...body, color: C.text2 }}>{moment.note}</p>}
+                </div>
+              ))}
+            </div>
+          </SectionShell>
+
+          {/* 7 ── Relevant history — one consolidated area, only what was reported */}
+          <SectionShell heading="Relevant history" note="Only what the client actually reported. Expand any group.">
+            <HistoryGroup name="Family"
+              summary={case_.family.filter((entry) => entry.notes.value).map((entry) => entry.relative).join(' · ')}>
+              {case_.family.filter((entry) => entry.notes.value).map((entry) => (
+                <Line key={entry.relative} label={entry.relative} fact={entry.notes} />
+              ))}
+            </HistoryGroup>
+            <HistoryGroup name="Early life"
+              summary={case_.earlyLife.filter((entry) => entry.fact.value).map((entry) => entry.label).join(' · ')}>
+              {case_.earlyLife.filter((entry) => entry.fact.value).map((entry) => (
+                <Line key={entry.label} label={entry.label} fact={entry.fact} />
+              ))}
+            </HistoryGroup>
+            {systemsWithContent.map((sys) => (
+              <HistoryGroup key={sys.system} name={sys.system}
+                summary={sys.answers.flatMap((answer) => Array.isArray(answer.answer.value) ? answer.answer.value : [answer.answer.value]).join(' · ')}>
+                {sys.answers.map((answer) => (
+                  <div key={answer.questionId} className="py-1" style={body}>
+                    <p className="text-[13.5px]" style={{ color: C.text }}>
+                      {Array.isArray(answer.answer.value) ? answer.answer.value.join(' · ') : answer.answer.value}
+                    </p>
+                    <SourceDetails>
+                      {provenanceLabel(answer.answer)} · question: “{answer.label}” ({answer.questionId}) ·
+                      captured {new Date(answer.capturedAt).toLocaleString('en-GB')}.
+                    </SourceDetails>
                   </div>
-                  <p className="text-[13.5px] mt-0.5" style={{ ...body, color: C.text }}>{moment.event} <ProvenanceChip provenance="client_reported" /></p>
-                  {moment.note && <p className="text-[12px] mt-0.5 italic" style={{ ...body, color: C.text2 }}>{moment.note}</p>}
-                </div>
+                ))}
+              </HistoryGroup>
+            ))}
+            <HistoryGroup name="Food & kitchen"
+              summary={`Good/average/difficult day · ${case_.food.kitchenReality.value.split(';')[0]}`}>
+              <Line label="A good day" fact={case_.food.goodDay} />
+              <Line label="An average day" fact={case_.food.averageDay} />
+              <Line label="A difficult day" fact={case_.food.difficultDay} />
+              <Line label="Kitchen reality" fact={case_.food.kitchenReality} />
+              <Line label="Drinks · water · caffeine" fact={{ value: `${case_.food.drinks.value} · ${case_.food.water.value} · ${case_.food.caffeine.value}`, provenance: 'client_reported' }} />
+              <Line label="Seems to disagree" fact={case_.food.reactions} />
+              <Line label="Barriers" fact={case_.food.barriers} />
+            </HistoryGroup>
+            <HistoryGroup name="Lifestyle & environment"
+              summary={`${case_.lifestyle.work.value.split(';')[0]} · stress self-described`}>
+              <Line label="Work" fact={case_.lifestyle.work} />
+              <Line label="Movement" fact={case_.lifestyle.movement} />
+              <Line label="Stress (their words)" fact={case_.lifestyle.stressLoad} />
+              <Line label="Unwinding" fact={case_.lifestyle.coping} />
+              <Line label="Caring" fact={case_.lifestyle.caring} />
+              <Line label="Home" fact={case_.lifestyle.homeEnvironment} />
+              <Line label="Faith & practice (accommodation)" fact={case_.lifestyle.faithPractice} />
+            </HistoryGroup>
+            <HistoryGroup name="Physical observation (yours, at consultation)"
+              summary={case_.observations.filter((obs) => obs.note).map((obs) => obs.area).join(' · ') || 'Not yet recorded'}>
+              {case_.observations.filter((obs) => obs.note).map((obs) => (
+                <Line key={obs.area} label={obs.area} fact={obs.note!} />
               ))}
-            </div>
-          </Section>
+              {case_.observations.every((obs) => !obs.note) && (
+                <p className="text-[12.5px] italic" style={{ ...body, color: C.muted }}>Nothing recorded yet — at consultation.</p>
+              )}
+            </HistoryGroup>
+          </SectionShell>
 
-          {/* 6 ── Medication & supplements */}
-          <Section number={num('medications_supplements')} title={sectionTitle('medications_supplements')}
-            note="Amounts and brands exactly as the client wrote them. Past items keep the client's own reason for stopping. Interaction review belongs to you, on the call sheet.">
-            <div className="grid lg:grid-cols-2 gap-5">
-              <div>
-                <h3 className="text-[13px] font-medium mb-2 uppercase tracking-wide" style={{ ...body, color: C.pine }}>Current</h3>
-                <div className="space-y-3">
-                  {[...case_.medications, ...case_.supplements].filter((item) => item.status === 'current').map((item, index) => <MedCard key={index} item={item} />)}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[13px] font-medium mb-2 uppercase tracking-wide" style={{ ...body, color: C.muted }}>Past — with reasons</h3>
-                <div className="space-y-3">
-                  {[...case_.medications, ...case_.supplements].filter((item) => item.status === 'past').map((item, index) => <MedCard key={index} item={item} />)}
-                </div>
-              </div>
-            </div>
-          </Section>
-
-          {/* 7 ── Family history */}
-          <Section number={num('family_history')} title={sectionTitle('family_history')}
-            note="As the client recalls it — diagnoses named here were made by the relatives' own doctors, not by NI. Family history is context for your thinking; NI draws nothing from it.">
-            <div className="grid sm:grid-cols-2 gap-3">
-              {case_.family.map((entry) => (
-                <div key={entry.relative} className="rounded-xl p-4" style={{ background: '#fff', border: `1px solid ${C.border}` }}>
-                  <p className="text-[13px] font-medium mb-1" style={{ ...body, color: C.pine }}>{entry.relative}</p>
-                  <Fact fact={entry.notes} />
-                </div>
-              ))}
-            </div>
-          </Section>
-
-          {/* 8 ── Early life & past health */}
-          <Section number={num('early_life')} title={sectionTitle('early_life')}
-            note="All of this was optional and 'if known' for the client — a Missing chip means not provided, which is itself useful to you.">
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
-              {case_.earlyLife.map((entry) => <Fact key={entry.label} label={entry.label} fact={entry.fact} />)}
-            </div>
-          </Section>
-
-          {/* 9 ── Systems review (accordion) */}
-          <Section number={num('systems_review')} title={sectionTitle('systems_review')}
-            note="Collapsed by default; every reported answer is inside, nothing is dropped. Verification is per system — your confirmation or correction sits beside the client's answer, never over it.">
-            <div className="space-y-2">
-              {case_.systems.map((sys) => {
-                const open = openSystems[sys.system] ?? false
-                return (
-                  <div key={sys.system} className="rounded-xl overflow-hidden" style={{ background: '#fff', border: `1px solid ${C.border}` }}>
-                    <button type="button" className="w-full text-left px-4 py-3 flex items-center justify-between"
-                      onClick={() => setOpenSystems((cur) => ({ ...cur, [sys.system]: !open }))}>
-                      <span className="text-[14px] font-medium" style={{ ...body, color: C.pine }}>{sys.system}</span>
-                      <span className="text-[11px]" style={{ ...body, color: C.muted }}>
-                        {sys.answers.length} answer{sys.answers.length === 1 ? '' : 's'} · {open ? 'collapse' : 'open'}
-                      </span>
-                    </button>
-                    {open && (
-                      <div className="px-4 pb-4 space-y-3" style={{ borderTop: `1px solid ${C.border}` }}>
-                        {sys.answers.map((answer) => (
-                          <div key={answer.questionId} className="pt-3">
-                            <p className="text-[11px] mb-1" style={{ ...body, color: C.muted }}>{answer.label}</p>
-                            <p className="text-[13px]" style={{ ...body, color: C.text }}>
-                              {Array.isArray(answer.answer.value) ? answer.answer.value.join(' · ') : answer.answer.value}
-                              {' '}<ProvenanceChip provenance={answer.answer.provenance} />
-                            </p>
-                          </div>
-                        ))}
-                        <div className="flex gap-2 pt-1">
-                          <InertControl variant="pine">Mark system verified</InertControl>
-                          <InertControl>Record a correction (kept beside the original)</InertControl>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </Section>
-
-          {/* 10 ── Physical observations */}
-          <Section number={num('physical_observations')} title={sectionTitle('physical_observations')}
-            note="Recorded by you at consultation — the client is never asked to self-assess these. Observation only; your interpretation belongs on the Analysis & Plan tab. Photos are a future module awaiting storage/retention/legal decisions.">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {case_.observations.map((observation) => (
-                <div key={observation.area} className="rounded-xl p-4" style={{ background: '#fff', border: `1px solid ${C.border}` }}>
-                  <p className="text-[12px] font-medium mb-1.5 uppercase tracking-wide" style={{ ...body, color: C.pine }}>{observation.area}</p>
-                  {observation.note ? (
-                    <Fact fact={{ ...observation.note, provenance: 'practitioner_verified' }} />
-                  ) : (
-                    <p className="text-[12px] italic" style={{ ...body, color: C.muted }}>Not yet recorded — at consultation.</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </Section>
-
-          {/* 11 ── Food, drink & kitchen reality */}
-          <Section number={num('food_kitchen')} title={sectionTitle('food_kitchen')}
-            note="The honest picture the client chose to give — never assessed, never graded, no nutrition conclusions drawn by NI.">
-            <div className="mb-3"><Fact label="How they chose to tell it" fact={case_.food.mode} /></div>
-            <div className="grid lg:grid-cols-3 gap-3 mb-4">
-              {([['A good day', case_.food.goodDay], ['An average day', case_.food.averageDay], ['A difficult day', case_.food.difficultDay]] as const).map(([label, fact]) => (
-                <div key={label} className="rounded-xl p-4" style={{ background: '#fff', border: `1px solid ${C.border}` }}>
-                  <p className="text-[12px] font-medium mb-1.5" style={{ ...body, color: C.pine }}>{label}</p>
-                  <Fact fact={fact} />
-                </div>
-              ))}
-            </div>
-            <PairGrid rows={[
-              ['Kitchen reality', case_.food.kitchenReality],
-              ['Drinks', case_.food.drinks],
-              ['Water', case_.food.water],
-              ['Caffeine', case_.food.caffeine],
-              ['Foods that seem to disagree (their words)', case_.food.reactions],
-              ['Barriers', case_.food.barriers],
-            ]} />
-          </Section>
-
-          {/* 12 ── Lifestyle & environmental context */}
-          <Section number={num('lifestyle_environment')} title={sectionTitle('lifestyle_environment')}
-            note="Self-described, including stress load in the client's own rating. Faith and cultural practices are recorded solely so care can accommodate food, fasting, modesty and routine.">
-            <PairGrid rows={[
-              ['Work pattern', case_.lifestyle.work],
-              ['Movement', case_.lifestyle.movement],
-              ['Stress load (self-described)', case_.lifestyle.stressLoad],
-              ['Coping & unwinding', case_.lifestyle.coping],
-              ['Caring responsibilities', case_.lifestyle.caring],
-              ['Home environment', case_.lifestyle.homeEnvironment],
-              ['Faith & cultural practices (accommodation only)', case_.lifestyle.faithPractice],
-            ]} />
-          </Section>
+          {/* Understated end-of-page audit disclosure (control 4 stays intact) */}
+          <details className="mb-6">
+            <summary className="cursor-pointer list-none text-[11px]" style={{ ...body, color: C.muted }}>
+              Source &amp; audit record ▾
+            </summary>
+            <p className="font-mono text-[10.5px] mt-1.5 leading-relaxed" style={{ color: C.muted }}>
+              Generated {new Date(FIXTURE_AUDIT.generatedAt).toLocaleString('en-GB')} · source {FIXTURE_AUDIT.sourceSubmissionRef} ·
+              {' '}{FIXTURE_AUDIT.intakeSchemaVersion} · {FIXTURE_AUDIT.synopsisWorkflowVersion} ·
+              {' '}{FIXTURE_AUDIT.sourceFieldIds.length} source fields · every fact keeps client-reported / practitioner-verified /
+              corrected (author + time) / missing provenance underneath; originals are never overwritten.
+            </p>
+          </details>
         </>
       )}
 
       {tab === 'plan' && (
-        <Section title={sectionTitle('analysis_plan')} tone="gold"
-          note="Yours alone. Nothing on this tab is generated, suggested or pre-filled by the system — it opens empty and stays empty until you write it. In this preview the fields are inert.">
-          <div className="space-y-4">
-            {[
-              { heading: 'Antecedents', hint: 'Your case analysis, in your framework.' },
-              { heading: 'Triggers', hint: 'Your reading of the story — the system records only what you write.' },
-              { heading: 'Mediators', hint: 'Yours to author.' },
-              { heading: 'Systems under stress', hint: 'Your read of the case.' },
-              { heading: 'Red flags & referrals', hint: 'Your adjudication of the safety answers above, and any referral you decide to make. The system never proposes one.' },
-              { heading: 'Nutritional assessment', hint: 'Authored by you — NI performs no assessment of the food sections.' },
-              { heading: 'Therapeutic aims', hint: 'What you and the client agree to work towards.' },
-              { heading: 'Diet & lifestyle plan', hint: 'Authored by you.' },
-              { heading: 'Supplement plan', hint: 'Authored by you. No product, amount or regimen is ever suggested by the platform.' },
-              { heading: 'Review interval', hint: 'Your decision.' },
-              { heading: 'Future considerations', hint: 'Yours to note.' },
-            ].map((block) => (
-              <div key={block.heading} className="rounded-xl p-4" style={{ background: '#fff', border: `1px solid ${C.border}` }}>
-                <p className="text-[14px] font-medium mb-1" style={{ ...body, color: C.pine }}>{block.heading}</p>
-                <p className="text-[11px] mb-2" style={{ ...body, color: C.muted }}>{block.hint}</p>
-                <div aria-disabled="true" className="rounded-lg px-3 py-6 text-[12px] italic"
+        <SectionShell heading={title('analysis_plan')} tone="gold"
+          note="Yours alone. Nothing here is generated, suggested or pre-filled — it opens empty and stays empty until you write it. Inert in this preview.">
+          <div className="space-y-3">
+            {['Antecedents', 'Triggers', 'Mediators', 'Systems under stress', 'Red flags & referrals',
+              'Nutritional assessment', 'Therapeutic aims', 'Diet & lifestyle plan', 'Supplement plan',
+              'Review interval', 'Future considerations'].map((heading) => (
+              <div key={heading}>
+                <p className="text-[13.5px] font-medium mb-1" style={{ ...body, color: C.pine }}>{heading}</p>
+                <div aria-disabled="true" className="rounded-lg px-3 py-4 text-[12px] italic"
                   style={{ ...body, border: `1px dashed ${C.border}`, color: C.muted }}>
-                  Empty — practitioner-authored. (Inert in this preview.)
+                  Empty — practitioner-authored.
                 </div>
               </div>
             ))}
           </div>
-        </Section>
+        </SectionShell>
       )}
 
       <SignOffPanel surface="Practitioner Synopsis V2 (synthetic preview)" />
@@ -429,8 +406,8 @@ export function SynopsisV2Preview() {
       <p className="text-[11px] leading-relaxed mt-8 max-w-3xl" style={{ ...body, color: C.muted }}>
         This surface organises and displays what the client shared. It does not diagnose, does not infer causes,
         does not rank or score anything, and does not recommend anything — those judgements belong to the
-        practitioner, recorded on the Analysis &amp; Plan tab in their own words. Live wiring to real cases is a
-        separate task on the approved Sprint 3 data-access model, with clinician sign-off and KR authorisation.
+        practitioner, on the Analysis &amp; Plan tab. Live wiring to real cases remains a separate task on the
+        approved Sprint 3 data-access model, with clinician sign-off and KR authorisation.
       </p>
     </div>
   )

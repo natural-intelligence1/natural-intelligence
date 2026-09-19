@@ -56,6 +56,23 @@ export const V2_NON_MONITORING_WORDING =
 // original client answer is preserved verbatim and a correction sits beside
 // it, never over it.
 
+// ─── Default synopsis view policy (SK declutter, 18 Sep 2026) ─────────────────
+// The practitioner sees THE CLIENT STORY — not the database, questionnaire
+// or audit log. Provenance/audit stays fully in the MODEL; the default view
+// hides it behind one understated "Source details" disclosure per item.
+// The preview/live UI must obey this policy; a test pins it.
+
+export const V2_SYNOPSIS_DEFAULT_VIEW = {
+  showQuestionIds: false,
+  showOriginalQuestionText: false,
+  showPerLineProvenanceChips: false,
+  showPerLineTimestamps: false,
+  showWorkflowMetadata: false,
+  showEmptyFields: false,
+  showNoneReportedRows: false,
+  provenanceDisclosureLabel: 'Source details',
+} as const
+
 export const V2_INTAKE_SCHEMA_VERSION = 'intake-v2.registry.v1'
 export const V2_SYNOPSIS_WORKFLOW_VERSION = 'synopsis-v2.workflow.v1'
 

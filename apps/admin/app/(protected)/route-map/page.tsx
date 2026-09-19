@@ -66,6 +66,7 @@ export default async function RouteMapPage() {
         <ul className="text-sm space-y-1.5">
           <li><a className="text-text-brand underline" href="/route-map/preview/intake-v2">Intake V2 — client flow (mobile-first)</a></li>
           <li><a className="text-text-brand underline" href="/route-map/preview/synopsis-v2">Practitioner Synopsis V2 (desktop)</a></li>
+          <li><a className="text-text-brand underline" href="/route-map/preview/care-team">My Care Team V1 — client / admin / practitioner views</a></li>
           <li><a className="text-text-brand underline" href="/route-map/preview/pricing">Pricing page preview</a></li>
         </ul>
       </section>
