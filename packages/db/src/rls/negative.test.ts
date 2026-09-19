@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types'
 import { createTestUser, deleteTestUser } from '../practitioners/__test-helpers__/createTestUser'
 import { signInAs } from '../practitioners/__test-helpers__/signInAs'
+import { makePractitionerAssignable } from '../practitioners/__test-helpers__/makeAssignable'
 
 const HAVE_DB = !!process.env.NEXT_PUBLIC_SUPABASE_URL
 function mkAdmin() {
@@ -104,6 +105,7 @@ describe.skipIf(!HAVE_DB)('negative RLS — review packs require an ACTIVE work 
   let packId: string | null = null
   let workId: string | null = null
   let tableExists = false
+  let cleanupAssignable: (() => Promise<void>) | null = null
 
   beforeAll(async () => {
     admin = mkAdmin()
@@ -115,6 +117,9 @@ describe.skipIf(!HAVE_DB)('negative RLS — review packs require an ACTIVE work 
     member = await createTestUser(admin, 's3-pack-member')
     pract  = await createTestUser(admin, 's3-pack-pract')
     await admin.from('practitioners').insert({ id: pract.id, display_name: `Test ${pract.email}`, status: 'active' })
+    // Sprint 4: the 0056 trigger refuses work-item rows for ineligible
+    // practitioners, so the fixture practitioner must pass the gate first.
+    cleanupAssignable = await makePractitionerAssignable(admin, pract.id)
     const { data: c } = await admin.from('client_cases')
       .insert({ client_id: member.id, status: 'active' } as never).select('id').single()
     caseId = (c as { id: string } | null)?.id ?? null
@@ -137,6 +142,7 @@ describe.skipIf(!HAVE_DB)('negative RLS — review packs require an ACTIVE work 
     if (packId) await (admin as any).from('practitioner_review_packs').delete().eq('id', packId)
     if (workId) await admin.from('case_practitioner_work').delete().eq('id', workId)
     if (caseId) await admin.from('client_cases').delete().eq('id', caseId)
+    if (cleanupAssignable) await cleanupAssignable()
     if (pract)  { await admin.from('practitioners').delete().eq('id', pract.id); await deleteTestUser(admin, pract.id) }
     if (member) await deleteTestUser(admin, member.id)
   })
@@ -291,6 +297,7 @@ describe.skipIf(!HAVE_DB)('negative RLS — client_cases closed to practitioners
   let caseId: string | null = null
   let workId: string | null = null
   let viewExists = false
+  let cleanupCcAssignable: (() => Promise<void>) | null = null
 
   beforeAll(async () => {
     admin = mkAdmin()
@@ -303,6 +310,8 @@ describe.skipIf(!HAVE_DB)('negative RLS — client_cases closed to practitioners
     await admin.from('practitioners').insert({
       id: pract.id, display_name: `Test ${pract.email}`, status: 'active',
     } as never)
+    // Sprint 4: work-item fixtures need a 0056-eligible practitioner.
+    cleanupCcAssignable = await makePractitionerAssignable(admin, pract.id)
     const { data: c } = await admin.from('client_cases')
       .insert({ client_id: member.id, status: 'active', primary_concern: 'synthetic concern text' } as never)
       .select('id').single()
@@ -318,6 +327,7 @@ describe.skipIf(!HAVE_DB)('negative RLS — client_cases closed to practitioners
     if (!viewExists) return
     if (workId) await admin.from('case_practitioner_work').delete().eq('id', workId)
     if (caseId) await admin.from('client_cases').delete().eq('id', caseId)
+    if (cleanupCcAssignable) await cleanupCcAssignable()
     if (pract)  { await admin.from('practitioners').delete().eq('id', pract.id); await deleteTestUser(admin, pract.id) }
     if (member) await deleteTestUser(admin, member.id)
   })
