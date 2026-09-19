@@ -113,6 +113,7 @@ describe.skipIf(!HAVE_DB)('Sprint 4 — AUTHORITATIVE DB gate (armed once 0056 i
   let pract: Awaited<ReturnType<typeof createTestUser>> | null = null
   let member: Awaited<ReturnType<typeof createTestUser>> | null = null
   let caseId: string | null = null
+  let syntheticAgreementId: string | null = null
   const cleanup: { table: string; id: string }[] = []
 
   beforeAll(async () => {
@@ -120,6 +121,21 @@ describe.skipIf(!HAVE_DB)('Sprint 4 — AUTHORITATIVE DB gate (armed once 0056 i
     const probe = await checkAssignmentEligibility(admin, '00000000-0000-0000-0000-000000000000')
     gateInstalled = probe.gateInstalled
     if (!gateInstalled) return // 0056 not applied yet — every test below self-skips
+
+    // Synthetic/test agreement version — ONLY when no current agreement
+    // exists for 'unregistered' (Sprint 4 authorises synthetic versions for
+    // tests only; the real documents arrive separately). Deleted in afterAll.
+    const { data: existing } = await admin.from('practitioner_agreements')
+      .select('id').eq('category', 'unregistered').eq('is_current', true).maybeSingle()
+    if (!existing) {
+      const { data: created } = await admin.from('practitioner_agreements').insert({
+        category: 'unregistered', version: 'sprint4-armed-test-0',
+        title: 'SYNTHETIC TEST AGREEMENT — Sprint 4 armed suite only (not a real agreement)',
+        body: 'SYNTHETIC TEST BODY — exists only while the Sprint 4 armed suite runs; never shown to any practitioner.',
+        is_current: true,
+      } as never).select('id').single()
+      syntheticAgreementId = (created as { id: string } | null)?.id ?? null
+    }
 
     pract = await createTestUser(admin, 's4-elig-pract')
     member = await createTestUser(admin, 's4-elig-member')
@@ -137,6 +153,9 @@ describe.skipIf(!HAVE_DB)('Sprint 4 — AUTHORITATIVE DB gate (armed once 0056 i
     for (const row of cleanup.reverse()) await admin.from(row.table as never).delete().eq('id', row.id)
     await admin.from('practitioner_agreement_acceptances').delete().eq('practitioner_id', pract!.id)
     await admin.from('practitioners').delete().eq('id', pract!.id)
+    if (syntheticAgreementId) {
+      await admin.from('practitioner_agreements').delete().eq('id', syntheticAgreementId)
+    }
     if (pract) await deleteTestUser(admin, pract.id)
     if (member) await deleteTestUser(admin, member.id)
   }, 60_000)
@@ -205,6 +224,18 @@ describe.skipIf(!HAVE_DB)('Sprint 4 — AUTHORITATIVE DB gate (armed once 0056 i
     const result = await tryAssign()
     expect(result.ok).toBe(false)
     expect(result.message).toMatch(/no_current_agreement_acceptance/)
+  })
+
+  it('BOTH SURFACES: client_practitioner_links is protected by the same gate (ineligible → refused)', async (ctx) => {
+    if (!gateInstalled) return ctx.skip()
+    // After test C the synthetic practitioner is ineligible (bad hash).
+    const { error } = await admin.from('client_practitioner_links').insert({
+      client_id: member!.id, practitioner_id: pract!.id,
+      connection_type: 'assigned_by_admin', role: 'specialist', control_level: 'flexible',
+      creation_actor: 'admin', created_by: pract!.id,
+    } as never)
+    expect(error).not.toBeNull()
+    expect(error!.message).toMatch(/practitioner not assignable/)
   })
 
   it('F: fully eligible synthetic practitioner → assignment SUCCEEDS (then cleaned up)', async (ctx) => {

@@ -72,14 +72,20 @@ hash refused · F fully eligible synthetic practitioner insert SUCCEEDS,
 then cleaned up. Verified against the live DB pre-0056: the suite
 self-skips cleanly (gate probe).
 
-## Closure status
+## Closure status — SPRINT 4 CLOSED (19 Sep 2026)
 
-Sprint 4 code, machinery, admin workflow and both test layers are
-complete. **The closure gate (DB-level refusal proof) requires migration
-0056 to be applied — applying to the shared database needs KR
-authorisation, so per hard stop 13 the sprint STOPS here and requests
-it.** On authorisation: apply 0056 → run the armed suite (A–F) → run the
-5 post-apply assertions → Sprint 4 closes.
+KR authorised and 0056 was applied to the shared Supabase project
+(yftxzvdrxnhwpcnsrktn) at 2026-09-19 ~19:57 UTC. Post-apply assertions
+1-4 passed by SQL (A1 unknown-id refusal; A4 existing rows untouched,
+INSERT-only triggers); assertion 5 = the armed suite: **14/14 PASSED**
+against the live database — A no-acceptance refused, B superseded
+version refused, C wrong hash refused, D unverified refused, **E expired
+required indemnity refused by the BEFORE INSERT trigger (the closure
+proof)**, F fully eligible synthetic practitioner succeeded, and BOTH
+surfaces (case_practitioner_work AND client_practitioner_links) refuse
+ineligible inserts. All synthetic rows (users, practitioner, case, work,
+acceptances, the synthetic test agreement) deleted; baseline restored
+(3 pre-existing work rows untouched).
 
 ## Outstanding externally
 
