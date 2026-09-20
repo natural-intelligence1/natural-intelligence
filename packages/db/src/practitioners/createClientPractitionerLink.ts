@@ -22,7 +22,6 @@ export async function createClientPractitionerLink(
       creation_actor:  input.creationActor,
       created_by:      input.createdBy ?? null,
       notes:           input.notes ?? null,
-      ...(input.supervisorId ? { supervisor_id: input.supervisorId } : {}),
     } as never)
     .select('id')
     .single()

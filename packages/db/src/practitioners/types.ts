@@ -72,8 +72,10 @@ export type ConnectionType =
   | 'chosen_by_client'
   | 'added_by_system'
 
-// "Role" in the context of a client-practitioner link (distinct from auth roles)
-export type LinkRole = 'lead' | 'specialist' | 'reviewer' | 'temporary' | 'student' // 'student' arrives with 0057
+// "Role" in the context of a client-practitioner link (distinct from auth
+// roles). CLIENT-level relationship descriptor only — the clinical role on a
+// specific case (Lead / Care Team / Student) lives in case_team_roles (0057).
+export type LinkRole = 'lead' | 'specialist' | 'reviewer' | 'temporary'
 
 export type ControlLevel = 'keep' | 'flexible' | 'one_off'
 
@@ -97,7 +99,20 @@ export interface CreateClientPractitionerLinkInput {
   creationActor:  CreationActor
   createdBy?:     string
   notes?:         string
-  /** Sprint 6: required when role === 'student' (0057 CHECK + trigger). */
+}
+
+// ─── case_team_roles (0057, Sprint 6) ─────────────────────────────────────────
+// CASE-level clinical role: exactly one active Lead per case; students carry
+// a supervisor who must hold an active non-student role on the same case.
+
+export type CaseTeamRole = 'lead' | 'care_team' | 'student'
+
+export interface AssignCaseTeamRoleInput {
+  caseId:         string
+  practitionerId: string
+  teamRole:       CaseTeamRole
+  assignedBy:     string
+  /** Required when teamRole === 'student' (0057 CHECK + trigger). */
   supervisorId?:  string
 }
 

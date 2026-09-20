@@ -1,26 +1,37 @@
 // ─── packages/db/src/practitioners/careTeamLive.ts ────────────────────────────
-// SPRINT 6 — Care Team live wiring helpers, on the EXISTING architecture.
-// Thin wrappers only: every rule is enforced at the database (0056
-// eligibility trigger, 0057 lead/class/student triggers + unique index,
-// consent machinery, analysis author trigger, release RPCs). These
-// helpers surface clear errors and never duplicate the gate logic.
+// SPRINT 6 (revised) — Care Team live wiring helpers, on the EXISTING
+// architecture. Thin wrappers only: every rule is enforced at the database
+// (0056 eligibility trigger, 0057 case_team_roles rules trigger + per-CASE
+// lead unique index, consent machinery, analysis author trigger, release
+// RPCs). These helpers surface clear errors and never duplicate gate logic.
 //
-// Client approval is NOT a boolean: it is a versioned consent_records row
-// with purpose 'practitioner_access', scoped to one practitioner via
-// context_practitioner_id, withdrawable through withdraw_own_consent.
-// Health-data access stays pack-only (Sprint 5) — nothing here reads
-// identified client health data.
+// TWO LEVELS, kept separate:
+//   CLIENT level — adminAssignCareTeamMember creates the relationship
+//     (client_practitioner_links); grantPractitionerAccess records the
+//     client's approval as a versioned consent_records row with purpose
+//     'practitioner_access' scoped to one practitioner — NEVER a boolean.
+//   CASE level — assignCaseTeamRole gives a practitioner their clinical
+//     role (lead / care_team / student) on ONE case; the DB holds exactly
+//     one active Lead per case.
+//
+// TWO MODES, kept separate:
+//   Mode 1 (pre-care review) stays the Sprint 5 de-identified pack path —
+//     nothing here touches it.
+//   Mode 2 (active care) reads ONLY the scoped care_team_health_profile
+//     view; raw source tables remain closed to practitioners (0052).
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClientPractitionerLink } from './createClientPractitionerLink'
-import type { CreateClientPractitionerLinkInput } from './types'
+import type { AssignCaseTeamRoleInput, CreateClientPractitionerLinkInput } from './types'
 import { CARE_TEAM_APPROVAL_TEXT_VERSION } from '../intakeV2/careTeam'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyClient = SupabaseClient<any>
 
-/** ADMIN ASSIGNS — V1's only assignment path. The 0056 eligibility trigger
- *  and the 0057 lead/class/student rules fire on the INSERT itself. */
+// ─── CLIENT LEVEL ─────────────────────────────────────────────────────────────
+
+/** ADMIN ASSIGNS (client level) — creates the relationship record. The 0056
+ *  eligibility trigger fires on the INSERT itself. */
 export async function adminAssignCareTeamMember(
   adminClient: AnyClient,
   input: Omit<CreateClientPractitionerLinkInput, 'connectionType' | 'controlLevel' | 'creationActor'> &
@@ -56,7 +67,8 @@ export async function grantPractitionerAccess(
   if (error) throw new Error(`grantPractitionerAccess failed [${error.code}]: ${error.message}`)
 }
 
-/** Withdraw the approval — same RPC as every other granular purpose. */
+/** Withdraw the approval — same RPC as every other granular purpose.
+ *  Withdrawal removes ALL future Mode 2 access for that practitioner. */
 export async function withdrawPractitionerAccess(
   memberClient: AnyClient, practitionerId: string,
 ): Promise<number> {
@@ -69,27 +81,98 @@ export async function withdrawPractitionerAccess(
   return (data as number) ?? 0
 }
 
-/** PRACTITIONER SEES — assigned clients only, pseudonymous, via the 0057
- *  view (active assignment AND active consent required by the view itself). */
-export interface AssignedClientRow {
-  link_id: string
+// ─── CASE LEVEL ───────────────────────────────────────────────────────────────
+
+/** ADMIN ASSIGNS (case level) — the clinical role on ONE case. The 0057
+ *  rules trigger enforces eligibility, the Category-3 lead bar and student
+ *  supervision; the partial unique index enforces one active Lead per case. */
+export async function assignCaseTeamRole(
+  adminClient: AnyClient, input: AssignCaseTeamRoleInput,
+): Promise<string> {
+  const { data, error } = await (adminClient as AnyClient)
+    .from('case_team_roles')
+    .insert({
+      case_id: input.caseId,
+      practitioner_id: input.practitionerId,
+      team_role: input.teamRole,
+      assigned_by: input.assignedBy,
+      ...(input.supervisorId ? { supervisor_id: input.supervisorId } : {}),
+    })
+    .select('id')
+    .single()
+  if (error) throw new Error(`assignCaseTeamRole failed [${error.code}]: ${error.message}`)
+  return (data as { id: string }).id
+}
+
+/** End a case role (role change or off-boarding): the row is history, the
+ *  per-case Lead slot frees up, and Mode 2 access ends immediately. */
+export async function endCaseTeamRole(
+  adminClient: AnyClient, roleId: string, endReason: string,
+): Promise<void> {
+  const { error } = await (adminClient as AnyClient)
+    .from('case_team_roles')
+    .update({ ended_at: new Date().toISOString(), end_reason: endReason })
+    .eq('id', roleId)
+  if (error) throw new Error(`endCaseTeamRole failed [${error.code}]: ${error.message}`)
+}
+
+// ─── MODE 2 — the scoped Active Care Health Profile ───────────────────────────
+
+/** Every column the Mode 2 bundle exposes — the single documented surface.
+ *  No email, phone or address; no religion or clinical notes on sex; no
+ *  other cases or clients. Tests assert rows carry NOTHING beyond this. */
+export const CARE_HEALTH_PROFILE_FIELDS = [
+  'case_id', 'case_status', 'presenting_concern', 'escalation_required',
+  'client_full_name', 'biological_sex',
+  'arrival_emotion', 'primary_concerns', 'primary_system',
+  'stress_level', 'sleep_quality', 'energy_level',
+  'current_medications', 'current_supplements', 'symptom_onset',
+  'diagnosed_conditions', 'timeline_last_well', 'timeline_trigger',
+  'diet_description', 'most_want_to_understand',
+] as const
+
+export type CareHealthProfileRow = Record<(typeof CARE_HEALTH_PROFILE_FIELDS)[number], unknown>
+
+/** Fetch the ONE scoped bundle for a case. The view's WHERE clause is the
+ *  authorisation (relationship + case role + eligibility + consent +
+ *  supervision) — a null here means "no access", and we never fall back to
+ *  raw tables (0052 keeps them closed anyway). */
+export async function getCareHealthProfile(
+  practitionerClient: AnyClient, caseId: string,
+): Promise<CareHealthProfileRow | null> {
+  const { data, error } = await (practitionerClient as AnyClient)
+    .from('care_team_health_profile')
+    .select('*')
+    .eq('case_id', caseId)
+    .maybeSingle()
+  if (error) return null // fail closed: no bundle on error / pre-0057
+  return (data as CareHealthProfileRow) ?? null
+}
+
+/** PRACTITIONER SEES — their active, consented case assignments only.
+ *  (Named distinctly from the legacy work-item listAssignedCases helper.) */
+export interface AssignedCaseRow {
+  role_id: string
+  case_id: string
   team_role: string
   supervisor_id: string | null
   assigned_at: string
-  case_id: string | null
   case_status: string | null
+  client_full_name: string | null
 }
 
-export async function listAssignedClients(practitionerClient: AnyClient): Promise<AssignedClientRow[]> {
+export async function listActiveCareCases(practitionerClient: AnyClient): Promise<AssignedCaseRow[]> {
   const { data, error } = await (practitionerClient as AnyClient)
-    .from('practitioner_assigned_clients')
+    .from('practitioner_assigned_cases')
     .select('*')
   if (error) return [] // fail closed: no list on error / pre-0057
-  return (data ?? []) as AssignedClientRow[]
+  return (data ?? []) as AssignedCaseRow[]
 }
 
+// ─── Contributions / Analysis / Coordination ─────────────────────────────────
+
 /** PRACTITIONER CONTRIBUTES — append-only, attributed. RLS requires the
- *  author's own session, an active link and active consent. */
+ *  author's own session and the full active-care authorisation. */
 export async function addCaseContribution(
   practitionerClient: AnyClient,
   input: {
@@ -112,7 +195,7 @@ export async function addCaseContribution(
 }
 
 /** Analysis & Plan authorship — the 0057 trigger is the gate (authenticated
- *  authoring practitioner with active consented non-student involvement). */
+ *  authoring practitioner, active authorised NON-student case role). */
 export async function writeAnalysisSection(
   practitionerClient: AnyClient,
   input: { caseId: string; section: string; content: string; authorId: string },
@@ -126,7 +209,8 @@ export async function writeAnalysisSection(
   return (data as { id: string }).id
 }
 
-/** LEAD COORDINATES — two explicit workflow steps, RPC-only writes. */
+/** LEAD COORDINATES — two explicit workflow steps, RPC-only writes; the RPCs
+ *  verify the caller is THIS case's active, still-eligible Lead. */
 export async function recordLeadCoordinationReview(
   leadClient: AnyClient, caseId: string, note?: string,
 ): Promise<string> {

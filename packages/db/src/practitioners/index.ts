@@ -67,8 +67,10 @@ export {
 } from './credentialing'
 export type { PractitionerEligibilitySnapshot, EligibilityReason, DbsStatus } from './credentialing'
 export {
-  adminAssignCareTeamMember, grantPractitionerAccess, withdrawPractitionerAccess,
-  listAssignedClients, addCaseContribution, writeAnalysisSection,
+  adminAssignCareTeamMember, assignCaseTeamRole, endCaseTeamRole,
+  grantPractitionerAccess, withdrawPractitionerAccess,
+  listActiveCareCases, getCareHealthProfile, CARE_HEALTH_PROFILE_FIELDS,
+  addCaseContribution, writeAnalysisSection,
   recordLeadCoordinationReview, releaseCarePlan,
 } from './careTeamLive'
-export type { AssignedClientRow } from './careTeamLive'
+export type { AssignedCaseRow, CareHealthProfileRow } from './careTeamLive'

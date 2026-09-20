@@ -1,10 +1,17 @@
-# Sprint 6 — Care Team Live Wiring (19 Sep 2026)
+# Sprint 6 — Care Team Live Wiring (19–20 Sep 2026, REVISED)
 
 Workflow kept exactly as approved: ADMIN ASSIGNS → CLIENT APPROVES →
 PRACTITIONER CONTRIBUTES → LEAD COORDINATES. No matching, no
 recommendations, no orchestration engine, no permission maze.
 
-## 0. Pre-flight — case-index signals (investigated before building)
+**Revision (20 Sep, per KR/Orchestrator review of the first staging):**
+Issue 1 — Lead responsibility is **per CASE**, not per client; Issue 2 —
+active care uses a purpose-built scoped **Active Care Health Profile**
+surface, never restored raw-table SELECTs. Both are implemented in the
+revised 0057 below. The first staging's per-client lead index and
+links-level student role are gone.
+
+## 0. Pre-flight — case-index signals (investigated before building; retained)
 
 - **case_complexity_score**: defined in 0033 (CRT schema), `NOT NULL
   DEFAULT 0`. Repo-wide trace finds **no writer anywhere** — only reads
@@ -22,67 +29,129 @@ recommendations, no orchestration engine, no permission maze.
   software-derived scoring. Practitioners genuinely need it (it is their
   own escalation signal). **Retained**, with this evidence.
 
-## 1. Architecture reused (no parallel model)
+## 1. Architecture map — CLIENT LEVEL vs CASE LEVEL
 
-`client_practitioner_links` (0038 — its existing `lead` role and
-`ended_at` lifecycle ARE the Care Team lifecycle), `case_practitioner_work`,
-the Sprint 4 eligibility trigger (0056 — already fires on links INSERT, so
-every Care Team assignment inherits the agreement/credential/indemnity/
-scope/lifecycle gate with zero new logic), the 0051 consent machinery,
-and the Care Team V1 model/guards (labels, approval wording version,
-student rules). Role mapping: Lead Responsible Practitioner = `lead`;
-Care Team Practitioner = `specialist` (existing value); Student
-Practitioner = `student` (the one new role value). Team role stays
-separate from practitioner class (practitioners.category) and modality.
+**CLIENT LEVEL** — "does this client have an approved relationship and an
+active data-sharing approval with this practitioner?"
 
-## 2. Migration 0057_care_team_live_wiring.sql — FILE ONLY, NOT APPLIED
+- Practitioner relationship: `client_practitioner_links` (0038,
+  unchanged by 0057) — admin-created (`assigned_by_admin`), lifecycle via
+  `ended_at`. Link `role` stays a relationship descriptor only; it no
+  longer carries clinical case authority and never carries `student`.
+- Access consent: `consent_records` purpose **`practitioner_access`**
+  scoped by the new `context_practitioner_id` — versioned, timestamped,
+  withdrawable via the extended `withdraw_own_consent`. NEVER a boolean.
+
+**CASE LEVEL** — "what role does this practitioner hold on THIS case?"
+
+- Practitioner assignment + Lead role + Care Team role + student
+  participation/supervision: NEW slim table **`case_team_roles`**
+  (case_id, practitioner_id, team_role `lead|care_team|student`,
+  supervisor_id, assigned_by, started_at/ended_at). Why not
+  `case_practitioner_work`: work rows are per-item TASKS
+  (assigned→completed); a standing clinical role does not fit work
+  semantics, so the smallest robust case-level primitive is this one role
+  table — not a reshaping of the work log, not a generic platform.
+  - **Exactly one active Lead per CASE**: partial unique index
+    `uniq_active_lead_per_case (case_id) WHERE team_role='lead' AND
+    ended_at IS NULL`. A second case for the same client may hold its own
+    Lead; an ended Lead never blocks a successor.
+  - Rules trigger on every INSERT/UPDATE (all roles incl. service):
+    Sprint 4 eligibility reused (`practitioner_assignment_eligibility`),
+    Category 3 cannot be the sole Lead, a student's supervisor must hold
+    an active non-student role on the SAME case.
+- Contributions: `case_contributions` (append-only, attributed).
+- Coordination review + plan release: `care_plan_coordination` via the
+  two Lead-only RPCs (per-case Lead check).
+
+## 2. Two access modes (Issue 2)
+
+**MODE 1 — pre-care review (unchanged, Sprint 5):** de-identified review
+pack + minimal case index. 0057 creates NO policy on any raw source
+table; practitioners still cannot SELECT intake_responses, intake_answers,
+client_cases, profiles or lab tables directly.
+
+**MODE 2 — active care team:** the ONE scoped view
+**`care_team_health_profile`** (owner-rights, security_barrier; the WHERE
+clause is `can_access_case_care_profile(case_id)`), readable only while
+ALL hold:
+
+1. active CLIENT-level relationship (link not ended);
+2. active CASE role for the caller on that case (admin-assigned);
+3. caller still passes Sprint 4 eligibility;
+4. active client `practitioner_access` consent for THAT practitioner;
+5. (students) active supervision on the same case.
+
+Withdrawal, ending the relationship or ending the role each removes
+future access immediately on its own. V1 is one standard bundle — no
+field-by-field permission system.
+
+**Exact fields exposed** (also exported as `CARE_HEALTH_PROFILE_FIELDS`):
+case_id, case_status, presenting_concern, escalation_required (human-set),
+client_full_name, biological_sex, and from the latest COMPLETED intake:
+arrival_emotion, primary_concerns, primary_system, stress_level,
+sleep_quality, energy_level, current_medications, current_supplements,
+symptom_onset, diagnosed_conditions, timeline_last_well, timeline_trigger,
+diet_description, most_want_to_understand.
+**Explicitly NOT exposed:** email/phone (auth.users is never joined),
+address (no such column), religion, religious_content_preference,
+clinical_notes_on_sex, avatar/bio, credentials/login data, admin notes,
+draft intakes, other cases, other clients, platform analytics. profiles
+has no separate preferred-name column today; full_name is the single
+identity field surfaced.
+
+`practitioner_assigned_cases` lists the caller's own active consented
+assignments (with client name — assignment AND consent already hold).
+
+**Student model:** never inherits supervisor access; each gate is checked
+for the student personally (own consent row, own active role, active
+supervision). Narrower where it should be: students read the factual
+bundle and contribute (attributed, supervisor-verifiable) but cannot read
+or author Analysis & Plan (SELECT policy excludes students; author
+trigger refuses them).
+
+## 3. Migration 0057_care_team_live_wiring.sql — FILE ONLY, NOT APPLIED
 
 Plain English: makes the four-step workflow real and fail-closed in the
-database. Contents: `student` role + `supervisor_id` on links (+ CHECK);
-ONE active Lead per client via partial unique index; trigger refusing a
-Category 3 (NI Verified) lead and any student without an actively-linked
-supervisor; client approval as the EXISTING consent machinery (new
-granular purpose `practitioner_access` scoped by new
-`context_practitioner_id`, withdrawable via the extended
-`withdraw_own_consent`); fail-closed `has_practitioner_access_consent`;
-pseudonymous `practitioner_assigned_clients` view (assignment AND consent
-required; NO client identity columns — Sprint 5 stands); append-only
-`case_contributions` (attributed; rewrite-blocking trigger for every
-role); authoritative `case_analysis_plan` (trigger refuses service-role/
-AI/admin/automated/intake/synopsis writes — auth.uid() NULL — and
-students; only an authenticated practitioner with active consented
-non-student involvement authors; append-only); `care_plan_coordination` +
-RPC-only two-step release gate (active still-0056-eligible Lead records a
-coordination review, then releases; workflow state only — the software
-never judges the plan); practitioner_case_index recreated WITHOUT
-case_complexity_score. Post-apply assertions + revert block in-file.
+database, at the right levels. Contents: `case_team_roles` + per-case
+lead index + rules trigger (§1); consent purpose `practitioner_access` +
+`context_practitioner_id` + extended `withdraw_own_consent` +
+`has_practitioner_access_consent` (§2); `can_access_case_care_profile`
+predicate (§3); `care_team_health_profile` + `practitioner_assigned_cases`
+views (§4); append-only `case_contributions` with rewrite-blocking
+trigger (§5); authoritative `case_analysis_plan` (NULL-auth/service/AI/
+admin writes refused; students refused; append-only) (§6);
+`care_plan_coordination` + the two per-case-Lead RPCs (§7);
+practitioner_case_index recreated WITHOUT case_complexity_score (§8).
+Post-apply assertions + revert block in-file. Entirely additive; live
+links (0 rows) and work rows (3) untouched.
 
-## 3. Health-profile access position
+## 4. Tests staged — matrix A–U (armed)
 
-No identified practitioner-care surface is introduced. Deeper access
-remains EXACTLY the Sprint 5 model: de-identified review packs + the
-minimal case index. If live Care Team operation is later judged to need
-an identified practitioner surface, that is a STOP-and-report requirement
-for KR — nothing here weakens Sprint 5.
-
-## 4. Tests staged
-
-careTeamLive.test.ts — the full break-the-rule matrix A–M as an ARMED
-live suite (self-skips until 0057 applies; verified self-skipping against
-the live DB): unassigned invisible (A); assigned-without-approval
-invisible and write-refused (B); withdrawal ends future access with audit
-retained (C, inside M); expired indemnity refused (D — Sprint 4 gate);
-second active Lead refused (E); Category 3 sole Lead refused (F); student
-without active supervisor refused (G); student Analysis & Plan write
-refused (H); admin/service write refused (I); AI/system write refused
-(J — same NULL-auth service path, labelled); cross-client reads empty
-(K); release without recorded coordination review refused (L); and the
-FULL SYNTHETIC END-TO-END PATHWAY (M): assign eligible Lead + team member
-+ supervised student → client approves via consent machinery →
-practitioner sees only assigned clients (pseudonymous) → attributed
-contributions (append-only proven, including a service-role rewrite
-refusal) → student contributes under supervision → Lead authors Analysis
-& Plan → coordination review → release succeeds → withdrawal → cleanup.
+careTeamLive.test.ts self-skips until 0057 applies (probe on
+case_team_roles). A unassigned invisible (list, bundle, reads); B/P
+assigned at both levels without approval → invisible, NO Health Profile,
+writes refused; C/S withdrawal immediately removes list + bundle + writes
+with audit retained; D expired indemnity refused at case-role insert
+(Sprint 4 gate reused); E/N second active Lead on the SAME case refused
+on the helper path AND raw service INSERT (uniq_active_lead_per_case);
+N ended historical Lead never blocks a successor; O a different eligible
+Lead on a separate case for the SAME client is allowed; F Category 3 sole
+Lead refused; G student without a same-case active supervisor refused
+(CHECK + trigger paths); Q approval via the existing consent machinery
+opens EXACTLY the documented bundle (field-set equality asserted; no
+email/phone/address/religion/clinical-notes keys); R the SAME fully
+authorised practitioner still gets zero rows from intake_responses,
+intake_answers, lab_reports, biomarker_results, client_cases, profiles
+(Sprint 5 intact); K/U nothing of case B — list, contributions, bundle,
+raw view rows; contribute-never-overwrite (peer UPDATE invisible,
+service rewrite hits the append-only trigger); H/I/J analysis refusals
+(NULL-auth service/AI/admin; student; uninvolved practitioner); student
+scope (contributes + factual bundle, zero analysis rows); L release
+without recorded coordination review refused; M full pathway — per-case
+Lead coordinates then releases, and the OTHER case's Lead is refused on
+this case; T ending the case assignment immediately removes the bundle.
+All identities synthetic; suite self-cleans.
 
 ## 5. Flags & gates
 
@@ -94,7 +163,8 @@ each.
 
 ## 6. Status
 
-**SPRINT 6 READY FOR KR CARE TEAM MIGRATION AUTHORISATION** — everything
-is built and staged; the founder stop holds before 0057 touches the
-shared database. On authorisation: apply 0057 → run the 8 in-file
-assertions → run the armed A–M matrix (zero skips) → Sprint 6 closes.
+**SPRINT 6 (REVISED) READY FOR KR CARE TEAM MIGRATION AUTHORISATION** —
+everything is built and staged; the founder stop holds before 0057
+touches the shared database. On authorisation: apply 0057 → run the
+in-file assertions → run the armed A–U matrix (zero skips) → clean up →
+Sprint 6 closes.
