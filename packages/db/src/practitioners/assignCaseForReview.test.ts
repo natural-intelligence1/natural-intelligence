@@ -8,6 +8,9 @@ import { assignCaseForReview } from './assignCaseForReview'
 import { listWorkForInbox } from './listWorkForInbox'
 import { createClientPractitionerLink } from './createClientPractitionerLink'
 import { createTestUser, deleteTestUser } from './__test-helpers__/createTestUser'
+import { makePractitionerAssignable } from './__test-helpers__/makeAssignable'
+
+const cleanups0056: Array<() => Promise<void>> = []
 import { signInAs } from './__test-helpers__/signInAs'
 
 const HAVE_DB = !!process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -40,6 +43,7 @@ describe.skipIf(!HAVE_DB)('assignCaseForReview — Sprint 2 assignment bridge (s
     practitioner = await createTestUser(admin, 's2-bridge-pract')
     member       = await createTestUser(admin, 's2-bridge-member')
     await admin.from('practitioners').insert({ id: practitioner.id, display_name: `Test ${practitioner.email}`, status: 'active' })
+    cleanups0056.push(await makePractitionerAssignable(admin, practitioner.id))
     linkId = await createClientPractitionerLink(admin, {
       clientId: member.id, practitionerId: practitioner.id,
       connectionType: 'assigned_by_admin', role: 'lead', controlLevel: 'keep', creationActor: 'admin',
@@ -50,6 +54,8 @@ describe.skipIf(!HAVE_DB)('assignCaseForReview — Sprint 2 assignment bridge (s
     if (workIds.length) await admin.from('case_practitioner_work').delete().in('id', workIds)
     if (caseId)         await admin.from('client_cases').delete().eq('id', caseId)
     await admin.from('client_practitioner_links').delete().eq('id', linkId)
+    for (const c of cleanups0056) await c()
+    cleanups0056.length = 0
     await admin.from('practitioners').delete().eq('id', practitioner.id)
     await deleteTestUser(admin, practitioner.id)
     await deleteTestUser(admin, member.id)

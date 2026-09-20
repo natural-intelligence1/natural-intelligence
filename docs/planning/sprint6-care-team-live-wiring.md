@@ -173,10 +173,52 @@ approval, clinical review, Data Protection/governance review, the
 technical/RLS gates, and Care Team live-wiring authorisation — recorded,
 each.
 
-## 6. Status
+## 6. Status — SPRINT 6 CLOSED (21 Sep 2026)
 
-**SPRINT 6 REMAINS OPEN — READY FOR KR RE-AUTHORISATION OF REVISED
-0057.** KR authorised application of hash `6db97b29…` (20 Sep); the §1
+KR re-authorised the revised 0057 (sha256 `e6e7b955c317c0a2…`) and it was
+**applied 20 Sep 2026 ~20:58 UTC** (migration version `20260920210017`)
+after byte-identical hash verification. All in-file assertions hold; the
+armed **A–X matrix ran live 21/21 with zero skips** (per-case Lead proofs,
+Class 3 bar, consent gate, scoped bundle field-set equality, raw-table
+denial for the same authorised practitioner, cross-case denial, student
+model, append-only, analysis enforcement, per-case coordination/release,
+write-through attack V, privilege floor W, SELECT-only invariant X). The
+Sprint 5 trio re-ran green post-apply (35/35). Live catalogue: every
+practitioner-facing view carries `authenticated: SELECT` as its only
+user-role grant (`anon: SELECT` additionally on the public directory
+only). Database types were regenerated from the applied schema (MCP
+generation path), clearing the 29 stale Sprint 4 type errors;
+packages/db and all three apps type-check clean. Synthetic data fully
+cleaned and baseline verified (work rows 3; zero synthetic users — the
+sweep also removed 19 members leaked over months by getIntakeSummary's
+missing intake_sessions cleanup, now fixed at source).
+
+**STANDING INVARIANT (recorded per KR):** PRACTITIONER-FACING READ VIEWS
+ARE SELECT-ONLY UNLESS EXPLICITLY APPROVED OTHERWISE. Test X in
+careTeamLive.test.ts is the regression guard — it fails if anon or
+authenticated ever re-acquire INSERT/UPDATE/DELETE on any of the six
+governed views.
+
+**Security-finding record (KR-approved wording):** no evidence of misuse
+was found in the checks performed. The unintended write grants were
+identified before Care Team activation and are now removed. Care Team
+links were zero and the practitioner feature remained disabled, which
+materially reduced exposure, but the public directory existed
+independently.
+
+**§14 case-index evidence:** case_complexity_score is absent from the
+recreated view (live columns: id, status, escalation_required,
+created_at); the column itself was a writerless all-zero 0033 remnant of
+an automated-scoring concept NI does not use. escalation_required is
+retained because it is written only by the human practitioner through
+complete_practitioner_work (0045).
+
+Closure ≠ activation: real-client use remains separately gated (below).
+
+### Earlier authorisation history (kept for the record)
+
+The first re-authorisation attempt (hash `6db97b29…`) was STOPPED at
+pre-apply verification and never applied: KR authorised application of hash `6db97b29…` (20 Sep); the §1
 pre-apply verification found that file could not apply as reviewed: its
 §8 used `CREATE OR REPLACE VIEW` to remove `case_complexity_score` from
 `practitioner_case_index`, which PostgreSQL refuses (view columns cannot

@@ -118,7 +118,6 @@ type PackModeRow = Omit<RawRow, 'client_cases'>
 
 interface CaseIndexRow {
   id: string
-  case_complexity_score: number | null
   escalation_required: boolean | null
 }
 
@@ -151,7 +150,7 @@ async function listWorkForInboxPackMode(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: indexRows, error: indexError } = await (client as any)
       .from('practitioner_case_index')
-      .select('id, case_complexity_score, escalation_required')
+      .select('id, escalation_required')
       .in('id', caseIds)
     if (!indexError) {
       for (const row of (indexRows ?? []) as CaseIndexRow[]) indexMap.set(row.id, row)
@@ -172,7 +171,9 @@ async function listWorkForInboxPackMode(
       dueAt:               row.due_at,
       clientName:          makePseudonym(row.case_id),
       primaryConcern:      null,
-      caseComplexityScore: idx?.case_complexity_score ?? 0,
+      // 0057 removed the writerless all-zero score from the case index;
+      // the inbox shape keeps the field at its historical constant.
+      caseComplexityScore: 0,
       escalationRequired:  idx?.escalation_required   ?? false,
       urgency:             computeUrgency({ status, dueAt: row.due_at, assignedAt: row.assigned_at }),
     }

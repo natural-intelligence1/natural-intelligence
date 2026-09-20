@@ -462,4 +462,64 @@ describe.skipIf(!HAVE_DB)('SPRINT 6 — care team live matrix A–U (armed on 00
       .insert({ id: crypto.randomUUID(), full_name: 'anon attack' })
     expect(idInsErr).toBeTruthy()
   })
+
+  it('X: SELECT-only invariant — runtime write denial on EVERY practitioner-facing view, both roles', async (ctx) => {
+    if (!armed) return ctx.skip()
+    // INVARIANT (Sprint 6): practitioner-facing read views are SELECT-only
+    // for user roles unless explicitly approved otherwise. These probes are
+    // the regression guard: if anon or authenticated ever re-acquire
+    // INSERT/UPDATE/DELETE on any of these views, this test fails.
+    const ZERO = '00000000-0000-0000-0000-000000000000'
+    const l = await signInAs(lead!)
+    const anon = anonClient()
+    // The four PRE-EXISTING single-table (auto-updatable) views: writes must
+    // be refused at the PRIVILEGE level for both roles.
+    const legacy: Array<{ view: string; insertRow: Record<string, unknown>; updatePatch: Record<string, unknown>; key: string }> = [
+      { view: 'practitioner_case_index', insertRow: { id: crypto.randomUUID(), status: 'active' }, updatePatch: { status: 'closed' }, key: 'id' },
+      { view: 'practitioner_client_identity', insertRow: { id: crypto.randomUUID(), full_name: 'attack' }, updatePatch: { full_name: 'attack' }, key: 'id' },
+      { view: 'practitioner_client_personalisation', insertRow: { user_id: crypto.randomUUID() }, updatePatch: { biological_sex: 'attack' }, key: 'user_id' },
+      { view: 'practitioners_directory', insertRow: { id: crypto.randomUUID(), display_name: 'attack' }, updatePatch: { display_name: 'attack' }, key: 'id' },
+    ]
+    for (const { view, insertRow, updatePatch, key } of legacy) {
+      for (const [role, client] of [['authenticated', l], ['anon', anon]] as const) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: ins } = await (client as any).from(view).insert(insertRow)
+        expect(ins?.message ?? '', `${role} INSERT must be privilege-refused on ${view}`).toMatch(/permission denied|42501/i)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: upd } = await (client as any).from(view).update(updatePatch).eq(key, ZERO)
+        expect(upd?.message ?? '', `${role} UPDATE must be privilege-refused on ${view}`).toMatch(/permission denied|42501/i)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: del } = await (client as any).from(view).delete().eq(key, ZERO)
+        expect(del?.message ?? '', `${role} DELETE must be privilege-refused on ${view}`).toMatch(/permission denied|42501/i)
+      }
+    }
+    // The two NEW Sprint 6 views are JOIN views (not auto-updatable) AND
+    // SELECT-only — a write must fail either way, never succeed.
+    for (const { view, insertRow, updatePatch, key } of [
+      { view: 'practitioner_assigned_cases', insertRow: { case_id: crypto.randomUUID() }, updatePatch: { team_role: 'lead' }, key: 'case_id' },
+      { view: 'care_team_health_profile', insertRow: { case_id: crypto.randomUUID() }, updatePatch: { case_status: 'closed' }, key: 'case_id' },
+    ]) {
+      for (const [role, client] of [['authenticated', l], ['anon', anon]] as const) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: ins } = await (client as any).from(view).insert(insertRow)
+        expect(ins?.message ?? '', `${role} INSERT must fail on ${view}`).toMatch(/permission denied|42501|cannot insert|not automatically updatable|0A000/i)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: upd } = await (client as any).from(view).update(updatePatch).eq(key, ZERO)
+        expect(upd?.message ?? '', `${role} UPDATE must fail on ${view}`).toMatch(/permission denied|42501|cannot update|not automatically updatable|0A000/i)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: del } = await (client as any).from(view).delete().eq(key, ZERO)
+        expect(del?.message ?? '', `${role} DELETE must fail on ${view}`).toMatch(/permission denied|42501|cannot delete|not automatically updatable|0A000/i)
+      }
+    }
+    // Read floor: the public directory stays anon-READABLE (read-only
+    // browse preserved); identity/personalisation are not anon-readable.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: dirRead } = await (anon as any).from('practitioners_directory').select('id').limit(1)
+    expect(dirRead).toBeNull()
+    for (const view of ['practitioner_client_identity', 'practitioner_client_personalisation']) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (anon as any).from(view).select('*').limit(1)
+      expect(error?.message ?? '', `anon SELECT must be refused on ${view}`).toMatch(/permission denied|42501/i)
+    }
+  })
 })

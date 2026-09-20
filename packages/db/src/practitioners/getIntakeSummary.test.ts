@@ -193,6 +193,10 @@ describe.skipIf(!HAVE_DB)('getIntakeSummary — integration', () => {
 
   afterAll(async () => {
     await admin.from('intake_answers').delete().eq('member_id', member.id)
+    // intake_sessions has an FK to auth.users without cascade — leaving the
+    // row silently blocks deleteTestUser (this suite leaked 19 synthetic
+    // users over months before Sprint 6 closure caught it).
+    await admin.from('intake_sessions').delete().eq('member_id', member.id)
     await admin.from('intake_responses').delete().eq('member_id', member.id)
     await deleteTestUser(admin, member.id)
   })
@@ -203,18 +207,21 @@ describe.skipIf(!HAVE_DB)('getIntakeSummary — integration', () => {
   })
 
   it('returns structured summary when intake_responses exists', async () => {
-    await admin.from('intake_responses').insert({
+    // stress_level carries a 1–5 CHECK in the live schema — surface any
+    // fixture failure instead of silently asserting against a missing row.
+    const { error } = await admin.from('intake_responses').insert({
       member_id:       member.id,
       arrival_emotion: 'hopeful',
       primary_concerns: ['fatigue'],
-      stress_level:    7,
+      stress_level:    4,
       sleep_quality:   4,
     })
+    if (error) throw new Error(`intake fixture failed: ${error.message}`)
 
     const result = await getIntakeSummary(admin, member.id)
     expect(result).not.toBeNull()
     expect(result!.arrivalEmotion).toBe('hopeful')
-    expect(result!.stressLevel).toBe(7)
+    expect(result!.stressLevel).toBe(4)
     expect(result!.sleepQuality).toBe(4)
     expect(result!.postExertionalWorsening).toBeNull() // no intake_answer row
   })

@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types'
 import { getPriorReviews } from './getPriorReviews'
 import { createTestUser, deleteTestUser } from './__test-helpers__/createTestUser'
+import { makePractitionerAssignable } from './__test-helpers__/makeAssignable'
+
+const cleanups0056: Array<() => Promise<void>> = []
 import { assignWork } from './assignWork'
 
 const HAVE_DB = !!process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -97,6 +100,7 @@ describe.skipIf(!HAVE_DB)('getPriorReviews — integration', () => {
       display_name: 'Test Practitioner GPR',
       status:       'active',
     })
+    cleanups0056.push(await makePractitionerAssignable(admin, practitioner.id))
 
     const { data: c } = await admin
       .from('client_cases')
@@ -111,6 +115,7 @@ describe.skipIf(!HAVE_DB)('getPriorReviews — integration', () => {
       await admin.from('case_practitioner_work').delete().in('id', workIds)
     }
     await admin.from('client_cases').delete().eq('id', caseId)
+    for (const c of cleanups0056) await c()
     await admin.from('practitioners').delete().eq('id', practitioner.id)
     for (const u of [practitioner, memberUser]) {
       await deleteTestUser(admin, u.id)
@@ -118,7 +123,7 @@ describe.skipIf(!HAVE_DB)('getPriorReviews — integration', () => {
   })
 
   it('returns empty array when no prior completed reviews', async () => {
-    const result = await getPriorReviews(admin, caseId, 'non-existent-id')
+    const result = await getPriorReviews(admin, caseId, crypto.randomUUID())
     expect(result).toEqual([])
   })
 
@@ -154,7 +159,7 @@ describe.skipIf(!HAVE_DB)('getPriorReviews — integration', () => {
     })
     workIds.push(wId)
     // Leave as assigned — should NOT appear in prior reviews
-    const result = await getPriorReviews(admin, caseId, 'some-other-id')
+    const result = await getPriorReviews(admin, caseId, crypto.randomUUID())
     expect(result.some(r => r.workItemId === wId)).toBe(false)
   })
 })

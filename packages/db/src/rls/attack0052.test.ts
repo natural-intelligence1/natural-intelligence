@@ -191,7 +191,7 @@ describe.skipIf(!HAVE_DB)('SPRINT 5 — post-0052 attack matrix (armed)', () => 
     const { data: index } = await (p as any).from('practitioner_case_index').select('*').eq('id', caseA!)
     expect(index ?? []).toHaveLength(1)
     const row = (index as Record<string, unknown>[])[0]
-    expect(Object.keys(row).sort()).toEqual(['case_complexity_score', 'created_at', 'escalation_required', 'id', 'status'])
+    expect(Object.keys(row).sort()).toEqual(['created_at', 'escalation_required', 'id', 'status']) // 0057 removed case_complexity_score
     expect('client_id' in row).toBe(false)
     expect('primary_concern' in row).toBe(false)
   })

@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types'
 import { listAssignedCases } from './listAssignedCases'
 import { createTestUser, deleteTestUser } from './__test-helpers__/createTestUser'
+import { makePractitionerAssignable } from './__test-helpers__/makeAssignable'
+
+const cleanups0056: Array<() => Promise<void>> = []
 import { signInAs } from './__test-helpers__/signInAs'
 
 const HAVE_DB = !!process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -31,6 +34,7 @@ describe.skipIf(!HAVE_DB)('listAssignedCases — RLS', () => {
 
     for (const u of [practitionerA, practitionerB]) {
       await admin.from('practitioners').insert({ id: u.id, display_name: `Test ${u.email}`, status: 'active' })
+      cleanups0056.push(await makePractitionerAssignable(admin, u.id))
     }
 
     const { data: c } = await admin.from('client_cases').insert({ client_id: memberUser.id }).select('id').single()
@@ -52,6 +56,8 @@ describe.skipIf(!HAVE_DB)('listAssignedCases — RLS', () => {
   afterAll(async () => {
     await admin.from('case_practitioner_work').delete().in('id', [workIdActive, workIdDone])
     await admin.from('client_cases').delete().eq('id', caseId)
+    for (const c of cleanups0056) await c()
+    cleanups0056.length = 0
     await admin.from('practitioners').delete().in('id', [practitionerA.id, practitionerB.id])
     for (const u of [practitionerA, practitionerB, memberUser]) await deleteTestUser(admin, u.id)
   })
@@ -61,10 +67,15 @@ describe.skipIf(!HAVE_DB)('listAssignedCases — RLS', () => {
     expect(cases.some((c) => c.id === caseId)).toBe(true)
   })
 
-  it('practitioner with active work (in_review) can read case via RLS', async () => {
+  it('practitioner with active work (in_review): raw client_cases stays CLOSED (0052), the case index opens', async () => {
+    // Post-0052 the direct client_cases read is gone by design — active work
+    // grants only the minimal practitioner_case_index (and the review pack).
     const client = await signInAs(practitionerA)
     const { data } = await client.from('client_cases').select('id').eq('id', caseId)
-    expect((data ?? []).some((r) => r.id === caseId)).toBe(true)
+    expect(data ?? []).toHaveLength(0)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: index } = await (client as any).from('practitioner_case_index').select('id').eq('id', caseId)
+    expect((index ?? []).some((r: { id: string }) => r.id === caseId)).toBe(true)
   })
 
   it('practitioner without active work cannot read case via RLS', async () => {

@@ -4,6 +4,9 @@ import type { Database } from '../types'
 import { getClientTeam, assertNoForbiddenFields } from './getClientTeam'
 import type { ClientTeamMember } from './types'
 import { createTestUser, deleteTestUser } from './__test-helpers__/createTestUser'
+import { makePractitionerAssignable } from './__test-helpers__/makeAssignable'
+
+const cleanups0056: Array<() => Promise<void>> = []
 
 const HAVE_DB = !!process.env.NEXT_PUBLIC_SUPABASE_URL
 
@@ -60,6 +63,7 @@ describe.skipIf(!HAVE_DB)('getClientTeam', () => {
 
     for (const u of [practitionerA, practitionerB]) {
       await admin.from('practitioners').insert({ id: u.id, display_name: `Test ${u.email}`, status: 'active' })
+      cleanups0056.push(await makePractitionerAssignable(admin, u.id))
     }
 
     const { data: lA } = await admin.from('client_practitioner_links').insert({
@@ -77,6 +81,8 @@ describe.skipIf(!HAVE_DB)('getClientTeam', () => {
 
   afterAll(async () => {
     await admin.from('client_practitioner_links').delete().in('id', [linkIdA, linkIdB])
+    for (const c of cleanups0056) await c()
+    cleanups0056.length = 0
     await admin.from('practitioners').delete().in('id', [practitionerA.id, practitionerB.id])
     for (const u of [practitionerA, practitionerB, memberUser]) await deleteTestUser(admin, u.id)
   })

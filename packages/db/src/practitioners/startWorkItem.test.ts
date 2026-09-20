@@ -4,6 +4,9 @@ import type { Database } from '../types'
 import { startWorkItem } from './startWorkItem'
 import { assignWork } from './assignWork'
 import { createTestUser, deleteTestUser } from './__test-helpers__/createTestUser'
+import { makePractitionerAssignable } from './__test-helpers__/makeAssignable'
+
+const cleanups0056: Array<() => Promise<void>> = []
 import { signInAs } from './__test-helpers__/signInAs'
 
 const HAVE_DB = !!process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -84,6 +87,7 @@ describe.skipIf(!HAVE_DB)('startWorkItem — integration', () => {
       await admin.from('practitioners').insert({
         id: u.id, display_name: `Test ${u.email}`, status: 'active',
       })
+      cleanups0056.push(await makePractitionerAssignable(admin, u.id))
     }
 
     const { data: c } = await admin
@@ -99,6 +103,7 @@ describe.skipIf(!HAVE_DB)('startWorkItem — integration', () => {
       await admin.from('case_practitioner_work').delete().in('id', createdWorkIds)
     }
     await admin.from('client_cases').delete().eq('id', caseId)
+    for (const c of cleanups0056) await c()
     for (const u of [practitioner, practitionerB]) {
       await admin.from('practitioners').delete().eq('id', u.id)
     }

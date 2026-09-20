@@ -47,6 +47,13 @@ export type Database = {
             foreignKeyName: "adherence_streaks_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: true
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "adherence_streaks_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -115,6 +122,13 @@ export type Database = {
             foreignKeyName: "ai_summaries_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_summaries_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -162,6 +176,13 @@ export type Database = {
           resource_type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "audit_logs_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "audit_logs_actor_id_fkey"
             columns: ["actor_id"]
@@ -237,6 +258,13 @@ export type Database = {
             foreignKeyName: "biomarker_results_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "biomarker_results_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -291,6 +319,13 @@ export type Database = {
             foreignKeyName: "biomarker_trajectory_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "biomarker_trajectory_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -299,6 +334,244 @@ export type Database = {
             columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "lab_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      care_plan_coordination: {
+        Row: {
+          case_id: string
+          coordination_note: string | null
+          id: string
+          lead_id: string
+          released_at: string | null
+          released_by: string | null
+          reviewed_at: string
+        }
+        Insert: {
+          case_id: string
+          coordination_note?: string | null
+          id?: string
+          lead_id: string
+          released_at?: string | null
+          released_by?: string | null
+          reviewed_at?: string
+        }
+        Update: {
+          case_id?: string
+          coordination_note?: string | null
+          id?: string
+          lead_id?: string
+          released_at?: string | null
+          released_by?: string | null
+          reviewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "care_plan_coordination_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "care_plan_coordination_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "care_plan_coordination_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "care_plan_coordination_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "care_plan_coordination_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "care_plan_coordination_released_by_fkey"
+            columns: ["released_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "care_plan_coordination_released_by_fkey"
+            columns: ["released_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_analysis_plan: {
+        Row: {
+          author_id: string
+          case_id: string
+          content: string
+          created_at: string
+          id: string
+          section: string
+        }
+        Insert: {
+          author_id: string
+          case_id: string
+          content: string
+          created_at?: string
+          id?: string
+          section: string
+        }
+        Update: {
+          author_id?: string
+          case_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          section?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_analysis_plan_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_analysis_plan_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_analysis_plan_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "case_analysis_plan_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_analysis_plan_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_contributions: {
+        Row: {
+          author_id: string
+          case_id: string
+          client_confirmed: boolean
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          profession: string | null
+          source: string
+          supervisor_verified_at: string | null
+          supervisor_verified_by: string | null
+          team_role: string
+        }
+        Insert: {
+          author_id: string
+          case_id: string
+          client_confirmed?: boolean
+          content: string
+          created_at?: string
+          id?: string
+          kind: string
+          profession?: string | null
+          source?: string
+          supervisor_verified_at?: string | null
+          supervisor_verified_by?: string | null
+          team_role: string
+        }
+        Update: {
+          author_id?: string
+          case_id?: string
+          client_confirmed?: boolean
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          profession?: string | null
+          source?: string
+          supervisor_verified_at?: string | null
+          supervisor_verified_by?: string | null
+          team_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_contributions_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_contributions_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_contributions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "case_contributions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_contributions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_contributions_supervisor_verified_by_fkey"
+            columns: ["supervisor_verified_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_contributions_supervisor_verified_by_fkey"
+            columns: ["supervisor_verified_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -336,7 +609,21 @@ export type Database = {
             foreignKeyName: "case_events_case_id_fkey"
             columns: ["case_id"]
             isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
             referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
             referencedColumns: ["id"]
           },
         ]
@@ -413,7 +700,21 @@ export type Database = {
             foreignKeyName: "case_practitioner_work_case_id_fkey"
             columns: ["case_id"]
             isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "case_practitioner_work_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
             referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_practitioner_work_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
             referencedColumns: ["id"]
           },
           {
@@ -433,6 +734,92 @@ export type Database = {
           {
             foreignKeyName: "case_practitioner_work_practitioner_id_fkey"
             columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_team_roles: {
+        Row: {
+          assigned_by: string
+          case_id: string
+          end_reason: string | null
+          ended_at: string | null
+          id: string
+          practitioner_id: string
+          started_at: string
+          supervisor_id: string | null
+          team_role: string
+        }
+        Insert: {
+          assigned_by: string
+          case_id: string
+          end_reason?: string | null
+          ended_at?: string | null
+          id?: string
+          practitioner_id: string
+          started_at?: string
+          supervisor_id?: string | null
+          team_role: string
+        }
+        Update: {
+          assigned_by?: string
+          case_id?: string
+          end_reason?: string | null
+          ended_at?: string | null
+          id?: string
+          practitioner_id?: string
+          started_at?: string
+          supervisor_id?: string | null
+          team_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_team_roles_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "case_team_roles_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_team_roles_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_team_roles_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_team_roles_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_team_roles_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_team_roles_supervisor_id_fkey"
+            columns: ["supervisor_id"]
             isOneToOne: false
             referencedRelation: "practitioners_directory"
             referencedColumns: ["id"]
@@ -471,6 +858,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "client_cases_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_cases_client_id_fkey"
             columns: ["client_id"]
@@ -543,6 +937,51 @@ export type Database = {
           },
         ]
       }
+      client_rights_requests: {
+        Row: {
+          acknowledged_at: string | null
+          consent_type: string | null
+          created_at: string
+          details: string | null
+          handled_by: string | null
+          id: string
+          member_id: string
+          request_type: string
+          resolution_note: string | null
+          resolved_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          consent_type?: string | null
+          created_at?: string
+          details?: string | null
+          handled_by?: string | null
+          id?: string
+          member_id: string
+          request_type: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          consent_type?: string | null
+          created_at?: string
+          details?: string | null
+          handled_by?: string | null
+          id?: string
+          member_id?: string
+          request_type?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           author_id: string
@@ -576,6 +1015,13 @@ export type Database = {
             foreignKeyName: "comments_author_id_fkey"
             columns: ["author_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -597,36 +1043,78 @@ export type Database = {
       }
       consent_records: {
         Row: {
+          actor: string | null
+          consent_text: string | null
           consent_type: string
+          consent_version: string | null
           consented: boolean
           consented_at: string | null
+          context_practitioner_id: string | null
           created_at: string | null
           email: string | null
           id: string
           ip_address: string | null
+          organisation_context: string | null
           profile_id: string | null
+          source: string | null
+          withdrawn_at: string | null
         }
         Insert: {
+          actor?: string | null
+          consent_text?: string | null
           consent_type: string
+          consent_version?: string | null
           consented?: boolean
           consented_at?: string | null
+          context_practitioner_id?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
           ip_address?: string | null
+          organisation_context?: string | null
           profile_id?: string | null
+          source?: string | null
+          withdrawn_at?: string | null
         }
         Update: {
+          actor?: string | null
+          consent_text?: string | null
           consent_type?: string
+          consent_version?: string | null
           consented?: boolean
           consented_at?: string | null
+          context_practitioner_id?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
           ip_address?: string | null
+          organisation_context?: string | null
           profile_id?: string | null
+          source?: string | null
+          withdrawn_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "consent_records_context_practitioner_id_fkey"
+            columns: ["context_practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consent_records_context_practitioner_id_fkey"
+            columns: ["context_practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consent_records_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "consent_records_profile_id_fkey"
             columns: ["profile_id"]
@@ -655,6 +1143,13 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_participants_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
             referencedColumns: ["id"]
           },
           {
@@ -735,6 +1230,13 @@ export type Database = {
             foreignKeyName: "daily_adherence_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_adherence_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -775,6 +1277,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_registrations_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
             referencedColumns: ["id"]
           },
           {
@@ -839,6 +1348,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "events_hosted_by_fkey"
+            columns: ["hosted_by"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "events_hosted_by_fkey"
             columns: ["hosted_by"]
@@ -973,6 +1489,13 @@ export type Database = {
             foreignKeyName: "intake_answers_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_answers_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1030,6 +1553,13 @@ export type Database = {
             foreignKeyName: "intake_flags_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_flags_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1075,6 +1605,13 @@ export type Database = {
             foreignKeyName: "intake_hypothesis_scores_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_hypothesis_scores_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1090,6 +1627,11 @@ export type Database = {
       intake_responses: {
         Row: {
           arrival_emotion: string | null
+          best_self_description: string | null
+          best_self_energy: string | null
+          best_self_mood: string | null
+          best_self_recovery_goal: string | null
+          best_self_sleep: string | null
           biggest_barrier: string | null
           completed_sections: number | null
           concern_duration: string | null
@@ -1108,6 +1650,7 @@ export type Database = {
           id: string
           is_complete: boolean | null
           member_id: string
+          most_want_to_understand: string | null
           past_treatments: string | null
           practitioner_types: string[] | null
           primary_concerns: string[] | null
@@ -1135,6 +1678,11 @@ export type Database = {
         }
         Insert: {
           arrival_emotion?: string | null
+          best_self_description?: string | null
+          best_self_energy?: string | null
+          best_self_mood?: string | null
+          best_self_recovery_goal?: string | null
+          best_self_sleep?: string | null
           biggest_barrier?: string | null
           completed_sections?: number | null
           concern_duration?: string | null
@@ -1153,6 +1701,7 @@ export type Database = {
           id?: string
           is_complete?: boolean | null
           member_id: string
+          most_want_to_understand?: string | null
           past_treatments?: string | null
           practitioner_types?: string[] | null
           primary_concerns?: string[] | null
@@ -1180,6 +1729,11 @@ export type Database = {
         }
         Update: {
           arrival_emotion?: string | null
+          best_self_description?: string | null
+          best_self_energy?: string | null
+          best_self_mood?: string | null
+          best_self_recovery_goal?: string | null
+          best_self_sleep?: string | null
           biggest_barrier?: string | null
           completed_sections?: number | null
           concern_duration?: string | null
@@ -1198,6 +1752,7 @@ export type Database = {
           id?: string
           is_complete?: boolean | null
           member_id?: string
+          most_want_to_understand?: string | null
           past_treatments?: string | null
           practitioner_types?: string[] | null
           primary_concerns?: string[] | null
@@ -1224,6 +1779,13 @@ export type Database = {
           working_with_practitioners?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "intake_responses_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "intake_responses_member_id_fkey"
             columns: ["member_id"]
@@ -1283,6 +1845,13 @@ export type Database = {
           visible_question_ids?: string[] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "intake_sessions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "intake_sessions_member_id_fkey"
             columns: ["member_id"]
@@ -1347,6 +1916,13 @@ export type Database = {
             foreignKeyName: "intake_symptom_details_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_symptom_details_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1400,6 +1976,13 @@ export type Database = {
             foreignKeyName: "lab_reports_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_reports_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1443,6 +2026,13 @@ export type Database = {
           sleep_rating?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lifetracker_checkins_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lifetracker_checkins_member_id_fkey"
             columns: ["member_id"]
@@ -1503,6 +2093,13 @@ export type Database = {
             foreignKeyName: "lifetracker_goals_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lifetracker_goals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1556,7 +2153,21 @@ export type Database = {
             foreignKeyName: "member_protocols_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_protocols_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_protocols_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
             referencedColumns: ["id"]
           },
           {
@@ -1607,6 +2218,13 @@ export type Database = {
           symptom_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "member_symptom_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "member_symptom_logs_member_id_fkey"
             columns: ["member_id"]
@@ -1663,6 +2281,13 @@ export type Database = {
             foreignKeyName: "messages_sender_id_fkey"
             columns: ["sender_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1693,6 +2318,13 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_likes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
             referencedColumns: ["id"]
           },
           {
@@ -1749,10 +2381,96 @@ export type Database = {
             foreignKeyName: "posts_author_id_fkey"
             columns: ["author_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
+      }
+      practitioner_agreement_acceptances: {
+        Row: {
+          accepted_at: string
+          accepted_text_hash: string | null
+          agreement_id: string
+          agreement_version: string
+          id: string
+          practitioner_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          accepted_text_hash?: string | null
+          agreement_id: string
+          agreement_version: string
+          id?: string
+          practitioner_id: string
+        }
+        Update: {
+          accepted_at?: string
+          accepted_text_hash?: string | null
+          agreement_id?: string
+          agreement_version?: string
+          id?: string
+          practitioner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practitioner_agreement_acceptances_agreement_id_fkey"
+            columns: ["agreement_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_agreements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_agreement_acceptances_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_agreement_acceptances_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practitioner_agreements: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          id: string
+          is_current: boolean
+          title: string
+          version: string
+        }
+        Insert: {
+          body: string
+          category: string
+          created_at?: string
+          id?: string
+          is_current?: boolean
+          title: string
+          version: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          id?: string
+          is_current?: boolean
+          title?: string
+          version?: string
+        }
+        Relationships: []
       }
       practitioner_applications: {
         Row: {
@@ -1868,6 +2586,13 @@ export type Database = {
             foreignKeyName: "practitioner_applications_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_applications_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1875,7 +2600,63 @@ export type Database = {
             foreignKeyName: "practitioner_applications_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_applications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practitioner_review_packs: {
+        Row: {
+          case_id: string
+          generated_at: string
+          id: string
+          pack: Json
+          pack_version: number
+          pseudonym: string
+        }
+        Insert: {
+          case_id: string
+          generated_at?: string
+          id?: string
+          pack: Json
+          pack_version?: number
+          pseudonym: string
+        }
+        Update: {
+          case_id?: string
+          generated_at?: string
+          id?: string
+          pack?: Json
+          pack_version?: number
+          pseudonym?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practitioner_review_packs_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "practitioner_review_packs_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_review_packs_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
             referencedColumns: ["id"]
           },
         ]
@@ -1888,6 +2669,7 @@ export type Database = {
           archived_by: string | null
           area_tags: string[]
           bio: string | null
+          category: string | null
           city: string | null
           client_types: string[]
           collaboration_types: string[]
@@ -1895,13 +2677,23 @@ export type Database = {
           created_at: string
           credentials: string[]
           credentials_summary: string | null
+          credentials_verification_status: string
+          credentials_verified_at: string | null
+          credentials_verified_by: string | null
           currently_seeing_clients: boolean | null
+          dbs_checked_at: string | null
+          dbs_status: string | null
           delivery_mode: string | null
           display_name: string
           display_order: number
           experience_range: string | null
           id: string
+          indemnity_required: boolean
           instagram_url: string | null
+          insurance_evidence_ref: string | null
+          insurance_expiry: string | null
+          insurance_policy_number: string | null
+          insurance_provider: string | null
           is_active: boolean
           is_directory_ready: boolean
           is_test_data: boolean
@@ -1913,7 +2705,15 @@ export type Database = {
           practitioner_tier: string
           primary_professions: string[]
           profile_completeness_pct: number
+          qualification_evidence_ref: string | null
           referral_contact_method: string | null
+          registration_body: string | null
+          registration_number: string | null
+          registration_status: string | null
+          scope_approved_at: string | null
+          scope_approved_by: string | null
+          scope_of_practice: string | null
+          scope_status: string
           specialisations: string[]
           status: string
           support_needs: string | null
@@ -1935,6 +2735,7 @@ export type Database = {
           archived_by?: string | null
           area_tags?: string[]
           bio?: string | null
+          category?: string | null
           city?: string | null
           client_types?: string[]
           collaboration_types?: string[]
@@ -1942,13 +2743,23 @@ export type Database = {
           created_at?: string
           credentials?: string[]
           credentials_summary?: string | null
+          credentials_verification_status?: string
+          credentials_verified_at?: string | null
+          credentials_verified_by?: string | null
           currently_seeing_clients?: boolean | null
+          dbs_checked_at?: string | null
+          dbs_status?: string | null
           delivery_mode?: string | null
           display_name: string
           display_order?: number
           experience_range?: string | null
           id: string
+          indemnity_required?: boolean
           instagram_url?: string | null
+          insurance_evidence_ref?: string | null
+          insurance_expiry?: string | null
+          insurance_policy_number?: string | null
+          insurance_provider?: string | null
           is_active?: boolean
           is_directory_ready?: boolean
           is_test_data?: boolean
@@ -1960,7 +2771,15 @@ export type Database = {
           practitioner_tier?: string
           primary_professions?: string[]
           profile_completeness_pct?: number
+          qualification_evidence_ref?: string | null
           referral_contact_method?: string | null
+          registration_body?: string | null
+          registration_number?: string | null
+          registration_status?: string | null
+          scope_approved_at?: string | null
+          scope_approved_by?: string | null
+          scope_of_practice?: string | null
+          scope_status?: string
           specialisations?: string[]
           status?: string
           support_needs?: string | null
@@ -1982,6 +2801,7 @@ export type Database = {
           archived_by?: string | null
           area_tags?: string[]
           bio?: string | null
+          category?: string | null
           city?: string | null
           client_types?: string[]
           collaboration_types?: string[]
@@ -1989,13 +2809,23 @@ export type Database = {
           created_at?: string
           credentials?: string[]
           credentials_summary?: string | null
+          credentials_verification_status?: string
+          credentials_verified_at?: string | null
+          credentials_verified_by?: string | null
           currently_seeing_clients?: boolean | null
+          dbs_checked_at?: string | null
+          dbs_status?: string | null
           delivery_mode?: string | null
           display_name?: string
           display_order?: number
           experience_range?: string | null
           id?: string
+          indemnity_required?: boolean
           instagram_url?: string | null
+          insurance_evidence_ref?: string | null
+          insurance_expiry?: string | null
+          insurance_policy_number?: string | null
+          insurance_provider?: string | null
           is_active?: boolean
           is_directory_ready?: boolean
           is_test_data?: boolean
@@ -2007,7 +2837,15 @@ export type Database = {
           practitioner_tier?: string
           primary_professions?: string[]
           profile_completeness_pct?: number
+          qualification_evidence_ref?: string | null
           referral_contact_method?: string | null
+          registration_body?: string | null
+          registration_number?: string | null
+          registration_status?: string | null
+          scope_approved_at?: string | null
+          scope_approved_by?: string | null
+          scope_of_practice?: string | null
+          scope_status?: string
           specialisations?: string[]
           status?: string
           support_needs?: string | null
@@ -2149,6 +2987,13 @@ export type Database = {
             foreignKeyName: "protocol_templates_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -2205,7 +3050,21 @@ export type Database = {
             foreignKeyName: "reasoning_trace_entries_case_id_fkey"
             columns: ["case_id"]
             isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "reasoning_trace_entries_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
             referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reasoning_trace_entries_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
             referencedColumns: ["id"]
           },
           {
@@ -2253,7 +3112,21 @@ export type Database = {
             foreignKeyName: "reasoning_traces_case_id_fkey"
             columns: ["case_id"]
             isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "reasoning_traces_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
             referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reasoning_traces_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
             referencedColumns: ["id"]
           },
         ]
@@ -2303,7 +3176,49 @@ export type Database = {
             foreignKeyName: "resources_author_id_fkey"
             columns: ["author_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resources_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_pack_audit: {
+        Row: {
+          created_at: string
+          generated_by: string
+          pack_id: string
+          source_intake_id: string | null
+          suppressed_fields: string[] | null
+          transformed_fields: string[] | null
+        }
+        Insert: {
+          created_at?: string
+          generated_by?: string
+          pack_id: string
+          source_intake_id?: string | null
+          suppressed_fields?: string[] | null
+          transformed_fields?: string[] | null
+        }
+        Update: {
+          created_at?: string
+          generated_by?: string
+          pack_id?: string
+          source_intake_id?: string | null
+          suppressed_fields?: string[] | null
+          transformed_fields?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_pack_audit_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: true
+            referencedRelation: "practitioner_review_packs"
             referencedColumns: ["id"]
           },
         ]
@@ -2380,6 +3295,13 @@ export type Database = {
             foreignKeyName: "rootfinder_results_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rootfinder_results_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -2430,6 +3352,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "subscriptions_user_id_fkey"
             columns: ["user_id"]
@@ -2493,7 +3422,21 @@ export type Database = {
             foreignKeyName: "support_requests_assigned_to_fkey"
             columns: ["assigned_to"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_requests_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_requests_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
             referencedColumns: ["id"]
           },
           {
@@ -2568,6 +3511,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_personalisation: {
+        Row: {
+          biological_sex: string | null
+          clinical_notes_on_sex: string | null
+          created_at: string
+          religion: string
+          religious_content_preference: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          biological_sex?: string | null
+          clinical_notes_on_sex?: string | null
+          created_at?: string
+          religion?: string
+          religious_content_preference?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          biological_sex?: string | null
+          clinical_notes_on_sex?: string | null
+          created_at?: string
+          religion?: string
+          religious_content_preference?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_personalisation_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_personalisation_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vitality_scores: {
         Row: {
           adherence_pct: number | null
@@ -2616,6 +3604,13 @@ export type Database = {
             foreignKeyName: "vitality_scores_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vitality_scores_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -2623,6 +3618,31 @@ export type Database = {
       }
     }
     Views: {
+      care_team_health_profile: {
+        Row: {
+          arrival_emotion: string | null
+          biological_sex: string | null
+          case_id: string | null
+          case_status: string | null
+          client_full_name: string | null
+          current_medications: string | null
+          current_supplements: string | null
+          diagnosed_conditions: string[] | null
+          diet_description: string | null
+          energy_level: number | null
+          escalation_required: boolean | null
+          most_want_to_understand: string | null
+          presenting_concern: string | null
+          primary_concerns: string[] | null
+          primary_system: string | null
+          sleep_quality: number | null
+          stress_level: number | null
+          symptom_onset: string | null
+          timeline_last_well: string | null
+          timeline_trigger: string | null
+        }
+        Relationships: []
+      }
       member_support_requests: {
         Row: {
           description: string | null
@@ -2659,6 +3679,139 @@ export type Database = {
             foreignKeyName: "support_requests_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_requests_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practitioner_assigned_cases: {
+        Row: {
+          assigned_at: string | null
+          case_id: string | null
+          case_status: string | null
+          client_full_name: string | null
+          role_id: string | null
+          supervisor_id: string | null
+          team_role: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_team_roles_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "case_team_roles_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_team_roles_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_team_roles_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_team_roles_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practitioner_case_index: {
+        Row: {
+          created_at: string | null
+          escalation_required: boolean | null
+          id: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          escalation_required?: boolean | null
+          id?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          escalation_required?: boolean | null
+          id?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      practitioner_client_identity: {
+        Row: {
+          avatar_url: string | null
+          full_name: string | null
+          id: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          full_name?: string | null
+          id?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+        }
+        Update: {
+          avatar_url?: string | null
+          full_name?: string | null
+          id?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+        }
+        Relationships: []
+      }
+      practitioner_client_personalisation: {
+        Row: {
+          biological_sex: string | null
+          clinical_notes_on_sex: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          biological_sex?: string | null
+          clinical_notes_on_sex?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          biological_sex?: string | null
+          clinical_notes_on_sex?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_personalisation_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_personalisation_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -2738,9 +3891,20 @@ export type Database = {
       }
     }
     Functions: {
+      accept_current_agreement: {
+        Args: { p_expected_agreement_id?: string }
+        Returns: {
+          agreement_id: string
+          agreement_version: string
+        }[]
+      }
       calculate_profile_completeness: {
         Args: { p: Database["public"]["Tables"]["practitioners"]["Row"] }
         Returns: number
+      }
+      can_access_case_care_profile: {
+        Args: { p_case_id: string }
+        Returns: boolean
       }
       complete_practitioner_work: {
         Args: {
@@ -2755,9 +3919,38 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      has_accepted_current_agreement: { Args: never; Returns: boolean }
+      has_practitioner_access_consent: {
+        Args: { p_member_id: string; p_practitioner_id: string }
+        Returns: boolean
+      }
       is_active_practitioner: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_practitioner: { Args: never; Returns: boolean }
+      practitioner_assignment_eligibility: {
+        Args: { p_practitioner_id: string }
+        Returns: {
+          eligible: boolean
+          reasons: string[]
+        }[]
+      }
+      practitioner_has_current_acceptance: {
+        Args: { p_practitioner_id: string }
+        Returns: boolean
+      }
+      record_lead_coordination_review: {
+        Args: { p_case_id: string; p_note?: string }
+        Returns: string
+      }
+      release_care_plan: { Args: { p_case_id: string }; Returns: string }
+      set_clinical_notes_on_sex: {
+        Args: { p_notes: string; p_user_id: string }
+        Returns: undefined
+      }
+      withdraw_own_consent: {
+        Args: { p_consent_type: string; p_context_practitioner_id?: string }
+        Returns: number
+      }
     }
     Enums: {
       content_status: "draft" | "published" | "archived"
@@ -2781,12 +3974,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2810,11 +4003,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2835,11 +4028,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2860,11 +4053,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2877,11 +4070,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
