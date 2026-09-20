@@ -122,11 +122,18 @@ views (§4); append-only `case_contributions` with rewrite-blocking
 trigger (§5); authoritative `case_analysis_plan` (NULL-auth/service/AI/
 admin writes refused; students refused; append-only) (§6);
 `care_plan_coordination` + the two per-case-Lead RPCs (§7);
-practitioner_case_index recreated WITHOUT case_complexity_score (§8).
+practitioner_case_index recreated WITHOUT case_complexity_score via
+DROP+CREATE (PostgreSQL refuses view-column removal in place) with
+SELECT-only privileges (§8); privilege hardening for the older
+practitioner-facing views (§9 — audit found practitioner_case_index,
+practitioner_client_identity, practitioner_client_personalisation and
+practitioners_directory all auto-updatable with Supabase default ALL
+grants, anon included on the latter three: an owner-rights write-through
+path, closed to SELECT-only; the directory keeps read-only anon browse).
 Post-apply assertions + revert block in-file. Entirely additive; live
 links (0 rows) and work rows (3) untouched.
 
-## 4. Tests staged — matrix A–U (armed)
+## 4. Tests staged — matrix A–W (armed)
 
 careTeamLive.test.ts self-skips until 0057 applies (probe on
 case_team_roles). A unassigned invisible (list, bundle, reads); B/P
@@ -150,8 +157,13 @@ service rewrite hits the append-only trigger); H/I/J analysis refusals
 scope (contributes + factual bundle, zero analysis rows); L release
 without recorded coordination review refused; M full pathway — per-case
 Lead coordinates then releases, and the OTHER case's Lead is refused on
-this case; T ending the case assignment immediately removes the bundle.
-All identities synthetic; suite self-cleans.
+this case; T ending the case assignment immediately removes the bundle;
+V practitioner_case_index write-through attack (a signed-in practitioner
+who genuinely sees a case in the index gets permission-denied on INSERT,
+UPDATE and DELETE through the view, direct client_cases writes stay
+closed, and the row is proven unchanged); W privilege floor (anon is
+refused on all three mission views; anon writes through the identity view
+refused). All identities synthetic; suite self-cleans.
 
 ## 5. Flags & gates
 
@@ -163,20 +175,20 @@ each.
 
 ## 6. Status
 
-**SPRINT 6 REMAINS OPEN — awaiting KR re-authorisation of the corrected
-0057 hash.** KR authorised application of hash `6db97b29…` (20 Sep); the
-§1 pre-apply verification found that file could not apply as reviewed:
-its §8 used `CREATE OR REPLACE VIEW` to remove `case_complexity_score`
-from `practitioner_case_index`, which PostgreSQL refuses (view columns
-cannot be removed or reordered in place) — the migration would have
-aborted mid-file. Application was therefore STOPPED with the database
-untouched. The corrected file switches §8 to `DROP VIEW` + `CREATE VIEW`
-and restates privileges SELECT-only; the same verification also found the
-live 0052 view is auto-updatable with Supabase default ALL grants to
-authenticated (an eligible practitioner with an active work item could in
-principle have written to client_cases through the owner-rights view — no
-live exposure: zero links, packs flag OFF), so the recreation closes that
-too, and both new 0057 views carry the same explicit SELECT-only grant
-posture. On re-authorisation of the corrected hash: apply 0057 → in-file
-assertions → armed A–U (zero skips) → types regeneration → cleanup →
-Sprint 6 closes.
+**SPRINT 6 REMAINS OPEN — READY FOR KR RE-AUTHORISATION OF REVISED
+0057.** KR authorised application of hash `6db97b29…` (20 Sep); the §1
+pre-apply verification found that file could not apply as reviewed: its
+§8 used `CREATE OR REPLACE VIEW` to remove `case_complexity_score` from
+`practitioner_case_index`, which PostgreSQL refuses (view columns cannot
+be removed or reordered in place) — the migration would have aborted
+mid-file. Application was therefore STOPPED with the database untouched,
+and KR confirmed the stop and directed the revision. The revised file:
+§8 DROP+CREATE with SELECT-only privileges; §9 hardening after the
+narrow audit found ALL existing practitioner-facing views auto-updatable
+with default ALL grants (authenticated on the case index; anon AND
+authenticated on identity/personalisation/directory) — an owner-rights
+write-through path with no live exposure today (0 links, packs flag OFF,
+FK fences), now closed to SELECT-only; armed matrix extended with V
+(write-through attack) and W (privilege floor). On KR authorisation of
+the NEW hash: apply 0057 → in-file assertions → armed A–W (zero skips) →
+types regeneration → cleanup → Sprint 6 closes.

@@ -634,6 +634,26 @@ CREATE VIEW public.practitioner_case_index
 REVOKE ALL    ON public.practitioner_case_index FROM PUBLIC, anon, authenticated;
 GRANT  SELECT ON public.practitioner_case_index TO authenticated;
 
+-- ═══ 9. Practitioner-facing view privilege hardening (audit finding) ════════
+-- Pre-apply audit (20 Sep 2026) found every existing practitioner-facing
+-- single-table view is AUTO-UPDATABLE and carries Supabase default ALL
+-- grants — practitioner_case_index for authenticated, and the 0041/0052
+-- identity/personalisation views plus practitioners_directory for anon AND
+-- authenticated. These views read with owner rights, so anything beyond
+-- SELECT is a potential write-through path to the underlying tables
+-- (fenced only by FKs and visible-row scope — e.g. an authenticated member
+-- could in principle self-INSERT a practitioners row through the
+-- directory view). Every practitioner-facing read view becomes
+-- SELECT-only for user roles. practitioners_directory keeps anon SELECT
+-- (it is the public browse surface — read-only preserves behaviour);
+-- the identity and personalisation views were never for anon.
+REVOKE ALL ON public.practitioner_client_identity        FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.practitioner_client_personalisation FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.practitioners_directory             FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.practitioner_client_identity        TO authenticated;
+GRANT SELECT ON public.practitioner_client_personalisation TO authenticated;
+GRANT SELECT ON public.practitioners_directory             TO authenticated, anon;
+
 -- ═══ EXPECTED EFFECT ON EXISTING ROWS ════════════════════════════════════════
 -- Entirely additive: new table/views/functions; consent CHECK widened (NOT
 -- VALID, so historical rows unaffected); withdraw RPC replaced with a
@@ -661,6 +681,12 @@ GRANT  SELECT ON public.practitioner_case_index TO authenticated;
 -- 6. release_care_plan refused without a recorded coordination review by
 --    the active, still-eligible per-case Lead; succeeds after it.
 -- 7. practitioner_case_index no longer lists case_complexity_score.
+-- 8. Practitioner-facing views are SELECT-only for user roles: INSERT/
+--    UPDATE/DELETE through practitioner_case_index as an authenticated
+--    practitioner → permission denied; anon has no access to the case
+--    index or the two Mode 2 views; the catalog shows SELECT as the only
+--    privilege for authenticated on every practitioner-facing view
+--    (directory keeps read-only anon browse).
 
 -- ═══ REVERT BLOCK (do not run unless authorised) ═════════════════════════════
 -- DROP VIEW IF EXISTS public.practitioner_assigned_cases;
@@ -683,4 +709,6 @@ GRANT  SELECT ON public.practitioner_case_index TO authenticated;
 --  retention decision. practitioner_case_index revert: DROP VIEW then
 --  re-run 0052's CREATE + its REVOKE/GRANT lines, and keep the grants
 --  SELECT-only — the 0052 incarnation was auto-updatable with default ALL
---  grants, which this migration deliberately closes.)
+--  grants, which this migration deliberately closes. The §9 privilege
+--  hardening has NO revert: restoring write grants on owner-rights views
+--  would reopen the write-through exposure.)

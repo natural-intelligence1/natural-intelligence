@@ -10,7 +10,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types'
 import { createTestUser, deleteTestUser } from './__test-helpers__/createTestUser'
-import { signInAs } from './__test-helpers__/signInAs'
+import { signInAs, anonClient } from './__test-helpers__/signInAs'
 import { makePractitionerAssignable } from './__test-helpers__/makeAssignable'
 import {
   adminAssignCareTeamMember, assignCaseTeamRole, endCaseTeamRole,
@@ -114,6 +114,7 @@ describe.skipIf(!HAVE_DB)('SPRINT 6 — care team live matrix A–U (armed on 00
       await (admin as any).from('case_contributions').delete().eq('case_id', caseId)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (admin as any).from('case_team_roles').delete().eq('case_id', caseId)
+      await admin.from('case_practitioner_work').delete().eq('case_id', caseId)
     }
     for (const m of [member, memberB]) if (m) {
       await admin.from('client_practitioner_links').delete().eq('client_id', m.id)
@@ -402,5 +403,63 @@ describe.skipIf(!HAVE_DB)('SPRINT 6 — care team live matrix A–U (armed on 00
     await endCaseTeamRole(admin, studentRoleId!, 'admin_action')
     expect(await getCareHealthProfile(s, caseA!)).toBeNull()
     expect(await listActiveCareCases(s)).toHaveLength(0)
+  })
+
+  it('V: practitioner_case_index write-through attack — INSERT/UPDATE/DELETE refused; base table stays closed', async (ctx) => {
+    if (!armed) return ctx.skip()
+    // Give the lead an ACTIVE work item so the index genuinely shows the
+    // case — the write refusals below are then non-vacuous.
+    const { error: workErr } = await admin.from('case_practitioner_work').insert({
+      case_id: caseA!, practitioner_id: lead!.id, work_type: 'case_review',
+      status: 'assigned', assigned_by: lead!.id, assignment_source: 'admin',
+    } as never)
+    expect(workErr).toBeNull()
+    const l = await signInAs(lead!)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: visible } = await (l as any).from('practitioner_case_index').select('id').eq('id', caseA!)
+    expect(visible ?? []).toHaveLength(1) // SELECT works — the view is live for them
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: insErr } = await (l as any).from('practitioner_case_index')
+      .insert({ id: crypto.randomUUID(), status: 'active', escalation_required: false })
+    expect(insErr?.message ?? '').toMatch(/permission denied|42501/i)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: updErr } = await (l as any).from('practitioner_case_index')
+      .update({ status: 'closed' }).eq('id', caseA!)
+    expect(updErr?.message ?? '').toMatch(/permission denied|42501/i)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: delErr } = await (l as any).from('practitioner_case_index')
+      .delete().eq('id', caseA!)
+    expect(delErr?.message ?? '').toMatch(/permission denied|42501/i)
+
+    // Direct base-table writes as the practitioner stay closed (RLS):
+    // UPDATE matches nothing, INSERT is refused outright.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: updRows } = await (l as any).from('client_cases')
+      .update({ status: 'closed' }).eq('id', caseA!).select('id')
+    expect(updRows ?? []).toHaveLength(0)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: caseInsErr } = await (l as any).from('client_cases')
+      .insert({ client_id: lead!.id, status: 'active', primary_concern: 'attack row' })
+    expect(caseInsErr).toBeTruthy()
+    // And the case row is untouched.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: still } = await (admin as any).from('client_cases').select('status').eq('id', caseA!).single()
+    expect((still as { status: string }).status).toBe('active')
+  })
+
+  it('W: privilege floor — anon has NO access to any practitioner-facing mission view', async (ctx) => {
+    if (!armed) return ctx.skip()
+    const anon = anonClient()
+    for (const view of ['practitioner_case_index', 'practitioner_assigned_cases', 'care_team_health_profile']) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (anon as any).from(view).select('*').limit(1)
+      expect(error?.message ?? '', `anon must be refused on ${view}`).toMatch(/permission denied|42501/i)
+    }
+    // Anon writes through the older identity view are refused too (§9 hardening).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: idInsErr } = await (anon as any).from('practitioner_client_identity')
+      .insert({ id: crypto.randomUUID(), full_name: 'anon attack' })
+    expect(idInsErr).toBeTruthy()
   })
 })
