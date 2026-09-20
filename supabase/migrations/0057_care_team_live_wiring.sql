@@ -343,7 +343,9 @@ CREATE OR REPLACE VIEW public.care_team_health_profile
   ) ir ON true
   WHERE public.can_access_case_care_profile(cc.id);
 
-REVOKE ALL    ON public.care_team_health_profile FROM anon;
+-- SELECT-only, explicitly (Supabase default privileges would otherwise
+-- leave ALL granted; the JOIN makes the view non-updatable regardless).
+REVOKE ALL    ON public.care_team_health_profile FROM PUBLIC, anon, authenticated;
 GRANT  SELECT ON public.care_team_health_profile TO authenticated;
 
 COMMENT ON VIEW public.care_team_health_profile IS
@@ -371,7 +373,7 @@ CREATE OR REPLACE VIEW public.practitioner_assigned_cases
     AND r.ended_at IS NULL
     AND public.can_access_case_care_profile(r.case_id);
 
-REVOKE ALL    ON public.practitioner_assigned_cases FROM anon;
+REVOKE ALL    ON public.practitioner_assigned_cases FROM PUBLIC, anon, authenticated;
 GRANT  SELECT ON public.practitioner_assigned_cases TO authenticated;
 
 -- ═══ 5. Contributions — contribute, never overwrite (append-only) ═══════════
@@ -601,8 +603,12 @@ GRANT EXECUTE ON FUNCTION public.record_lead_coordination_review(UUID, TEXT) TO 
 GRANT EXECUTE ON FUNCTION public.release_care_plan(UUID) TO authenticated;
 
 -- ═══ 8. PRE-FLIGHT (retained): score off the practitioner case index ════════
+-- DROP + CREATE, not CREATE OR REPLACE: PostgreSQL refuses to remove or
+-- reorder view columns in-place, and this view loses case_complexity_score.
+-- No object depends on the view (verified in pg_depend pre-apply).
 
-CREATE OR REPLACE VIEW public.practitioner_case_index
+DROP VIEW IF EXISTS public.practitioner_case_index;
+CREATE VIEW public.practitioner_case_index
   WITH (security_barrier = true) AS
   SELECT
     cc.id,
@@ -617,6 +623,16 @@ CREATE OR REPLACE VIEW public.practitioner_case_index
       AND cpw.practitioner_id = auth.uid()
       AND cpw.status IN ('assigned', 'in_review', 'escalated')
   );
+
+-- Privileges restated EXPLICITLY and SELECT-only. Two reasons: Supabase
+-- default privileges grant ALL on newly created objects to anon and
+-- authenticated, and this single-table view is auto-updatable — with
+-- owner rights, anything beyond SELECT would let a practitioner with an
+-- active work item WRITE to client_cases through the view. (The 0052
+-- incarnation carried those default ALL grants; this recreation closes
+-- that too.)
+REVOKE ALL    ON public.practitioner_case_index FROM PUBLIC, anon, authenticated;
+GRANT  SELECT ON public.practitioner_case_index TO authenticated;
 
 -- ═══ EXPECTED EFFECT ON EXISTING ROWS ════════════════════════════════════════
 -- Entirely additive: new table/views/functions; consent CHECK widened (NOT
@@ -664,4 +680,7 @@ CREATE OR REPLACE VIEW public.practitioner_case_index
 -- (consent CHECK / withdraw RPC revert: re-apply the 0051 definitions.
 --  case_team_roles / case_contributions / case_analysis_plan /
 --  care_plan_coordination become data-bearing once used — no drop without a
---  retention decision. practitioner_case_index revert: re-run 0052's view.)
+--  retention decision. practitioner_case_index revert: DROP VIEW then
+--  re-run 0052's CREATE + its REVOKE/GRANT lines, and keep the grants
+--  SELECT-only — the 0052 incarnation was auto-updatable with default ALL
+--  grants, which this migration deliberately closes.)

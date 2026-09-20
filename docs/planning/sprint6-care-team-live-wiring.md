@@ -163,8 +163,20 @@ each.
 
 ## 6. Status
 
-**SPRINT 6 (REVISED) READY FOR KR CARE TEAM MIGRATION AUTHORISATION** —
-everything is built and staged; the founder stop holds before 0057
-touches the shared database. On authorisation: apply 0057 → run the
-in-file assertions → run the armed A–U matrix (zero skips) → clean up →
+**SPRINT 6 REMAINS OPEN — awaiting KR re-authorisation of the corrected
+0057 hash.** KR authorised application of hash `6db97b29…` (20 Sep); the
+§1 pre-apply verification found that file could not apply as reviewed:
+its §8 used `CREATE OR REPLACE VIEW` to remove `case_complexity_score`
+from `practitioner_case_index`, which PostgreSQL refuses (view columns
+cannot be removed or reordered in place) — the migration would have
+aborted mid-file. Application was therefore STOPPED with the database
+untouched. The corrected file switches §8 to `DROP VIEW` + `CREATE VIEW`
+and restates privileges SELECT-only; the same verification also found the
+live 0052 view is auto-updatable with Supabase default ALL grants to
+authenticated (an eligible practitioner with an active work item could in
+principle have written to client_cases through the owner-rights view — no
+live exposure: zero links, packs flag OFF), so the recreation closes that
+too, and both new 0057 views carry the same explicit SELECT-only grant
+posture. On re-authorisation of the corrected hash: apply 0057 → in-file
+assertions → armed A–U (zero skips) → types regeneration → cleanup →
 Sprint 6 closes.
