@@ -11,6 +11,8 @@ const PUBLIC_ROUTES = [
   '/legal/terms', '/legal/privacy', '/legal/cookies',
   // OG image routes — must be publicly accessible for social crawlers
   '/opengraph-image', '/twitter-image',
+  // Crawler surfaces — an auth-gated sitemap is invisible to search engines
+  '/sitemap.xml', '/robots.txt',
 ]
 
 export async function middleware(request: NextRequest) {
@@ -43,7 +45,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
   const isPublic = PUBLIC_ROUTES.some(
-    (r) => pathname === r || pathname.startsWith('/auth/') || pathname.startsWith('/directory/') || pathname.startsWith('/resources/')
+    (r) => pathname === r || pathname.startsWith('/auth/') || pathname.startsWith('/directory/') || pathname.startsWith('/resources/') || pathname.startsWith('/workshops/')
   )
 
   // Helper: create a redirect response that carries any Supabase session
