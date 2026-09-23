@@ -197,6 +197,31 @@ export const copy = {
     openToCollaboration:   'Open to collaboration',
   },
 
+  // Labels for community-workshop lifecycle states and the workshop detail
+  // pages (/workshops/[slug]). Event content itself lives verbatim in
+  // lib/communityWorkshops.ts.
+  workshopDetail: {
+    upcomingHeading:  'Upcoming',
+    pastHeading:      'Past workshops',
+    backToWorkshops:  'All workshops',
+    summary: {
+      when:             'Date & time',
+      where:            'Venue',
+      details:          'Details',
+      bookingEssential: 'Booking essential',
+      speaker:          'Speaker',
+    },
+    lookAtHeading:    'We’ll look at',
+    bookingHeading:   'Booking',
+    fullyBooked:      'This workshop is now fully booked.',
+    bookingClosed:    'Bookings for this workshop are now closed.',
+    eventPast:        'This workshop has now taken place.',
+    nextWorkshop:     'Next workshop:',
+    nextAnnouncedSoon:'Our next workshop will be announced soon.',
+    seeAllWorkshops:  'See all workshops',
+    fullDetails:      'Full workshop details',
+  },
+
   workshops: {
     heading:    'Workshops & events',
     subheading: 'Live sessions, webinars, and group programmes',

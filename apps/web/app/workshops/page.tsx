@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { copy } from '@/lib/copy'
 import { communityWorkshops, workshopBoundaryNotice } from '@/lib/communityWorkshops'
 import type { CommunityWorkshop } from '@/lib/communityWorkshops'
+import { getEventPhase, isBookable, isUpcoming } from '@/lib/workshops/lifecycle'
 import { createServerSupabaseClient, sendEmail, eventRegistrationConfirmationEmail } from '@natural-intelligence/db'
 import { RegisterButton } from '@/components/register-button'
 import { Pill } from '@natural-intelligence/ui'
@@ -73,7 +74,12 @@ interface WorkshopsPageProps {
 // ─── Community workshop card (static Founder-supplied content) ────────────────
 // Renders a communityWorkshops entry. No registration form and no health-data
 // capture: booking (where open) is an external WhatsApp group link only.
+// Entries with canonical `scheduling` derive their booking state live
+// (open → closed → past) instead of showing a stale static CTA.
 function CommunityWorkshopCard({ w }: { w: CommunityWorkshop }) {
+  const now = new Date()
+  const phase = w.scheduling ? getEventPhase(w.scheduling, now) : null
+  const showBooking = !!w.booking && (!w.scheduling || isBookable(w.scheduling, now))
   return (
     <article className="rounded-2xl border border-border-default bg-surface-raised shadow-sm overflow-hidden">
       <div className={w.poster ? 'grid grid-cols-1 md:grid-cols-[minmax(0,320px)_1fr]' : ''}>
@@ -105,6 +111,9 @@ function CommunityWorkshopCard({ w }: { w: CommunityWorkshop }) {
           <h3 className="font-display text-2xl md:text-3xl font-semibold text-text-primary mb-1">
             {w.title}
           </h3>
+          {w.subtitle && (
+            <p className="font-display text-lg text-text-secondary italic mb-1">{w.subtitle}</p>
+          )}
           <p className="text-sm text-text-secondary mb-1">
             Presented by {w.presentedBy} — <span className="italic">{w.tagline}</span>
           </p>
@@ -180,8 +189,8 @@ function CommunityWorkshopCard({ w }: { w: CommunityWorkshop }) {
             <p className="text-sm text-text-secondary leading-relaxed mb-5">{w.connect}</p>
           )}
 
-          {/* Booking */}
-          {w.booking && (
+          {/* Booking — live entries only; closed/past states shown calmly */}
+          {showBooking && w.booking && (
             <div className="rounded-xl border border-border-default bg-brand-subtle/40 p-5 mb-4">
               <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Register free</h4>
               {w.registerLines && (
@@ -199,12 +208,32 @@ function CommunityWorkshopCard({ w }: { w: CommunityWorkshop }) {
               <p className="text-sm font-medium text-text-primary">{w.booking.deadline}</p>
             </div>
           )}
+          {!showBooking && phase === 'booking_open' && w.scheduling?.bookingState === 'full' && (
+            <p className="text-sm font-medium text-text-primary mb-4">{copy.workshopDetail.fullyBooked}</p>
+          )}
+          {phase === 'booking_closed_upcoming' && w.scheduling?.bookingState !== 'full' && (
+            <p className="text-sm font-medium text-text-primary mb-4">{copy.workshopDetail.bookingClosed}</p>
+          )}
+          {phase === 'past' && (
+            <p className="text-sm font-medium text-text-muted mb-4">{copy.workshopDetail.eventPast}</p>
+          )}
           {w.bookingComingSoon && (
             <p className="text-sm font-medium text-text-muted mb-4">{w.bookingComingSoon}</p>
           )}
 
-          {w.closing && <p className="text-sm text-text-secondary mb-1">{w.closing}</p>}
-          {w.shareNote && <p className="text-xs text-text-muted">{w.shareNote}</p>}
+          {w.scheduling && (
+            <p className="mb-4">
+              <Link
+                href={`/workshops/${w.slug}`}
+                className="text-sm font-medium text-brand-default hover:underline"
+              >
+                {copy.workshopDetail.fullDetails} →
+              </Link>
+            </p>
+          )}
+
+          {phase !== 'past' && w.closing && <p className="text-sm text-text-secondary mb-1">{w.closing}</p>}
+          {phase !== 'past' && w.shareNote && <p className="text-xs text-text-muted">{w.shareNote}</p>}
         </div>
       </div>
     </article>
@@ -297,16 +326,46 @@ export default async function WorkshopsPage({ searchParams }: WorkshopsPageProps
       </div>
 
       {/* ── Community workshops (static Founder-supplied content) ──────────── */}
-      {communityWorkshops.length > 0 && (
-        <section className="mb-14">
-          <h2 className="text-xl font-semibold text-text-primary mb-5">Community workshops</h2>
-          <div className="space-y-8">
-            {communityWorkshops.map((w) => (
-              <CommunityWorkshopCard key={w.slug} w={w} />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Upcoming soonest-first (date-TBC announcements after the dated ones),
+          then past workshops most-recent-first. Derived from the canonical
+          timestamps at request time (the page is already request-rendered). */}
+      {communityWorkshops.length > 0 && (() => {
+        const nowDate = new Date()
+        const upcoming = communityWorkshops
+          .filter((w) => !w.scheduling || isUpcoming(w.scheduling, nowDate))
+          .sort((a, b) => {
+            if (!a.scheduling) return 1
+            if (!b.scheduling) return -1
+            return new Date(a.scheduling.start).getTime() - new Date(b.scheduling.start).getTime()
+          })
+        const past = communityWorkshops
+          .filter((w) => w.scheduling && !isUpcoming(w.scheduling, nowDate))
+          .sort((a, b) => new Date(b.scheduling!.start).getTime() - new Date(a.scheduling!.start).getTime())
+        return (
+          <section className="mb-14">
+            <h2 className="text-xl font-semibold text-text-primary mb-5">Community workshops</h2>
+            {upcoming.length > 0 && (
+              <div className="space-y-8">
+                {upcoming.map((w) => (
+                  <CommunityWorkshopCard key={w.slug} w={w} />
+                ))}
+              </div>
+            )}
+            {past.length > 0 && (
+              <>
+                <h3 className="text-base font-semibold text-text-secondary mt-10 mb-5">
+                  {copy.workshopDetail.pastHeading}
+                </h3>
+                <div className="space-y-8">
+                  {past.map((w) => (
+                    <CommunityWorkshopCard key={w.slug} w={w} />
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+        )
+      })()}
 
       {/* ── Online sessions & member events (platform-hosted) ──────────────── */}
       <h2 className="text-xl font-semibold text-text-primary mb-5">Online sessions &amp; member events</h2>
