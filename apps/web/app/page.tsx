@@ -1,7 +1,13 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { copy } from '@/lib/copy'
-import { createServerSupabaseClient } from '@natural-intelligence/db'
+import { getNextWorkshop } from '@/lib/workshops/selectors'
+import { getEventPhase, isBookable } from '@/lib/workshops/lifecycle'
+
+// The upcoming-workshop preview is derived from the canonical registry at
+// request time, so a workshop moves through its lifecycle (open → closed →
+// past) without a rebuild and without homepage-specific date logic.
+export const dynamic = 'force-dynamic'
 
 // ─── Icon primitives ──────────────────────────────────────────────────────────
 
@@ -53,25 +59,23 @@ function StepNumber({ n }: { n: number }) {
 // ─── Data fetching ────────────────────────────────────────────────────────────
 
 export default async function HomePage() {
-  const supabase = createServerSupabaseClient()
-
   // Directory-truth fix: no practitioner records are fetched or displayed on the
   // public homepage until real approved practitioners are published.
-  const now = new Date().toISOString()
-  const { data: events } = await supabase
-    .from('events')
-    .select(`
-      id,
-      title,
-      event_type,
-      starts_at,
-      is_online,
-      profiles!events_hosted_by_fkey(full_name)
-    `)
-    .eq('status', 'published')
-    .gt('starts_at', now)
-    .order('starts_at', { ascending: true })
-    .limit(3)
+
+  // Workshops come from the ONE canonical registry (lib/communityWorkshops.ts)
+  // via the shared selectors — the same source /workshops renders from.
+  const now = new Date()
+  const nextWorkshop = getNextWorkshop(now)
+  const workshopPhase = nextWorkshop ? getEventPhase(nextWorkshop.scheduling, now) : null
+  const workshopStatus =
+    nextWorkshop && !isBookable(nextWorkshop.scheduling, now)
+      ? workshopPhase === 'booking_open'
+        ? copy.workshopDetail.status.fullyBooked   // manually full, still upcoming
+        : copy.workshopDetail.status.bookingClosed // closed, event still to come
+      : null
+  const workshopStart = nextWorkshop ? new Date(nextWorkshop.scheduling.start) : null
+  const workshopDay = workshopStart?.toLocaleDateString('en-GB', { day: 'numeric', timeZone: 'Europe/London' })
+  const workshopMonth = workshopStart?.toLocaleDateString('en-GB', { month: 'short', timeZone: 'Europe/London' })
 
   const pillars = [
     {
@@ -92,14 +96,6 @@ export default async function HomePage() {
       badge: 'Being built carefully',
     },
   ]
-
-  const formatEventTime = (dateStr: string) =>
-    new Date(dateStr).toLocaleTimeString('en-GB', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'Europe/London',
-    })
 
   return (
     <div>
@@ -298,50 +294,89 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          {events && events.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {events.map((event: any) => {
-                const date      = new Date(event.starts_at)
-                const day       = date.toLocaleDateString('en-GB', { day: 'numeric' })
-                const month     = date.toLocaleDateString('en-GB', { month: 'short' })
-                const time      = formatEventTime(event.starts_at)
-                const hostName  = event.profiles?.full_name ?? ''
-
-                return (
-                  <div
-                    key={event.id}
-                    className="bg-surface-base border border-border-default rounded-2xl p-5 flex gap-4"
-                  >
-                    {/* Date block */}
-                    <div className="min-w-[48px] text-center flex-shrink-0">
-                      <p className="text-2xl font-light text-text-primary leading-none">{day}</p>
-                      <p className="text-xs uppercase tracking-wider text-text-muted mt-1">{month}</p>
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs uppercase tracking-wide text-text-brand font-medium mb-1 capitalize">
-                        {event.event_type.replace('_', ' ')}
-                      </p>
-                      <h3 className="text-sm font-medium text-text-primary mb-1 leading-snug">
-                        {event.title}
-                      </h3>
-                      <p className="text-xs text-text-muted">
-                        {time}{hostName ? ` · ${hostName}` : ''}
-                        {event.is_online ? ' · Online' : ''}
-                      </p>
-                      <Link
-                        href="/workshops"
-                        className="inline-block mt-3 text-xs font-medium text-text-brand hover:underline"
-                      >
-                        Register →
-                      </Link>
-                    </div>
+          {nextWorkshop ? (
+            <>
+              <article className="bg-surface-raised border border-border-default rounded-2xl p-5 sm:p-6 max-w-3xl">
+                <div className="flex gap-4 sm:gap-5">
+                  {/* Date block */}
+                  <div className="min-w-[48px] sm:min-w-[52px] text-center flex-shrink-0">
+                    <p className="text-3xl font-light text-text-primary leading-none">{workshopDay}</p>
+                    <p className="text-xs uppercase tracking-wider text-text-muted mt-1">{workshopMonth}</p>
                   </div>
-                )
-              })}
-            </div>
+
+                  <div className="min-w-0 flex-1">
+                    {nextWorkshop.series && (
+                      <p className="text-xs font-medium tracking-wide uppercase text-gold-ink mb-1.5">
+                        {nextWorkshop.series}
+                      </p>
+                    )}
+                    <h3 className="font-display text-xl sm:text-2xl font-semibold text-text-primary leading-snug">
+                      {nextWorkshop.title}
+                    </h3>
+                    {nextWorkshop.subtitle && (
+                      <p className="text-sm text-text-secondary italic mt-0.5">{nextWorkshop.subtitle}</p>
+                    )}
+
+                    <p className="text-sm text-text-secondary mt-2.5">
+                      <time dateTime={nextWorkshop.scheduling.start}>{nextWorkshop.date}</time> · {nextWorkshop.time}
+                    </p>
+                    <p className="text-sm text-text-muted">{nextWorkshop.venueLines[0]}</p>
+
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-subtle text-text-brand">
+                        {nextWorkshop.cost}
+                      </span>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-subtle text-text-brand">
+                        {nextWorkshop.audience}
+                      </span>
+                      {workshopStatus && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-text-secondary border border-border-muted">
+                          {workshopStatus}
+                        </span>
+                      )}
+                    </div>
+
+                    <Link
+                      href={`/workshops/${nextWorkshop.slug}`}
+                      className="inline-flex items-center justify-center min-h-[44px] mt-4 px-5 py-2.5 rounded-lg border border-border-default bg-surface-base text-sm font-medium text-text-brand hover:bg-surface-muted transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-default"
+                    >
+                      {copy.home.upcomingWorkshops.viewWorkshop} →
+                    </Link>
+                  </div>
+
+                  {/* Poster thumbnail — deliberately small; the homepage is a
+                      preview, not the workshop page. Hidden on phones. */}
+                  {nextWorkshop.poster && (
+                    <Image
+                      src={nextWorkshop.poster.src}
+                      alt=""
+                      aria-hidden="true"
+                      width={nextWorkshop.poster.width}
+                      height={nextWorkshop.poster.height}
+                      sizes="112px"
+                      className="hidden sm:block w-28 h-auto self-start rounded-lg border border-border-muted flex-shrink-0"
+                    />
+                  )}
+                </div>
+              </article>
+
+              <Link
+                href="/workshops"
+                className="inline-flex items-center min-h-[44px] mt-2 py-2 text-sm font-medium text-text-brand hover:underline sm:hidden"
+              >
+                {copy.home.upcomingWorkshops.cta}
+              </Link>
+            </>
           ) : (
-            <p className="text-text-muted text-sm">{copy.home.upcomingWorkshops.empty}</p>
+            <div className="max-w-3xl rounded-2xl border border-border-default bg-surface-raised px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <p className="text-sm text-text-muted">{copy.home.upcomingWorkshops.empty}</p>
+              <Link
+                href="/workshops"
+                className="text-sm font-medium text-text-brand hover:underline flex-shrink-0"
+              >
+                {copy.home.upcomingWorkshops.cta}
+              </Link>
+            </div>
           )}
         </div>
       </section>

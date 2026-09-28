@@ -198,7 +198,10 @@ export const communityWorkshops: CommunityWorkshop[] = [
     booking: {
       instruction:
         'Book your free place by joining the WhatsApp group. Once you join, your place is confirmed.',
-      url: 'https://chat.whatsapp.com/G15tsCJojvP54JTHJpDEIl?s=cl&p=i&mlu=0&ilr=4',
+      // Dedicated group for this workshop. MUST match the QR printed on the
+      // final leaflet (verified by decoding the published artwork) — the
+      // poster and the website must never offer two different groups.
+      url: 'https://chat.whatsapp.com/EolbIae3CJq5RXysuvt4Um?s=cl&p=i&mlu=0&ilr=4',
       linkLabel: 'Book your free place on WhatsApp',
       deadline:
         'Bookings close Tuesday 6th October. Places are limited — do book early, and bring a friend.',
@@ -224,9 +227,11 @@ export const communityWorkshops: CommunityWorkshop[] = [
     },
     excerpt: 'Understanding stress, and building real resilience.',
     poster: {
-      // Founder-supplied artwork, served as the optimised original WebP
-      // (~273KB) — not re-encoded, not redrawn.
-      src: '/images/workshops/from-stressed-to-steady-oct-2026.webp',
+      // Founder-supplied FINAL artwork (supplied 28 Sep 2026), re-encoded to
+      // WebP q88 (~241KB) with the QR verified machine-readable after
+      // compression. Filename carries -final so the CDN cannot serve the
+      // superseded artwork. Never redrawn or edited.
+      src: '/images/workshops/from-stressed-to-steady-oct-2026-final.webp',
       width: 1024,
       height: 1536,
       alt: 'From Stressed to Steady — free ladies’ health workshop, Ilford, Wednesday 7 October',
