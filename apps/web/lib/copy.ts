@@ -96,10 +96,11 @@ export const copy = {
       empty:    'Our practitioner directory is opening gradually. New practitioner profiles will appear here as they are approved.',
     },
     upcomingWorkshops: {
-      heading:    'Upcoming workshops',
-      subheading: 'Live sessions hosted by our practitioners',
-      cta:        'View all workshops',
-      empty:      'No workshops are currently scheduled. New sessions will be added as they are confirmed.',
+      heading:      'Upcoming workshops',
+      subheading:   'Live sessions hosted by our practitioners',
+      cta:          'View all workshops',
+      viewWorkshop: 'View workshop',
+      empty:        'No workshops are currently scheduled. New sessions will be added as they are confirmed.',
     },
     howItWorks: {
       heading: 'How it works',
@@ -215,6 +216,11 @@ export const copy = {
     bookingHeading:   'Booking',
     fullyBooked:      'This workshop is now fully booked.',
     bookingClosed:    'Bookings for this workshop are now closed.',
+    // Short badge forms of the two states above, for compact cards/previews.
+    status: {
+      fullyBooked:   'Fully booked',
+      bookingClosed: 'Bookings closed',
+    },
     eventPast:        'This workshop has now taken place.',
     nextWorkshop:     'Next workshop:',
     nextAnnouncedSoon:'Our next workshop will be announced soon.',
