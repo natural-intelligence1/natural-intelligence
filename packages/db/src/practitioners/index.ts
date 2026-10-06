@@ -55,6 +55,14 @@ export {
 } from './agreements'
 export type { PractitionerCategory, AgreementRow } from './agreements'
 export {
+  AGREEMENT_CLASS_LABELS, AGREEMENT_CLASS_SLUGS, categoryFromSlug,
+  computeAgreementHash, listAgreementVersions, getAgreementVersion,
+  statesClass3LeadRestriction, publishAgreementVersion, listPractitionersForCategory,
+} from './agreementVersions'
+export type {
+  AgreementVersionRow, PublishAgreementInput, PublishAgreementResult, AffectedPractitioner,
+} from './agreementVersions'
+export {
   isReviewPacksEnabled, getReviewPackForCase, generateAndStoreReviewPack,
   assertSynopsisSharingPermitted,
   PACK_MODE_ACTIVE_STATUSES, isPackModeAccessibleStatus,

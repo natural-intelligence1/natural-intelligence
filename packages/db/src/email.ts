@@ -431,3 +431,128 @@ export function applicationDecisionEmail(data: {
     ].join('\n'),
   }
 }
+
+// ─── Practitioner agreement — new version published ───────────────────────────
+// Sent to every practitioner in the affected class when a new agreement
+// version is published. It announces availability only: the binding read-and-
+// confirm happens in the care app against the exact current version and hash.
+
+export function agreementUpdatedEmail(data: {
+  to:            string
+  practitionerName: string | null
+  className:     string
+  version:       string
+  agreementUrl:  string
+  signInUrl:     string
+}): EmailPayload {
+  const greeting = data.practitionerName ? `Dear ${data.practitionerName},` : 'Hello,'
+  return {
+    to:      data.to,
+    subject: `Updated Natural Intelligence practitioner agreement (${data.className})`,
+    text: [
+      greeting,
+      '',
+      `We have published a new version of the Natural Intelligence practitioner agreement for ${data.className} practitioners (version ${data.version}).`,
+      '',
+      `You can read the full agreement here: ${data.agreementUrl}`,
+      '',
+      'The next time you sign in, you will be asked to read and accept the new version before continuing. Your previous acceptance stays on record exactly as it was.',
+      '',
+      `Sign in: ${data.signInUrl}`,
+      '',
+      'If you have any questions about the changes, reply to this email and the NI team will help.',
+      '',
+      'The Natural Intelligence team',
+    ].join('\n'),
+  }
+}
+
+// ─── Corporate prospectus — delivery to the requester ─────────────────────────
+// Covering email for the routed document(s). Education-only framing: no
+// clinical claim, no promised outcome, no price.
+
+export function prospectusDeliveryEmail(data: {
+  to:               string
+  contactName:      string
+  organisationName: string
+  documents:        { title: string; url: string }[]
+  /** 'dual' adds the care-setting covering note; 'other' adds the review note. */
+  variant:          'single' | 'dual' | 'other'
+  coveringNote:     string
+}): EmailPayload {
+  const links = data.documents
+    .map((d) => `${d.title}\n${d.url}`)
+    .join('\n\n')
+  const plural = data.documents.length > 1 ? 'prospectuses' : 'prospectus'
+  return {
+    to:      data.to,
+    subject: `Your Natural Intelligence ${plural} — ${data.organisationName}`,
+    text: [
+      `Dear ${data.contactName},`,
+      '',
+      `Thank you for asking about Natural Intelligence workshops for ${data.organisationName}.`,
+      '',
+      data.coveringNote,
+      '',
+      data.documents.length > 1 ? `Your ${plural}:` : 'Your prospectus:',
+      '',
+      links,
+      '',
+      'These links are personal to this request. If a link stops working, reply to this email and we will send a fresh one.',
+      '',
+      'Our sessions are group health education. They are not a medical service, and they do not provide diagnosis, treatment or individual medical advice.',
+      '',
+      'A member of the NI team will follow up within two working days to answer questions and understand what would suit your people best.',
+      '',
+      'The Natural Intelligence team',
+    ].join('\n'),
+  }
+}
+
+// ─── Corporate prospectus — internal notification ─────────────────────────────
+
+export function prospectusEnquiryNotificationEmail(data: {
+  to:               string
+  enquiryId:        string
+  organisationName: string
+  organisationType: string
+  audience:         string
+  sizeBand:         string
+  interests:        string[]
+  timing:           string
+  contactName:      string
+  role:             string
+  email:            string
+  phone?:           string | null
+  anythingElse?:    string | null
+  routedDocuments:  string[]
+  needsManualReview: boolean
+}): EmailPayload {
+  return {
+    to:      data.to,
+    subject: `Prospectus request — ${data.organisationName}${data.needsManualReview ? ' (needs review)' : ''}`,
+    text: [
+      'A new prospectus request has come in.',
+      '',
+      `Organisation:   ${data.organisationName}`,
+      `Type:           ${data.organisationType}`,
+      `Audience:       ${data.audience}`,
+      `Size:           ${data.sizeBand}`,
+      `Interests:      ${data.interests.join(', ') || '—'}`,
+      `Timing:         ${data.timing}`,
+      '',
+      `Contact:        ${data.contactName} (${data.role})`,
+      `Email:          ${data.email}`,
+      `Phone:          ${data.phone || '—'}`,
+      '',
+      `Sent:           ${data.routedDocuments.join(', ') || 'none'}`,
+      data.needsManualReview ? 'NOTE: routed as "Other" — KR/NI to review this enquiry personally.' : '',
+      '',
+      `Anything else:  ${data.anythingElse || '—'}`,
+      '',
+      `Enquiry ID:     ${data.enquiryId}`,
+      '',
+      'Follow up within two working days.',
+    ].filter(Boolean).join('\n'),
+  }
+}
