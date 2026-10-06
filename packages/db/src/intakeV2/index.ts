@@ -55,8 +55,60 @@ export {
   healthProfileAccessBundle, addContribution,
 } from './careTeam'
 export type { CareTeamMembership, CareTeamRole, CareTeamContribution, AssignmentStatus, ClientApprovalStatus } from './careTeam'
-export { V2_PROVENANCE_STATES, clientReported, missingFact, verifyFact, correctFact } from './provenance'
-export type { V2Provenance, V2SourcedFact, V2Correction } from './provenance'
+export {
+  V2_PROVENANCE_STATES, SYSTEM_SETTABLE_PROVENANCE, PRACTITIONER_ONLY_PROVENANCE,
+  clientReported, missingFact, verifyFact, correctFact,
+  notAsked, declined, documentedRecord, systemOrganised,
+  systemStructuredFromClientLanguage, interpretFact,
+  isPractitionerOnlyProvenance, isAffirmativeClientAnswer,
+} from './provenance'
+export type { V2Provenance, V2SourcedFact, V2Correction, V2Interpretation } from './provenance'
+
+// ── V4 connected-care layer (additive over the existing V2 engine) ──────────
+export {
+  JOURNEY_CHAPTERS, JOURNEY, chapterById, chapterForSection,
+  unmappedSections, journeyProgress,
+} from './journey'
+export type { JourneyChapterId, JourneyChapterDef, ChapterProgress } from './journey'
+
+export {
+  INFLUENCE_KINDS, INFLUENCE_KIND_LABELS, detectClientExpressedLink,
+  buildInfluenceFromClientStatement, practitionerAddedInfluence,
+  influenceAsSourcedFact, reviewInfluence,
+} from './influences'
+export type {
+  InfluenceKind, InfluenceOrigin, InfluenceReviewState, InfluenceRecord,
+  CueDetection, BuildInfluenceInput, BuildInfluenceResult,
+} from './influences'
+
+export {
+  CLARIFICATION_REASONS, CLARIFICATION_REASON_LABELS,
+  concernsInClientOrder, influencesForConcern, allClarificationItems,
+  deriveClarificationItems,
+} from './concerns'
+export type { ConcernCard, ClarificationItem, ClarificationReason } from './concerns'
+
+export {
+  BRANCH_STATES, newBranch, activateBranch, expandBranch, isFactuallySufficient,
+  recordAnswer, summariseBranch, reopenBranch, openBranches, wasNeverAsked,
+} from './branchLifecycle'
+export type { BranchState, BranchStatus, BranchTransition } from './branchLifecycle'
+
+export {
+  UPDATE_KINDS, UPDATE_KIND_LABELS, recordUpdate, buildSinceLastReview, describeSequence,
+} from './updates'
+export type {
+  UpdateKind, UpdateAuthorRole, DatedUpdate, SinceLastReview, SinceLastReviewSection,
+} from './updates'
+
+export {
+  SYNOPSIS_SECTION_IDS, SYNOPSIS_SECTION_TITLES, SYNOPSIS_BUILDER_VERSION,
+  buildFactualSynopsis, provenanceLabel,
+  containsOnlyFactualProvenance, everyItemHasProvenance,
+} from './synopsis'
+export type {
+  SynopsisSectionId, SynopsisItem, SynopsisSection, FactualSynopsis, SynopsisInput,
+} from './synopsis'
 export { buildCaseSnapshot } from './caseSnapshot'
 export type { V2AccountProfile, V2CareProfile, V2CaseSnapshot } from './caseSnapshot'
 export { createV2AutosaveQueue } from './autosaveQueue'

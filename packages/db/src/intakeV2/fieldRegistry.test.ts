@@ -130,8 +130,20 @@ describe('field registry v1 — practitioner firewall', () => {
 })
 
 describe('field registry v1 — provenance & language', () => {
-  it('the provenance model is exactly the four approved states', () => {
-    expect([...V2_PROVENANCE_STATES]).toEqual(['client_reported', 'practitioner_verified', 'corrected', 'missing'])
+  // The original four remain the base of the model and keep their order, so
+  // every fact stored before the V4 extension is still valid. V4 adds states
+  // alongside them (documented record, unconfirmed, not asked, declined, the
+  // two system-structured states and practitioner interpretation) — see
+  // connectedCare.test.ts for the behaviour each one guarantees.
+  it('the original four approved states are preserved, in order, as the base of the model', () => {
+    expect([...V2_PROVENANCE_STATES].slice(0, 4))
+      .toEqual(['client_reported', 'practitioner_verified', 'corrected', 'missing'])
+  })
+
+  it('no state was removed by the V4 extension', () => {
+    for (const state of ['client_reported', 'practitioner_verified', 'corrected', 'missing']) {
+      expect(V2_PROVENANCE_STATES).toContain(state)
+    }
   })
 
   it('no registry label or note uses banned interpretive language', () => {
