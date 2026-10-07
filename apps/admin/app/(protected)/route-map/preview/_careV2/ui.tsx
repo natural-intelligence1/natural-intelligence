@@ -26,11 +26,24 @@ export function SyntheticBanner({ text }: { text: string }) {
   )
 }
 
+// Total over V2Provenance by construction: when a state is added to the
+// registry this file stops compiling until it is given a chip here. Wording is
+// practitioner-facing; the Connected Care previews use softer client-facing
+// wording for the same states (see ../_connected/shared.tsx).
 const PROVENANCE_STYLE: Record<Provenance, { label: string; bg: string; fg: string; border: string; dashed?: boolean }> = {
   client_reported:       { label: 'Client-reported',       bg: '#EEF2EA', fg: '#5E6B3F', border: '#C9D2BE' },
   practitioner_verified: { label: 'Practitioner-verified', bg: '#E9EFEA', fg: '#2E4636', border: '#B9CBBE' },
   corrected:             { label: 'Corrected',             bg: '#F5EDDA', fg: '#7D6128', border: '#B08A3E' },
   missing:               { label: 'Missing',               bg: 'transparent', fg: '#5F6862', border: '#C9C2B2', dashed: true },
+  documented_record:     { label: 'Documented record',     bg: '#E9EFEA', fg: '#2E4636', border: '#B9CBBE' },
+  unconfirmed:           { label: 'Unconfirmed',           bg: 'transparent', fg: '#7D6128', border: '#B08A3E', dashed: true },
+  not_asked:             { label: 'Not asked',             bg: 'transparent', fg: '#5F6862', border: '#C9C2B2', dashed: true },
+  declined:              { label: 'Declined',              bg: 'transparent', fg: '#5F6862', border: '#C9C2B2', dashed: true },
+  system_organised:      { label: 'Organised by NI',       bg: '#F3F1EA', fg: '#5F6862', border: '#DCD5C4' },
+  system_structured_from_client_language:
+    { label: 'Structured from client’s words', bg: '#F3F1EA', fg: '#5F6862', border: '#DCD5C4' },
+  practitioner_interpreted:
+    { label: 'Practitioner interpretation', bg: '#E9EFEA', fg: '#2E4636', border: '#B9CBBE' },
 }
 
 /** Provenance chip — appears on every claim in the synopsis. */

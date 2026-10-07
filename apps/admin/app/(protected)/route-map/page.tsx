@@ -69,6 +69,19 @@ export default async function RouteMapPage() {
           <li><a className="text-text-brand underline" href="/route-map/preview/care-team">My Care Team V1 — client / admin / practitioner views</a></li>
           <li><a className="text-text-brand underline" href="/route-map/preview/pricing">Pricing page preview</a></li>
         </ul>
+
+        <h3 className="text-sm font-semibold text-text-primary mt-5 mb-1">Connected care journey (V4)</h3>
+        <p className="text-xs text-text-muted mb-3 max-w-3xl">
+          The three surfaces that show the chain end to end: intake → factual synopsis →
+          practitioner review → signed protocol → DailyPath → check-ins → since last review.
+          Synthetic throughout. Screen C additionally demonstrates a contract the live schema
+          does not yet support — it says so on the page.
+        </p>
+        <ul className="text-sm space-y-1.5">
+          <li><a className="text-text-brand underline" href="/route-map/preview/client-today">A — Client Today (one agreed next step)</a></li>
+          <li><a className="text-text-brand underline" href="/route-map/preview/case-overview">B — Practitioner case overview (“Since last review”)</a></li>
+          <li><a className="text-text-brand underline" href="/route-map/preview/signed-protocol">C — Signed protocol → DailyPath (versioning contract)</a></li>
+        </ul>
       </section>
 
       {!map ? (
