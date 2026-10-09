@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { markItemDone, markItemSkipped } from './actions'
 
 export interface DailyItem {
+  /** daily_adherence.id — what the server actions update. */
   id:        string
-  itemId:    string
+  /** daily_adherence.item_name — the item discriminator on that table. */
   name:      string
   itemType:  string
   dose:      string | null
