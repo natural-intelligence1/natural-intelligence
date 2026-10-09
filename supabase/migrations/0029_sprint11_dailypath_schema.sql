@@ -4,6 +4,46 @@
 -- Tables created directly in Supabase dashboard (production-only branch).
 -- This file exists for auditability; do NOT re-run against a live database.
 -- ─────────────────────────────────────────────────────────────────────────────
+--
+--   ███  THIS FILE DOES NOT DESCRIBE THE LIVE SCHEMA. DO NOT READ IT AS  ███
+--   ███  EVIDENCE OF WHAT PRODUCTION CONTAINS. THE LIVE CATALOGUE IS     ███
+--   ███  THE ONLY AUTHORITY.                                             ███
+--
+-- This is a RETROSPECTIVE, HAND-WRITTEN REPRESENTATION of tables created by
+-- hand in the Supabase dashboard. It was never executed, and the hand-created
+-- tables never matched it. Nothing below has been corrected or re-applied —
+-- the file is left exactly as written so the historical record stays intact.
+-- Only this notice was added.
+--
+-- Divergences confirmed against pg_catalog on 2026-10-09:
+--
+--   daily_adherence
+--     · file says      item_id uuid not null references protocol_items(id)
+--       LIVE           NO item_id COLUMN AT ALL
+--     · file says      unique (member_id, protocol_id, item_id, log_date)
+--       LIVE           unique (member_id, protocol_id, item_name, log_date)
+--     · live also has  dose, timing, notes  (absent from this file)
+--
+--   protocol_items
+--     · file says      sort_order           LIVE  display_order
+--     · live item_type CHECK also allows 'practitioner'
+--
+--   protocol_templates
+--     · file says      status, duration_weeks, root_cause_id
+--       LIVE           created_by, is_published (no status / duration_weeks)
+--
+--   adherence_streaks
+--     · file says      protocol_id + unique (member_id, protocol_id)
+--       LIVE           NO protocol_id; unique (member_id) only — streaks are
+--                      per MEMBER, not per protocol
+--
+-- Consequence, for the record: application code written against this file
+-- queried daily_adherence.item_id for an extended period. Because that column
+-- does not exist, the DailyPath page failed and item metadata silently
+-- resolved to defaults. Corrected in fix/dailypath-live-schema by matching the
+-- live schema; the database was deliberately NOT changed to suit stale code.
+-- Verify against the live catalogue, never against this folder.
+-- ─────────────────────────────────────────────────────────────────────────────
 
 -- ── protocol_templates ───────────────────────────────────────────────────────
 create table if not exists public.protocol_templates (

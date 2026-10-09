@@ -40,10 +40,13 @@ export default async function DailyPathPage({ searchParams }: PageProps) {
     const templateMeta = protocol.protocol_templates as { duration_weeks: number } | null
     const durationWeeks = templateMeta?.duration_weeks ?? 12
 
-    // Fetch today's adherence rows
+    // Fetch today's adherence rows.
+    // `item_name` is the item discriminator on this table — there is no
+    // `item_id` column, and the live unique key is
+    // (member_id, protocol_id, item_name, log_date).
     let { data: todayAdherence } = await adminClient
       .from('daily_adherence')
-      .select('id, item_id, item_name, log_date, completed, completed_at, skipped, skip_reason')
+      .select('id, item_name, log_date, completed, completed_at, skipped, skip_reason')
       .eq('member_id', user.id)
       .eq('protocol_id', protocol.id)
       .eq('log_date', today)
@@ -68,11 +71,11 @@ export default async function DailyPathPage({ searchParams }: PageProps) {
         }))
         await adminClient
           .from('daily_adherence')
-          .upsert(rows, { onConflict: 'member_id,protocol_id,item_id,log_date', ignoreDuplicates: true })
+          .upsert(rows, { onConflict: 'member_id,protocol_id,item_name,log_date', ignoreDuplicates: true })
 
         const { data: refetched } = await adminClient
           .from('daily_adherence')
-          .select('id, item_id, item_name, log_date, completed, completed_at, skipped, skip_reason')
+          .select('id, item_name, log_date, completed, completed_at, skipped, skip_reason')
           .eq('member_id', user.id)
           .eq('protocol_id', protocol.id)
           .eq('log_date', today)
@@ -87,15 +90,18 @@ export default async function DailyPathPage({ searchParams }: PageProps) {
       .eq('template_id', protocol.template_id)
       .order('display_order', { ascending: true })
 
-    const itemMeta = new Map((protocolItems ?? []).map((i: any) => [i.id, i]))
+    // Keyed by NAME, because name is the identifier the adherence row actually
+    // carries. `_insertTodayRows` writes `item_name: item.name` from these same
+    // protocol_items, and the live unique key treats name as the per-item
+    // discriminator — so name is the existing join, not a new mapping.
+    const itemMeta = new Map((protocolItems ?? []).map((i: any) => [i.name, i]))
 
     // Merge adherence + item metadata
     const dailyItems: DailyItem[] = (todayAdherence ?? [])
       .map((a: any) => {
-        const meta = itemMeta.get(a.item_id) as any
+        const meta = itemMeta.get(a.item_name) as any
         return {
           id:        a.id,
-          itemId:    a.item_id,
           name:      a.item_name,
           itemType:  meta?.item_type ?? 'supplement',
           dose:      meta?.dose ?? null,

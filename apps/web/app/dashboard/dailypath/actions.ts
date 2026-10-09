@@ -250,9 +250,12 @@ async function _insertTodayRows(
     skipped:     false,
   }))
 
+  // Conflict target matches the live constraint
+  // daily_adherence_member_id_protocol_id_item_name_log_date_key.
+  // There is no `item_id` column on this table.
   await adminClient
     .from('daily_adherence')
-    .upsert(rows, { onConflict: 'member_id,protocol_id,item_id,log_date', ignoreDuplicates: true })
+    .upsert(rows, { onConflict: 'member_id,protocol_id,item_name,log_date', ignoreDuplicates: true })
 }
 
 async function _updateStreak(
