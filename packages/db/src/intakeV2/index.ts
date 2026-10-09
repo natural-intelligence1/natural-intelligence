@@ -144,6 +144,18 @@ export type {
 } from './nutrition'
 
 export {
+  PROTOCOL_SIGNING_GUARD_VERSION, PRACTITIONER_CLASSES,
+  SIGNING_REFUSAL_CODES, SIGNING_REFUSAL_MESSAGES,
+  authoriseProtocolSigning, assertProtocolSigningAuthorised,
+  ProtocolSigningRefused, rpcEligibilityResolver,
+} from './protocolSigning'
+export type {
+  PractitionerClass, SigningRefusalCode, SigningRefusal, SigningAttribution,
+  SigningAuthorisation, EligibilityVerdict, EligibilityResolver,
+  CaseSigningState, ProtocolUnderSignature, ProtocolSigningRequest,
+} from './protocolSigning'
+
+export {
   SAFETY_WORKFLOW_VERSION, SAFETY_STATES, SAFETY_STATE_LABELS, SAFETY_OPEN_STATES,
   SAFETY_EVENT_KINDS, isOpen, raiseSafetyItem, assignReviewer,
   acknowledgeSafetyItem, recordSafetyDecision, recordSafetyAction,

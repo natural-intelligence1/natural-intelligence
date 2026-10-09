@@ -219,8 +219,23 @@ create trigger trg_forbid_signed_protocol_delete
 -- trusted server-side code using the service role (which is how this codebase
 -- reaches the database — createAdminClient()). Those callers are not gated
 -- here. Every END-USER session has auth.uid() set, so a client is always
--- gated. Server code that signs a protocol is responsible for applying the
--- same Lead rule, exactly as it already is for release_care_plan.
+-- gated.
+--
+-- Being server-side is NOT on its own sufficient to sign. The application half
+-- of this boundary is the canonical guard at
+--
+--     packages/db/src/intakeV2/protocolSigning.ts
+--     authoriseProtocolSigning() / assertProtocolSigningAuthorised()
+--
+-- which EVERY server-side signing entry point must call immediately before the
+-- privileged write. It establishes signer-is-attributed, an active role on the
+-- case, the Lead sign-off rule, the student prohibition, the NI Verified
+-- Practitioner sole-LRP prohibition, an explicit author and version, and
+-- case/content state — and it DELEGATES agreement / credential / indemnity /
+-- registration to this same practitioner_assignment_eligibility() function
+-- rather than re-deriving any of them. Its negative tests prove a
+-- fully-privileged service-role caller is refused by the domain layer even
+-- though the database itself would have permitted the write.
 
 create or replace function public.enforce_protocol_signature_authority()
 returns trigger language plpgsql security definer set search_path = public as $$
