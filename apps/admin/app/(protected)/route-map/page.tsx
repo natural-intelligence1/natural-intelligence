@@ -51,6 +51,25 @@ export default async function RouteMapPage() {
         </p>
       </div>
 
+      {/* Connected Care previews — internal, branch-only, synthetic.
+          Listed here so founder review does not depend on typing raw URLs. */}
+      <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
+        <h2 className="text-lg font-semibold text-text-primary mb-1">Connected care previews (internal)</h2>
+        <p className="text-xs text-text-muted mb-3 max-w-3xl">
+          The three surfaces showing the chain end to end: intake → factual synopsis → practitioner
+          review → signed protocol → DailyPath → check-ins → since last review. Synthetic data only,
+          every control is inert, nothing reads or writes live records, and these are not client-facing
+          pages. Not on production until KR approves merge/deploy. Screen C additionally demonstrates a
+          contract the live schema does not yet support — it says so on the page.
+        </p>
+        <ul className="text-sm space-y-1.5">
+          <li><a className="text-text-brand underline" href="/route-map/preview/client-today">A — Client Today (one agreed next step)</a></li>
+          <li><a className="text-text-brand underline" href="/route-map/preview/case-overview">B — Practitioner case overview (“Since last review”)</a></li>
+          <li><a className="text-text-brand underline" href="/route-map/preview/signed-protocol">C — Signed protocol → DailyPath (versioning contract)</a></li>
+          <li><a className="text-text-brand underline" href="/route-map/preview/pricing">Pricing page preview</a></li>
+        </ul>
+      </section>
+
       {!map ? (
         <div className="rounded-lg border border-status-errorBorder bg-status-errorBg px-4 py-3 text-sm text-status-errorText">
           ROLE-ROUTE-MAP.md could not be read in this deployment. The canonical
