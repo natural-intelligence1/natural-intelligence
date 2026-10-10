@@ -109,7 +109,9 @@
 -- ═════════════════════════════════════════════════════════════════════════════
 
 
-begin;
+-- NOTE ON TRANSACTION CONTROL: this file carries no explicit begin/commit,
+-- matching 0056, 0057 and 0058. The migration runner wraps the whole file in
+-- one transaction; an inner `commit` would end that transaction early.
 
 -- ── §1. Versioning and signature ─────────────────────────────────────────────
 -- `status` is NOT reused: live it is the care lifecycle, constrained to
@@ -296,9 +298,6 @@ comment on column public.member_protocols.supersedes is
   'The earlier version this one replaces. Revision creates a new row; the old row is never edited. The reverse edge is a lookup — there is deliberately no superseded_by column.';
 comment on column public.member_protocols.version is
   'Row-per-version, following practitioner_agreements. The current version is the signed row that nothing supersedes.';
-
-
-commit;
 
 
 -- ═════════════════════════════════════════════════════════════════════════════
