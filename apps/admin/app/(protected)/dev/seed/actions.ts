@@ -636,8 +636,16 @@ export async function resetTestData(): Promise<{ deleted: Record<string, number>
 // partial unique index).
 export async function seedPractitionerAgreements(): Promise<{ published: number; version: string }> {
   const { adminClient } = await requireAdmin()
-  const { AGREEMENT_TEXTS, AGREEMENT_VERSION, PRACTITIONER_CATEGORIES } =
+  const { AGREEMENT_TEXTS, AGREEMENT_VERSION, PRACTITIONER_CATEGORIES,
+          assertDraftSeedingAllowed } =
     await import('@natural-intelligence/db/practitioners')
+
+  // Defence in depth, layer 2: the button is hidden in production AND this
+  // throws there regardless. Admin authentication alone must never be enough
+  // to make placeholder text the current agreement — an acceptance of it
+  // would be immutable and would bind the practitioner to wording that says
+  // "pending solicitor drafting".
+  assertDraftSeedingAllowed()
 
   // eslint-disable-next-line
   const loose = adminClient as any

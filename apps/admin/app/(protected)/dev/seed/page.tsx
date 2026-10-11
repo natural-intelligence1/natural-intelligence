@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 import { copy } from '@/lib/copy'
+import { isDraftSeedingAllowed } from '@natural-intelligence/db/practitioners'
 import SeedClient from './SeedClient'
 
 export default async function SeedPage() {
@@ -38,7 +39,9 @@ export default async function SeedPage() {
       </div>
 
       <div className="px-8 py-6 max-w-3xl">
-        <SeedClient />
+        {/* Evaluated on the server — a client component cannot read NODE_ENV
+            or VERCEL_ENV. The server action enforces the same rule itself. */}
+        <SeedClient draftSeedingAllowed={isDraftSeedingAllowed()} />
       </div>
     </div>
   )

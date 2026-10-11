@@ -50,6 +50,7 @@ export { buildReviewPack, scrubIdentifiers, makePseudonym } from './reviewPack'
 export type { ReviewPack } from './reviewPack'
 export {
   PRACTITIONER_CATEGORIES, AGREEMENT_VERSION, AGREEMENT_TEXTS,
+  isDraftSeedingAllowed, assertDraftSeedingAllowed, DRAFT_SEED_BLOCKED_MESSAGE,
   isPractitionerCategory, getCurrentAgreement, hasAcceptedCurrentAgreement,
   acceptCurrentAgreementViaRpc, isAgreementGateEnabled,
 } from './agreements'

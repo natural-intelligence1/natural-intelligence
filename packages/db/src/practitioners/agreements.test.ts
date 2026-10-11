@@ -4,6 +4,8 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import {
   hasAcceptedCurrentAgreement, acceptCurrentAgreementViaRpc, isAgreementGateEnabled,
+  isDraftSeedingAllowed, assertDraftSeedingAllowed, DRAFT_SEED_BLOCKED_MESSAGE,
+  AGREEMENT_VERSION, AGREEMENT_TEXTS, PRACTITIONER_CATEGORIES,
 } from './agreements'
 import { makeStubClient } from './__test-helpers__/stubQueryClient'
 
@@ -79,5 +81,60 @@ describe('PRACTITIONER_AGREEMENT_GATE flag', () => {
     }
     process.env[FLAG] = 'true'
     expect(isAgreementGateEnabled()).toBe(true)
+  })
+})
+
+// ─── Draft-seed production protection ────────────────────────────────────────
+// AGREEMENT_TEXTS is placeholder wording whose own banner says it needs
+// solicitor review. Publishing it sets is_current, which the eligibility gate
+// reads, and an acceptance of it is immutable. It must be impossible outside
+// development, regardless of admin authentication.
+
+describe('draft agreement seeding — production protection', () => {
+  const PROD_ENVS: NodeJS.ProcessEnv[] = [
+    { NODE_ENV: 'production' },
+    { NODE_ENV: 'production', VERCEL_ENV: 'production' },
+    { NODE_ENV: 'production', VERCEL_ENV: 'preview' },
+    { VERCEL_ENV: 'production', NODE_ENV: 'development' }, // explicit prod wins
+  ]
+
+  it('refuses in every production-like environment', () => {
+    for (const env of PROD_ENVS) {
+      expect(isDraftSeedingAllowed(env)).toBe(false)
+      expect(() => assertDraftSeedingAllowed(env)).toThrow(DRAFT_SEED_BLOCKED_MESSAGE)
+    }
+  })
+
+  it('fails closed on an unknown or absent environment', () => {
+    for (const env of [{}, { NODE_ENV: undefined }, { NODE_ENV: 'staging' }] as NodeJS.ProcessEnv[]) {
+      expect(isDraftSeedingAllowed(env)).toBe(false)
+      expect(() => assertDraftSeedingAllowed(env)).toThrow()
+    }
+  })
+
+  it('allows development and test only', () => {
+    for (const env of [{ NODE_ENV: 'development' }, { NODE_ENV: 'test' }] as NodeJS.ProcessEnv[]) {
+      expect(isDraftSeedingAllowed(env)).toBe(true)
+      expect(() => assertDraftSeedingAllowed(env)).not.toThrow()
+    }
+  })
+
+  it('a Vercel preview build cannot publish drafts', () => {
+    // Preview deployments also run with NODE_ENV=production.
+    const preview: NodeJS.ProcessEnv = { NODE_ENV: 'production', VERCEL_ENV: 'preview' }
+    expect(() => assertDraftSeedingAllowed(preview)).toThrow(/cannot be published in production/i)
+  })
+
+  it('the refusal names the version it is protecting against', () => {
+    expect(DRAFT_SEED_BLOCKED_MESSAGE).toContain(AGREEMENT_VERSION)
+    expect(DRAFT_SEED_BLOCKED_MESSAGE).toMatch(/solicitor/i)
+  })
+
+  it('the seeded text is still demonstrably draft — the guard is warranted', () => {
+    for (const category of PRACTITIONER_CATEGORIES) {
+      expect(AGREEMENT_TEXTS[category].body).toMatch(/DRAFT/)
+      expect(AGREEMENT_TEXTS[category].body).toMatch(/pending solicitor drafting/i)
+    }
+    expect(AGREEMENT_VERSION).toMatch(/draft/i)
   })
 })
