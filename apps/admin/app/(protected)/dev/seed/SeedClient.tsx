@@ -41,7 +41,9 @@ function SeedButton({
   )
 }
 
-export default function SeedClient() {
+export default function SeedClient(
+  { draftSeedingAllowed = false }: { draftSeedingAllowed?: boolean },
+) {
   const [loading, setLoading] = useState(false)
   const [result,  setResult]  = useState<Result>(null)
   const [confirmReset, setConfirmReset] = useState(false)
@@ -102,16 +104,26 @@ export default function SeedClient() {
               )
             }
           />
-          <SeedButton
-            label="Publish DRAFT practitioner agreements (Sprint 3)"
-            disabled={loading}
-            onClick={() =>
-              run(
-                () => seedPractitionerAgreements(),
-                (v) => `${c.success} ${v.published} DRAFT agreements published (version ${v.version}). Solicitor review still required.`,
-              )
-            }
-          />
+          {/* Layer 1 of the draft-seed protection: the control is not rendered
+              outside development. The server action refuses independently, so
+              hiding it is convenience, not the guarantee. */}
+          {draftSeedingAllowed ? (
+            <SeedButton
+              label="Publish DRAFT practitioner agreements (Sprint 3)"
+              disabled={loading}
+              onClick={() =>
+                run(
+                  () => seedPractitionerAgreements(),
+                  (v) => `${c.success} ${v.published} DRAFT agreements published (version ${v.version}). Solicitor review still required.`,
+                )
+              }
+            />
+          ) : (
+            <p className="text-xs text-text-muted border border-border-default rounded-lg px-3 py-2">
+              Publishing draft practitioner agreements is disabled outside development.
+              Final agreements are loaded through the approved agreement process.
+            </p>
+          )}
           <SeedButton
             label={c.createSupportRequest}
             disabled={loading}

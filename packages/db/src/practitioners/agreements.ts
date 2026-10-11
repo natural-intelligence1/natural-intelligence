@@ -30,6 +30,37 @@ export type PractitionerCategory = (typeof PRACTITIONER_CATEGORIES)[number]
 //      re-accept. Never edit a published row's body in place.
 export const AGREEMENT_VERSION = 's3-draft-1'
 
+// ── Draft agreements must never become current in production ────────────────
+// AGREEMENT_TEXTS below is placeholder wording whose own banner says it
+// requires solicitor review before real-client use. Publishing it sets
+// is_current, which is what practitioner_has_current_acceptance() and the
+// whole eligibility gate read. A practitioner accepting it would be bound to
+// text that says "pending solicitor drafting", and the accepted hash would be
+// immutable.
+//
+// The three final agreements (RHP / ACC / NIV v1.x) are loaded through the
+// approved process, not through this constant.
+
+export const DRAFT_SEED_BLOCKED_MESSAGE =
+  'Draft practitioner agreements cannot be published in production. ' +
+  `AGREEMENT_VERSION "${AGREEMENT_VERSION}" is placeholder text pending solicitor drafting; ` +
+  'publishing it would make it the current agreement and bind every acceptance to it. ' +
+  'Final agreements are loaded through the approved agreement process.'
+
+/** True only in a local/dev context. Fails CLOSED: anything that is not
+ *  provably development is treated as production. Vercel sets NODE_ENV
+ *  'production' for preview builds too, so previews are blocked as well. */
+export function isDraftSeedingAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (env.VERCEL_ENV === 'production') return false
+  if (env.NODE_ENV === 'production') return false
+  return env.NODE_ENV === 'development' || env.NODE_ENV === 'test'
+}
+
+/** Hard server-side stop. Call before any write that publishes AGREEMENT_TEXTS. */
+export function assertDraftSeedingAllowed(env: NodeJS.ProcessEnv = process.env): void {
+  if (!isDraftSeedingAllowed(env)) throw new Error(DRAFT_SEED_BLOCKED_MESSAGE)
+}
+
 const DRAFT_BANNER =
   'DRAFT — requires solicitor/clinician review before real-client use.\n\n'
 
