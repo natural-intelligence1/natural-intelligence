@@ -61,3 +61,15 @@ export {
   PACK_MODE_ACTIVE_STATUSES, isPackModeAccessibleStatus,
 } from './reviewPackAccess'
 export type { ReviewPackRow, GenerateReviewPackResult } from './reviewPackAccess'
+export {
+  PRACTITIONER_CLASS_LABELS, SPRINT4_MODALITIES,
+  evaluatePractitionerEligibility, checkAssignmentEligibility,
+  assertPractitionerAssignable,
+  setCredentialsVerification, setScopeApproval,
+  setPractitionerClass, setIndemnityEvidence, setRegistrationDetails,
+  describeReadiness,
+} from './credentialing'
+export type {
+  DbsStatus, PractitionerEligibilitySnapshot, EligibilityReason,
+  FieldState, ReadinessField,
+} from './credentialing'

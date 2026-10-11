@@ -4,6 +4,7 @@ import { createServerSupabaseClient, createAdminClient } from '@natural-intellig
 import { Avatar, Badge, VettedBadge } from '@natural-intelligence/ui'
 import { copy } from '@/lib/copy'
 import PractitionerActionsClient from './PractitionerActionsClient'
+import { CredentialingPanel } from './CredentialingPanel'
 
 type BadgeVariant = 'default' | 'info' | 'success' | 'danger' | 'warning'
 const lifecycleBadge: Record<string, BadgeVariant> = {
@@ -109,6 +110,10 @@ export default async function PractitionerDetailPage({ params }: Props) {
       </div>
 
       <div className="px-8 py-6 max-w-4xl space-y-8">
+
+        {/* Credentialing & assignment eligibility. The verdict and every
+            "blocking" flag come from practitioner_assignment_eligibility(). */}
+        <CredentialingPanel practitioner={p as unknown as Record<string, unknown>} />
 
         {/* Profile completeness */}
         <section className="rounded-xl border border-border-default bg-surface-raised p-6 shadow-sm">
