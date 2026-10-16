@@ -2,8 +2,24 @@
 
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import { assertDevOnlyEnvironment } from '@natural-intelligence/db/environment'
 
+// ─── THE chokepoint for this whole surface ──────────────────────────────────
+// Every exported action in this file calls requireAdmin() exactly once, so the
+// environment assertion here covers all of them — and covers any action added
+// later, without anyone having to remember.
+//
+// The environment check runs FIRST, before the session is even read: in
+// production this surface does not exist, regardless of who is signed in.
+// These actions fabricate test users, practitioners, applications and
+// showcase content, and resetTestData() deletes. Admin authentication is not
+// a sufficient control for that in production.
+//
+// Fails closed — preview deployments and any unrecognised environment are
+// refused too. See packages/db/src/environment.ts.
 async function requireAdmin() {
+  assertDevOnlyEnvironment('Development seed and test-data tooling')
+
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthenticated')

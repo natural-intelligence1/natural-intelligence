@@ -9,6 +9,7 @@
 // DRAFT — requires solicitor/clinician review before real-client use.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isDevOnlyEnvironment } from '../environment'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyClient = SupabaseClient<any>
@@ -47,16 +48,14 @@ export const DRAFT_SEED_BLOCKED_MESSAGE =
   'publishing it would make it the current agreement and bind every acceptance to it. ' +
   'Final agreements are loaded through the approved agreement process.'
 
-/** True only in a local/dev context. Fails CLOSED: anything that is not
- *  provably development is treated as production. Vercel sets NODE_ENV
- *  'production' for preview builds too, so previews are blocked as well. */
+/** Delegates to the single environment authority — one rule, not two. */
 export function isDraftSeedingAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
-  if (env.VERCEL_ENV === 'production') return false
-  if (env.NODE_ENV === 'production') return false
-  return env.NODE_ENV === 'development' || env.NODE_ENV === 'test'
+  return isDevOnlyEnvironment(env)
 }
 
-/** Hard server-side stop. Call before any write that publishes AGREEMENT_TEXTS. */
+/** Hard server-side stop. Call before any write that publishes AGREEMENT_TEXTS.
+ *  Kept distinct from the generic guard so the refusal explains WHY draft
+ *  agreement text specifically must never become current. */
 export function assertDraftSeedingAllowed(env: NodeJS.ProcessEnv = process.env): void {
   if (!isDraftSeedingAllowed(env)) throw new Error(DRAFT_SEED_BLOCKED_MESSAGE)
 }

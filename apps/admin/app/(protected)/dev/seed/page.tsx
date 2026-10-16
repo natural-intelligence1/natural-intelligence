@@ -1,10 +1,16 @@
-import { redirect } from 'next/navigation'
+import { redirect, notFound } from 'next/navigation'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 import { copy } from '@/lib/copy'
+import { isDevOnlyEnvironment } from '@natural-intelligence/db/environment'
 import { isDraftSeedingAllowed } from '@natural-intelligence/db/practitioners'
 import SeedClient from './SeedClient'
 
 export default async function SeedPage() {
+  // The entire surface is absent in production — not a 403, a 404. There is
+  // nothing here to probe. The server actions refuse independently, so this
+  // is the convenience layer, not the guarantee.
+  if (!isDevOnlyEnvironment()) notFound()
+
   const supabase = createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
