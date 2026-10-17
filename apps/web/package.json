@@ -15,6 +15,7 @@
     "@anthropic-ai/sdk": "^0.32.1",
     "@natural-intelligence/db": "workspace:*",
     "@natural-intelligence/design-tokens": "workspace:*",
+    "@natural-intelligence/galaxy": "workspace:*",
     "@natural-intelligence/ui": "workspace:*",
     "@supabase/ssr": "^0.5",
     "@supabase/supabase-js": "^2",
@@ -24,6 +25,7 @@
     "resend": "^3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

@@ -46,3 +46,7 @@ tools/obsidian-memory/.index/
 tools/obsidian-memory/context-packs/
 
 .vercel
+
+# Playwright test output
+test-results/
+playwright-report/

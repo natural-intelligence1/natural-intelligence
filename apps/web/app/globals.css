@@ -9,6 +9,14 @@
    ─────────────────────────────────────────────────────────────────────────── */
 
 :root {
+  /* Living Galaxy font aliases — map the galaxy's variable names onto the
+     fonts apps/web already loads via next/font. No second font load, and no
+     Google Fonts <link>. Cormorant Garamond includes italic 500, which the
+     galaxy's rotating centre phrase needs. */
+  --ni-font-display: var(--font-display), 'Cormorant Garamond', serif;
+  --ni-font-ui:      var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+  --ni-font-mono:    var(--font-mono), 'JetBrains Mono', ui-monospace, monospace;
+
   --ni-cream:      #F4ECDD;
   --ni-warm-white: #FBF7EF;
   --ni-sand:       #E7DAC4;

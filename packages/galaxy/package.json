@@ -1,0 +1,31 @@
+{
+  "name": "@natural-intelligence/galaxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NI Living Galaxy — interactive 3D navigation of body systems and connected expertise (client-only).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "sideEffects": false,
+  "files": [
+    "src",
+    "assets"
+  ],
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "dependencies": {
+    "three": "0.149.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.149.0",
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "^2",
+    "@types/react": "^18"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  }
+}

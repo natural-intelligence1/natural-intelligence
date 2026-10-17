@@ -9,6 +9,11 @@ const PUBLIC_ROUTES = [
   '/directory', '/workshops', '/resources', '/community',
   '/about', '/apply', '/support',
   '/legal/terms', '/legal/privacy', '/legal/cookies',
+  // Living Galaxy QA/reference route. Public so Preview reviewers and the
+  // Playwright suite can reach it without an account. It is flag-gated
+  // (NEXT_PUBLIC_FEATURE_GALAXY) and noindex, so in Production it 404s
+  // regardless of this entry. Exact path only — not a /labs/ prefix.
+  '/labs/galaxy',
   // OG image routes — must be publicly accessible for social crawlers
   '/opengraph-image', '/twitter-image',
   // Crawler surfaces — an auth-gated sitemap is invisible to search engines
