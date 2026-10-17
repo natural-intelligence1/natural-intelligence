@@ -103,3 +103,50 @@ test.describe('lazy loading (flag ON)', () => {
     expect(bodies.some((b) => b.includes('WebGLRenderer'))).toBe(false);
   });
 });
+
+/*
+ * The payload test above is necessary but not sufficient: it inspects the
+ * document's first scripts, so it stays green even when the page fetches
+ * three.js milliseconds later. These tests assert actual dormancy and actual
+ * waking, which is what the homepage performance requirement means.
+ */
+test.describe('galaxy stays dormant until the reader reaches it (flag ON)', () => {
+  test.skip(!FLAG_ON, 'build has the flag off');
+
+  for (const [label, width, height] of [
+    ['412×823', 412, 823],
+    ['390×844', 390, 844],
+    ['360×640', 360, 640],
+    ['1440×900', 1440, 900],
+  ] as [string, number, number][]) {
+    test(`${label}: nothing galaxy-related loads without scrolling`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto(BASE + '/', { waitUntil: 'load' });
+      await page.waitForTimeout(6000); // deliberately long: no scrolling at all
+
+      const state = await page.evaluate(() => {
+        const s = document.querySelector('section[aria-label="Living Galaxy"]');
+        return {
+          sectionPresent: !!s,
+          canvas: !!s?.querySelector('canvas'),
+          galaxyRequests: performance
+            .getEntriesByType('resource')
+            .map((r) => r.name)
+            .filter((n) => /ni-mark-mask|three/i.test(n))
+            .map((n) => n.split('/').pop()),
+        };
+      });
+
+      expect(state.sectionPresent).toBe(true); // the space is reserved...
+      expect(state.canvas).toBe(false);        // ...but nothing has started
+      expect(state.galaxyRequests).toEqual([]);
+    });
+  }
+
+  test('390×844: scrolling to the section wakes it', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(BASE + '/', { waitUntil: 'load' });
+    await page.locator('section[aria-label="Living Galaxy"]').scrollIntoViewIfNeeded();
+    await expect(page.locator('section[aria-label="Living Galaxy"] canvas')).toBeVisible({ timeout: 30_000 });
+  });
+});

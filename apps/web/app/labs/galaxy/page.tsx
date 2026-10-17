@@ -15,7 +15,7 @@ export default function GalaxyPreviewPage() {
   if (process.env.NEXT_PUBLIC_FEATURE_GALAXY !== '1') notFound();
   return (
     <main style={{ margin: 0 }}>
-      <GalaxySection height={900} />
+      <GalaxySection height={900} fitViewport />
     </main>
   );
 }

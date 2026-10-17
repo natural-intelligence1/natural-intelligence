@@ -57,3 +57,41 @@ test('mobile touch targets are at least 40px', async ({ page }) => {
 
   expect(small).toEqual([]);
 });
+
+/*
+ * The approved mobile design puts the control toolbar at the bottom of the
+ * galaxy. A fixed 900px height plus the site header pushed it ~64px below a
+ * 390×844 fold, so the standalone route now sizes itself to the space
+ * available (GalaxySection fitViewport). This guards that.
+ */
+for (const [name, width, height] of [
+  ['390×844', 390, 844],
+  ['360×800', 360, 800],
+] as [string, number, number][]) {
+  test(`mobile ${name}: galaxy controls stay within the viewport`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(URL);
+    await page.waitForFunction(
+      () => (window as any).__niGalaxy?.E?.planets?.length === 24, null, { timeout: 30_000 });
+    await page.waitForTimeout(500); // let the fit measurement + ResizeObserver settle
+
+    const fit = await page.evaluate(() => {
+      const root = document.querySelector('section[aria-label="Living Galaxy"]')!;
+      const controls = [...root.querySelectorAll('button, [role="button"]')]
+        .map((el) => ({ t: (el.textContent || '').trim().slice(0, 24), r: el.getBoundingClientRect() }))
+        .filter((x) => x.r.width > 0 && x.r.height > 0);
+      return {
+        viewportH: window.innerHeight,
+        sectionH: Math.round(root.getBoundingClientRect().height),
+        belowFold: controls
+          .filter((x) => x.r.bottom > window.innerHeight + 1)
+          .map((x) => `${x.t} (bottom ${Math.round(x.r.bottom)} > ${window.innerHeight})`),
+        count: controls.length,
+      };
+    });
+
+    expect(fit.count).toBeGreaterThan(0);          // controls actually rendered
+    expect(fit.belowFold).toEqual([]);             // ...and all of them are reachable
+    expect(fit.sectionH).toBeLessThanOrEqual(height);
+  });
+}
