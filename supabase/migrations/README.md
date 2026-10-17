@@ -43,6 +43,13 @@ migration history. An already-applied migration must not be re-run merely
 because its file is still here — most files in this folder are already
 applied, and the table below names only the ones with a specific trap.
 
+This matters here more than in most repositories: NI has applied migrations
+from feature branches *before* their files reached `main`, so a file's
+absence from history — or its presence as an apparently unapplied new file —
+proves nothing about the database. `0056`, `0057` and `0058` were all live in
+production while absent from `main`. Only the live migration history settles
+it.
+
 | File | Why |
 |---|---|
 | `0029_sprint11_dailypath_schema.sql` | Retrospective hand-written record of tables created by hand in the dashboard. Never executed, and materially wrong about four live tables. See its header. **Running it would damage production.** |
