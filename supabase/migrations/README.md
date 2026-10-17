@@ -2,8 +2,11 @@
 
 **This folder is a change log, not a description of the live schema.**
 The live database catalogue is the only authority. If you need to know what
-production actually contains, read the catalogue (or the generated
-`packages/db/src/types.ts`, which is produced from it) — never this folder.
+production actually contains, read the catalogue — never this folder. The
+generated `packages/db/src/types.ts` is produced from the catalogue and is
+reliable for typed schema (tables, columns, types), but it does not describe
+triggers, RLS policies, constraints, grants, indexes or function bodies; for
+those, query the catalogue itself.
 
 That is not a style preference. A real production defect survived for months
 because `0029` declares a column that has never existed, and application code
@@ -11,23 +14,41 @@ was written from the file in good faith.
 
 ## Rules
 
-1. **Numeric order is not apply order.** The applied sequence to date was
-   `0053 → 0054 → 0051 → 0056 → 0052 → 0057 → 0058`. `0051` landed after
-   `0053/0054`; `0052` after `0056`.
+1. **Numeric order is not apply order.** Numbered migrations applied in
+   ascending order up to `0043`. From `0053` onward the actual applied
+   sequence was:
+
+   `0053 → 0054 → 0051 → 0056 → 0052 → 0057 → 0058 → 0059 → 0060`
+
+   `0051` landed after `0053/0054`; `0052` after `0056`. The latest applied
+   migration is `0060` (`20261011170031`). `0055` has never been applied.
+   This list goes stale the moment anything is applied — it is a worked
+   illustration, not a substitute for querying the history.
 2. **A file header cannot tell you whether a migration is applied.** Status
    changes after the file is written, so the header goes stale. Several files
    here still say "NOT YET APPLIED" and are applied. Ask the database.
 3. **Never hand-create schema in the dashboard.** If an emergency forces it,
    write and apply the matching migration the same day.
-4. **Regenerate `packages/db/src/types.ts` immediately after every apply**,
-   and treat its diff as the real record of what the migration did.
+4. **Regenerate `packages/db/src/types.ts` immediately after every apply.**
+   Its diff is the authoritative typed-schema record of what changed in the
+   live catalogue. It does not prove triggers, RLS policies, constraints,
+   grants, indexes or function bodies; verify those directly in the
+   catalogue where the migration depends on them — see question 3 below.
 
 ## Files that are NOT safe to run
+
+**Never decide that a migration is safe to run from the presence or wording
+of its file.** Before executing anything in this folder, query the live
+migration history. An already-applied migration must not be re-run merely
+because its file is still here — most files in this folder are already
+applied, and the table below names only the ones with a specific trap.
 
 | File | Why |
 |---|---|
 | `0029_sprint11_dailypath_schema.sql` | Retrospective hand-written record of tables created by hand in the dashboard. Never executed, and materially wrong about four live tables. See its header. **Running it would damage production.** |
 | `0056`, `0057`, `0058` | Already applied. Restored here as historical records only — see below. |
+| `0059_protocol_signing.sql` | Already applied (`20261010062725`). |
+| `0060_lead_class_demotion_guard.sql` | Already applied (`20261011170031`). Its trigger and function are live; re-running is unnecessary and `create or replace` would silently rewrite a live governance control. |
 
 ## Historical records restored 2026-10-10
 
