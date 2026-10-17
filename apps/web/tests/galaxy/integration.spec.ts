@@ -9,8 +9,13 @@
  *   · the galaxy chunk is not eagerly loaded on the homepage;
  *   · the homepage links either side of the section still work.
  *
+ * The galaxy is ON by default in production; NEXT_PUBLIC_FEATURE_GALAXY=0 is
+ * the kill switch. So the "flag ON" build is an ordinary build (variable
+ * unset or "1") and the "flag OFF" build is one made with the variable set
+ * to "0" — that is what the off-state tests below must be pointed at.
+ *
  * BASE_URL must point at a build made with the matching flag value.
- * FLAG tells the suite which build it is looking at.
+ * GALAXY_FLAG tells the suite which build it is looking at.
  */
 import { test, expect } from '@playwright/test';
 

@@ -188,9 +188,11 @@ export default async function HomePage() {
           eyebrow is literally "What we offer" — i.e. before anything that
           explains or sells care, products, membership or pricing.
 
-          Flag-gated at render time: when NEXT_PUBLIC_FEATURE_GALAXY is not "1"
-          nothing is emitted at all — no wrapper, no reserved space, no gap. */}
-      {process.env.NEXT_PUBLIC_FEATURE_GALAXY === '1' && <GalaxySection height={900} />}
+          On by default: the galaxy is part of the production homepage and needs
+          no environment variable. NEXT_PUBLIC_FEATURE_GALAXY=0 is the kill
+          switch — nothing is then emitted at all, no wrapper, no reserved
+          space, no gap. */}
+      {process.env.NEXT_PUBLIC_FEATURE_GALAXY !== '0' && <GalaxySection height={900} />}
       {/* ── THREE PILLARS ─────────────────────────────────────────────────── */}
       <section className="bg-surface-base border-t border-border-default pt-12 md:pt-20 pb-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
