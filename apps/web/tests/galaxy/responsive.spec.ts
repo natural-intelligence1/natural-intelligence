@@ -95,3 +95,35 @@ for (const [name, width, height] of [
     expect(fit.sectionH).toBeLessThanOrEqual(height);
   });
 }
+
+/*
+ * Actual interaction, not geometry. The site's cookie banner is a 155px
+ * fixed overlay on the bottom of every page until it is dismissed, so it
+ * covers the galaxy's bottom toolbar on a first visit exactly as it covers
+ * the foot of every other page. Once consent is given, every control must
+ * be genuinely hit-testable — not merely positioned on screen.
+ */
+test('mobile 390×844: every galaxy control is hit-testable after consent', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(URL);
+  await page.waitForFunction(
+    () => (window as any).__niGalaxy?.E?.planets?.length === 24, null, { timeout: 30_000 });
+
+  const consent = page.getByRole('button', { name: /accept|decline optional/i }).first();
+  if (await consent.count()) { await consent.click(); await page.waitForTimeout(800); }
+
+  const blocked = await page.evaluate(() => {
+    const tb = document.querySelector('[role="toolbar"]');
+    if (!tb) return ['no toolbar found'];
+    return [...tb.querySelectorAll('button, [role="button"]')]
+      .map((bn) => {
+        const r = bn.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        const ok = !!hit && (hit === bn || bn.contains(hit));
+        return ok ? null : `${(bn.textContent || '').trim().slice(0, 14) || '(icon)'} blocked by ${hit?.tagName}`;
+      })
+      .filter(Boolean);
+  });
+
+  expect(blocked).toEqual([]);
+});
