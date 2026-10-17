@@ -90,8 +90,8 @@ Schema and code drift in **both** directions, and we have been bitten by each:
   while the guard code that completes it sat unmerged on a branch for six
   days. Database ahead of the code.
 
-So before calling any release closed, answer both questions explicitly. The
-answer is never "the files look right" — ask the database and ask the
+So before calling any release closed, answer all three questions explicitly.
+The answer is never "the files look right" — ask the database and ask the
 deployment.
 
 **1. Is any applied migration missing its application code in production?**
@@ -116,12 +116,57 @@ runtime failure on a path tests do not cover.
 
 ```
 mcp generate_typescript_types > packages/db/src/types.ts
-git diff --stat packages/db/src/types.ts   # non-empty diff = drift
+git diff -- packages/db/src/types.ts
+# Any unexpected diff requires reconciliation.
+# A clean diff means generated types match the live catalogue;
+# it does NOT prove triggers, RLS, constraints or other non-type behaviour.
 pnpm -r exec tsc --noEmit
 ```
 
 Deployment matters as much as merge: code on `main` that has not reached a
 READY deployment is not live. Check the deployed commit, not the branch.
+
+**3. Does the live catalogue contain the non-type schema behaviour the release
+expects?**
+
+Generated TypeScript types do not describe every database control. They do
+not, by themselves, prove the live presence or exact behaviour of:
+
+- triggers;
+- RLS policies;
+- constraints;
+- grants;
+- indexes;
+- function bodies;
+- security-definer / security-invoker behaviour.
+
+For migrations that depend on any of those, inspect the relevant live
+catalogue objects directly and compare them with the release expectation.
+This matters most for governance and safety migrations, which are usually
+*entirely* composed of things types cannot see.
+
+`0060` is the worked example. It is not proven live because generated types
+match — types say nothing about it. Its protection is a `BEFORE UPDATE`
+trigger and trigger function preventing a practitioner from being changed to
+Category 3 while they remain an active Lead on a case. So the check must
+confirm the live trigger and function themselves:
+
+```sql
+select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public'
+   and p.proname = 'enforce_practitioner_class_vs_lead_role';
+
+select 1 from pg_trigger
+ where tgname = 'trg_practitioner_class_vs_lead_role' and not tgisinternal;
+```
+
+For a function whose *body* matters, read it back with `pg_get_functiondef()`
+rather than trusting that a name exists — a `create or replace` from a later
+migration can leave the name intact and the behaviour changed.
+
+**The rule:** type parity proves typed schema compatibility. Catalogue
+verification proves database behaviour. A release that depends on triggers,
+policies, constraints or function behaviour needs both.
 
 ## Still outstanding
 
