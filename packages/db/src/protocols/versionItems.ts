@@ -97,16 +97,23 @@ export function isEditable(protocol: ProtocolVersionRef): boolean {
 /**
  * May this Protocol version be the source DailyPath derives actions from?
  *
- * Only a signed version, and only the one nothing supersedes. An unsigned
- * draft has no clinical status whatever its provenance, and a superseded
- * version is history.
+ * Only a signed version, and only the one no SIGNED version supersedes. An
+ * unsigned draft has no clinical status whatever its provenance, and a
+ * superseded version is history.
+ *
+ * The signed-successor condition is the important one. A revision begins
+ * life as an unsigned draft that already points at its predecessor via
+ * `supersedes`, so treating any successor as displacing would withdraw the
+ * client's current Protocol the instant their practitioner started editing
+ * one — leaving them with no plan at all until the new version was signed.
+ * A version is displaced only by a successor that has itself been signed.
  */
 export function isDailyPathEligible(
   protocol: ProtocolVersionRef,
   allVersions: readonly ProtocolVersionRef[] = [],
 ): boolean {
   if (protocol.signed_at === null) return false
-  return !allVersions.some((v) => v.supersedes === protocol.id)
+  return !allVersions.some((v) => v.supersedes === protocol.id && v.signed_at !== null)
 }
 
 /** The current signed Protocol for a member, or null if they have none.

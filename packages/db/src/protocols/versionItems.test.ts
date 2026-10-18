@@ -96,14 +96,22 @@ describe('DailyPath may only ever read a current signed version', () => {
     expect(isDailyPathEligible(v2, [v1, v2])).toBe(true)
   })
 
-  it('a draft revision does NOT silently displace the signed version it will replace', () => {
+  it('a draft revision does NOT displace the signed version it will replace', () => {
     const v2 = version({ id: 'p2', version: 2, signed_at: '2026-10-18T00:00:00Z', signed_by: 'prac-1' })
     const v3draft = version({ id: 'p3', version: 3, supersedes: 'p2' })
-    // v3 supersedes v2 structurally, but v3 is unsigned, so neither is usable:
-    // this is the dangerous case — an unsigned draft must not knock the
-    // signed Protocol out of service.
-    expect(isDailyPathEligible(v3draft, [v2, v3draft])).toBe(false)
-    expect(selectDailyPathSource([v2, v3draft])).toBeNull()
+    // The dangerous case. v3 points at v2 from the moment the practitioner
+    // starts revising, but it is unsigned. If that counted as superseding,
+    // the client would lose their current plan the instant editing began.
+    expect(isDailyPathEligible(v3draft, [v2, v3draft])).toBe(false) // the draft is not usable
+    expect(isDailyPathEligible(v2, [v2, v3draft])).toBe(true)       // ...and v2 stays in force
+    expect(selectDailyPathSource([v2, v3draft])?.id).toBe('p2')
+  })
+
+  it('only a SIGNED successor displaces the version it supersedes', () => {
+    const v2 = version({ id: 'p2', version: 2, signed_at: 'x', signed_by: 'prac-1' })
+    const v3signed = version({ id: 'p3', version: 3, signed_at: 'y', signed_by: 'prac-1', supersedes: 'p2' })
+    expect(isDailyPathEligible(v2, [v2, v3signed])).toBe(false)
+    expect(selectDailyPathSource([v2, v3signed])?.id).toBe('p3')
   })
 
   it('returns null when the member has no signed Protocol at all', () => {

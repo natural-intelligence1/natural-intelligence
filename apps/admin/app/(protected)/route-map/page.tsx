@@ -66,6 +66,7 @@ export default async function RouteMapPage() {
           <li><a className="text-text-brand underline" href="/route-map/preview/client-today">A — Client Today (one agreed next step)</a></li>
           <li><a className="text-text-brand underline" href="/route-map/preview/case-overview">B — Practitioner case overview (“Since last review”)</a></li>
           <li><a className="text-text-brand underline" href="/route-map/preview/signed-protocol">C — Signed protocol → DailyPath (versioning contract)</a></li>
+          <li><a className="text-text-brand underline" href="/route-map/preview/protocol-workspace">D — Practitioner Protocol workspace (draft → edit → sign → revise)</a></li>
           <li><a className="text-text-brand underline" href="/route-map/preview/pricing">Pricing page preview</a></li>
         </ul>
       </section>
