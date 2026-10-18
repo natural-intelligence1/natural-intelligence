@@ -165,3 +165,8 @@ export type {
   SafetyState, SafetyEventKind, SafetyAuditEvent, SafetyDecision, SafetyAction,
   SafetyReviewRecord, SafetyRefusal, SafetyResult,
 } from './safetyWorkflow'
+
+// ── Question graph: question → concept → field, and the branch edges ──
+// Architecture for the future adaptive Intake. Derived from the registry;
+// asserts no mapping that has not been authored. See questionGraph/index.ts.
+export * from './questionGraph'
