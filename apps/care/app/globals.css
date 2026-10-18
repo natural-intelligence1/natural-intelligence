@@ -19,3 +19,62 @@
     @apply bg-surface-base text-text-primary;
   }
 }
+
+/* ── Case workspace navigation ────────────────────────────────────────────
+   The only CSS the case workspace adds. Everything else is inline, matching
+   how apps/care already styles itself.
+
+   A horizontal scroller on narrow screens and a column from 900px up, which
+   is the same breakpoint SectionNavRail already uses. Kept here rather than
+   inline because :focus-visible and a media query cannot be expressed in a
+   React style object, and the keyboard path must stay visible. */
+
+.ni-case-nav {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  border-bottom: 1px solid #E8E6E0;
+  margin-bottom: 24px;
+  scrollbar-width: thin;
+}
+
+.ni-case-nav__item {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.3;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.ni-case-nav__item:hover { color: #1A1917; }
+
+.ni-case-nav__item:focus-visible {
+  outline: 2px solid #B8935A;
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+
+@media (min-width: 900px) {
+  .ni-case-nav {
+    flex-direction: column;
+    gap: 1px;
+    width: 188px;
+    flex-shrink: 0;
+    overflow-x: visible;
+    border-bottom: none;
+    border-right: 1px solid #E8E6E0;
+    margin-bottom: 0;
+    padding-right: 12px;
+    position: sticky;
+    top: 80px;
+    align-self: start;
+  }
+  .ni-case-nav__item {
+    padding: 7px 10px;
+    border-bottom: none;
+    border-left: 2px solid transparent;
+  }
+}
