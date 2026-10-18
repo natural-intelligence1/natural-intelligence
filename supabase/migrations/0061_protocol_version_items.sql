@@ -227,15 +227,19 @@ comment on column public.daily_adherence.protocol_version_item_id is
 -- server-side context could write signed_at/signed_by without passing the
 -- self-attribution, Lead and eligibility checks — an invisible everyday route
 -- to a signature in a practitioner's name. A clinical signature now requires
--- an authenticated practitioner session.
+-- an authenticated practitioner session, with no exceptions and no runtime
+-- escape hatch: no-JWT, service-role, admin and automated contexts all fail
+-- closed.
 --
--- Exceptional maintenance (a backfill, a data repair) remains possible, but
--- only deliberately and by name:
---     set local ni.maintenance_signature_override = 'on';
--- Setting it is an explicit act that shows up in the statement that performs
--- it, rather than being the silent default for every service-role write.
+-- There is deliberately no session setting, GUC or flag that relaxes this. If
+-- an exceptional database repair is ever genuinely required it will be done
+-- through its own reviewed maintenance migration, visible in the migration
+-- history, rather than through a mechanism that sits permanently in the
+-- schema waiting to be used.
+--
 -- Drafts are unaffected: service and admin processes may still create and
--- manage unsigned Protocol versions where otherwise authorised.
+-- manage unsigned Protocol versions where otherwise authorised. It is only
+-- the clinical signature that is reserved to the practitioner.
 
 create or replace function public.enforce_protocol_signature_authority()
 returns trigger language plpgsql security definer set search_path = public as $$
@@ -249,10 +253,7 @@ begin
   end if;
 
   if auth.uid() is null then
-    if coalesce(current_setting('ni.maintenance_signature_override', true), 'off') = 'on' then
-      return new;
-    end if;
-    raise exception 'protocol signing: a clinical signature requires an authenticated practitioner session. Service-role and admin contexts cannot sign on a practitioner''s behalf.'
+    raise exception 'protocol signing: a clinical signature requires an authenticated practitioner session. Service-role, admin and automated contexts cannot sign on a practitioner''s behalf.'
       using errcode = 'insufficient_privilege';
   end if;
 
@@ -286,4 +287,4 @@ begin
 end $$;
 
 comment on function public.enforce_protocol_signature_authority() is
-  'Signature authority for member_protocols. Requires an authenticated practitioner who is themselves the signer, the active Lead on the case, and currently eligible. A null auth.uid() is refused unless ni.maintenance_signature_override is explicitly set for that statement.';
+  'Signature authority for member_protocols. Requires an authenticated practitioner who is themselves the signer, the active Lead on the case, and currently eligible. A null auth.uid() is always refused: there is no runtime override.';

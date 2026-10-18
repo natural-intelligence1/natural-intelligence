@@ -147,13 +147,26 @@ describe('only an authenticated, eligible Lead can sign', () => {
     expect(p).toMatchObject({ signed_by: LEAD, signed: true, version: 1 })
   })
 
-  it('exceptional maintenance is possible only by naming it explicitly', async () => {
+  it('there is no runtime override: the old escape hatch no longer works', async () => {
     await become(null)
+    // The setting that 0061 originally carried is gone. Setting it must not
+    // change the outcome — a signature without an authenticated practitioner
+    // is refused regardless of what the session asks for.
     await db.exec(`set ni.maintenance_signature_override = 'on';`)
-    await db.exec(`update member_protocols set signed_at=now(), signed_by='${LEAD}' where id='${PROTO_B}';`)
-    await db.exec(`set ni.maintenance_signature_override = 'off';`)
+    const msg = await refusal(`update member_protocols set signed_at=now(), signed_by='${LEAD}' where id='${PROTO_B}';`)
+    expect(msg).toMatch(/authenticated practitioner session/i)
+    await db.exec(`reset ni.maintenance_signature_override;`)
+
     const b = await one<{ signed: boolean }>(`select signed_at is not null as signed from member_protocols where id='${PROTO_B}'`)
-    expect(b.signed).toBe(true)
+    expect(b.signed).toBe(false)
+  })
+
+  it('no signature can be created without the practitioner, by any route', async () => {
+    await become(null)
+    // insert path as well as update — a fresh row cannot arrive pre-signed
+    const msg = await refusal(`insert into member_protocols (member_id, case_id, name, signed_at, signed_by)
+                               values ('${MEMBER_B}','${CASE_B}','Pre-signed',now(),'${LEAD}');`)
+    expect(msg).toMatch(/authenticated practitioner session/i)
   })
 })
 
