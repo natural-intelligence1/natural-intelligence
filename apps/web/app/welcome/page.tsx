@@ -23,7 +23,10 @@ async function completeOnboarding(formData: FormData) {
     onboarding_completed_at: new Date().toISOString(),
   }).eq('id', user.id)
 
-  redirect('/dashboard')
+  // Onboarding ends at its own completion screen, not in the product.
+  // Joining NI and telling NI about your health are two separate acts, and
+  // the second should be entered deliberately — see /welcome/complete.
+  redirect('/welcome/complete')
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
