@@ -39,7 +39,7 @@ export default function SignedProtocolPreview() {
         title="Signed protocol → DailyPath"
         intro="How a practitioner-signed action reaches the client's day without anything clinical changing on the way."
       >
-        <SyntheticBanner text="Synthetic protocol. UX demonstration only — the signing/versioning schema is prepared but NOT applied." />
+        <SyntheticBanner text="Synthetic protocol. UX demonstration only — Protocol header signing and versioning are live in the database; the per-version item model is not yet applied." />
 
         {/* The versioning contract */}
         <Card title={`Protocol v${CASE.protocolVersion} · signed`} tone="pine"
@@ -135,20 +135,26 @@ export default function SignedProtocolPreview() {
           </ul>
         </Card>
 
-        {/* Honest statement of what is not yet real */}
-        <Card tone="gold" title="What is not real yet">
+        {/* Honest statement of what is and is not real */}
+        <Card tone="gold" title="What is real, and what is not yet">
           <p className="text-[13.5px] mb-2" style={{ color: C.text }}>
-            This screen demonstrates the intended contract. In the live database today:
+            Live in the database today (migration <code>0059</code>, applied 10 Oct 2026):
+          </p>
+          <ul className="text-[13px] space-y-1 mb-3" style={{ color: C.text2 }}>
+            <li>· <code>member_protocols</code> carries <code>version</code>, <code>signed_at</code>, <code>signed_by</code> and <code>supersedes</code>.</li>
+            <li>· A signature can only be written by the authenticated practitioner who is the active Lead and currently eligible.</li>
+            <li>· A signed version cannot be edited in place or deleted.</li>
+          </ul>
+          <p className="text-[13.5px] mb-2" style={{ color: C.text }}>
+            Still to come:
           </p>
           <ul className="text-[13px] space-y-1" style={{ color: C.text2 }}>
-            <li>· <code>member_protocols</code> has no signature, version, author or history columns.</li>
+            <li>· Per-version Protocol items — the model that makes the <em>content</em> editable per client and frozen at signature — is prepared as <code>0061</code> on a feature branch and <strong>not applied</strong>.</li>
+            <li>· The practitioner workspace shown here is under construction; there is no screen where a practitioner can yet edit and sign.</li>
             <li>· <code>member_protocols.assigned_by</code> exists but is never written.</li>
-            <li>· A protocol is created by the <strong>client</strong> choosing a template, not by a practitioner.</li>
+            <li>· A protocol is still created by the <strong>client</strong> choosing a template, not by a practitioner.</li>
             <li>· <code>apps/care</code> contains no protocol code at all.</li>
           </ul>
-          <p className="text-[12.5px] mt-3" style={{ color: C.goldInk }}>
-            The additive migration that would close this is prepared and deliberately NOT applied.
-          </p>
         </Card>
       </Shell>
     </div>
