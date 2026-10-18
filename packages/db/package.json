@@ -14,7 +14,8 @@
     "./crt": "./src/crt/index.ts",
     "./personalisation": "./src/personalisation/index.ts",
     "./prompts": "./src/prompts/index.ts",
-    "./environment": "./src/environment.ts"
+    "./environment": "./src/environment.ts",
+    "./protocols": "./src/protocols/index.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
@@ -24,17 +25,18 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2",
     "@supabase/ssr": "^0.5",
+    "@supabase/supabase-js": "^2",
     "resend": "^3"
   },
   "peerDependencies": {
     "next": ">=14"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
     "@types/node": "^20",
-    "typescript": "^5",
     "supabase": "^2",
+    "typescript": "^5",
     "vitest": "^2"
   }
 }
