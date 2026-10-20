@@ -14,7 +14,8 @@
     "./crt": "./src/crt/index.ts",
     "./personalisation": "./src/personalisation/index.ts",
     "./prompts": "./src/prompts/index.ts",
-    "./environment": "./src/environment.ts"
+    "./environment": "./src/environment.ts",
+    "./careRecord": "./src/careRecord/index.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
