@@ -23,7 +23,7 @@ export const T = {
   // accent — the gold already used for the active nav marker
   gold:    '#B8935A',
   goldInk: '#7D6128',
-  goldWash:'#FBF7EF',
+  goldWash:'#FBF7EF', goldPale:'#E2D2AE',
   // calm status tints, matching the existing reasoning palette's weight
   okBg:    '#F0FDF4', okText: '#166534', okBorder: '#BBF7D0',
   warnBg:  '#FFFBEB', warnText:'#8A6400', warnBorder:'#FDE68A',

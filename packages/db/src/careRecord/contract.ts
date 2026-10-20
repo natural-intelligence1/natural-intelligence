@@ -162,14 +162,13 @@ export const CARE_RECORD_FLOWS: readonly CareRecordFlow[] = Object.freeze([
     id: 'case_team_to_both_views',
     from: 'case_team_roles',
     to: 'Client My Team AND practitioner Team',
-    sourceOfTruth: 'case_team_roles, with careTeam.ts visibility rules',
+    sourceOfTruth: 'case_team_roles, read through careRecord/caseTeamView.ts',
     via: 'teamRole',
-    status: 'domain_ready_not_wired',
+    status: 'wired',
     invariant:
       'Both sides read the same roles. The client sees members whose membership is visible to ' +
       'them; the practitioner sees the full team. Exactly one active Lead per case, enforced in ' +
       'the database by 0057 and 0060, not in either app.',
-    gap: 'careTeam.ts is complete and tested and case_team_roles is live. Neither app renders it.',
   },
   {
     id: 'safety_state_to_review_workflow',

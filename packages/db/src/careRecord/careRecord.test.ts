@@ -49,12 +49,15 @@ describe('the contract names one source of truth per flow', () => {
   })
 
   it('records honestly how little is wired today', () => {
-    // POSITION TEST. Will fail as flows get wired — which is the point: each
-    // one should be acknowledged deliberately rather than drifting.
+    // POSITION TEST. Designed to fail as flows get wired, so closing a gap
+    // forces an explicit acknowledgement here rather than drifting.
+    //
+    // Updated when Flow 1 (case team -> both views) was wired through
+    // caseTeamView.ts: 1 -> 2 wired, 7 -> 6 domain-ready.
     const s = summariseContract()
     expect(s.flows).toBe(8)
-    expect(s.wired).toBe(1)
-    expect(s.domainReadyNotWired).toBe(7)
+    expect(s.wired).toBe(2)
+    expect(s.domainReadyNotWired).toBe(6)
     expect(s.blockedOnProtocolIntegration).toContain('signed_protocol_action_to_today')
   })
 })

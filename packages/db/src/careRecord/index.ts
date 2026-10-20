@@ -18,3 +18,10 @@ export {
   selectCurrentPlan, supersededPlans, draftVersions, planState,
 } from './currentProtocol'
 export type { ProtocolVersionRow, PlanState } from './currentProtocol'
+
+// Flow 1 WIRED: case_team_roles -> client My Team AND practitioner Team.
+export {
+  loadCaseTeam, clientVisibleTeam, practitionerTeamView, leadPractitioner,
+  summariseCaseTeam, CLIENT_APPROVAL_UNRECORDED,
+} from './caseTeamView'
+export type { CaseTeamMember, CaseTeamSummary } from './caseTeamView'
