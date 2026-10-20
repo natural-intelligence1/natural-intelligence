@@ -150,13 +150,25 @@ export const CARE_RECORD_FLOWS: readonly CareRecordFlow[] = Object.freeze([
     id: 'client_update_to_since_last_review',
     from: 'Client progress update or check-in',
     to: 'Practitioner "Since last review"',
-    sourceOfTruth: 'updates.ts — DatedUpdate / buildSinceLastReview',
+    sourceOfTruth:
+      'case_events, read through careRecord/caseUpdates.ts and grouped by ' +
+      'intakeV2/updates.ts — buildSinceLastReview',
     via: 'case',
     status: 'domain_ready_not_wired',
     invariant:
-      'Facts only, each dated and attributed to its source. The builder orders and groups; it does ' +
-      'not rank, score, summarise or interpret.',
-    gap: 'buildSinceLastReview is tested and in use on the practitioner Overview, but over fixture data. No client write path feeds it.',
+      'Facts only, each dated and attributed to its source, and dated when the thing HAPPENED ' +
+      'rather than when it was typed. The builder orders and groups; it does not rank, score, ' +
+      'summarise or interpret. An event with no statement is skipped, never described in NI\'s ' +
+      'own words.',
+    gap:
+      'READ PATH REAL: the practitioner Overview queries case_events under RLS through ' +
+      'loadCaseUpdates. WRITE PATH BLOCKED: case_events has one insert-capable policy, ' +
+      'case_events_service_all (service_role); there is no client INSERT policy, so a client ' +
+      'cannot record an update on their own case. Two further gaps — case_events has no author ' +
+      'column, so attribution rests on an unenforced event_payload convention, and append-only ' +
+      'holds only by absence of a client UPDATE/DELETE policy rather than by a trigger. Also ' +
+      'diverges from the case-team flow: practitioner read access here resolves through ' +
+      'case_practitioner_work, not case_team_roles.',
   },
   {
     id: 'case_team_to_both_views',

@@ -54,11 +54,26 @@ describe('the contract names one source of truth per flow', () => {
     //
     // Updated when Flow 1 (case team -> both views) was wired through
     // caseTeamView.ts: 1 -> 2 wired, 7 -> 6 domain-ready.
+    //
+    // NOT updated when the client-update read path was built over case_events:
+    // the practitioner end reads the real source, but a client still cannot
+    // write one, so the flow is half a flow and the count stays 2.
     const s = summariseContract()
     expect(s.flows).toBe(8)
     expect(s.wired).toBe(2)
     expect(s.domainReadyNotWired).toBe(6)
     expect(s.blockedOnProtocolIntegration).toContain('signed_protocol_action_to_today')
+  })
+
+  it('does not call the client-update flow wired on the strength of its read path', () => {
+    // The specific over-claim this slice could have made. A practitioner
+    // surface reading real data is NOT the same as the flow working: without
+    // a client INSERT policy the client end does not exist.
+    const f = flowById('client_update_to_since_last_review')!
+    expect(f.status).not.toBe('wired')
+    expect(f.sourceOfTruth).toContain('case_events')
+    expect(f.gap).toMatch(/WRITE PATH BLOCKED/)
+    expect(f.gap).toMatch(/no client INSERT policy/i)
   })
 })
 

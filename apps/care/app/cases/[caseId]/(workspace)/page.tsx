@@ -10,10 +10,32 @@
 //
 // Every fact shown is dated and attributed, and nothing here ranks, scores or
 // interprets. FICTIONAL DATA — see caseFixture.ts.
+//
+// "Since last review" is the one block NOT rendered from pre-written lines.
+// It queries case_events through the shared reader, and passes real
+// DatedUpdate records through the shipped buildSinceLastReview — so the
+// grouping, ordering, review cutoff and attribution on screen are the domain
+// module's, not this page's.
+//
+// A real case id gets real events. The fixture route id has none, so it falls
+// back to invented records through the SAME builder, and says which it is
+// showing. Clients cannot yet record an update at all (one missing INSERT
+// policy — see CLIENT_UPDATE_STORAGE_GAP), which the block states plainly
+// rather than letting an empty list imply the client has said nothing.
 
 import Link from 'next/link'
+import { createServerSupabaseClient } from '@natural-intelligence/db'
+import {
+  loadCaseUpdates, buildSinceLastReviewView, provenanceLabel, CLIENT_UPDATE_STORAGE_GAP,
+} from '@natural-intelligence/db/careRecord'
 import { T, FONT_DISPLAY } from '@/components/workspace/caseTheme'
 import { CASE_FIXTURE } from './caseFixture'
+
+export const dynamic = 'force-dynamic'
+
+function formatWhen(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
 
 function Block({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
@@ -27,9 +49,20 @@ function Block({ title, note, children }: { title: string; note?: string; childr
   )
 }
 
-export default function CaseOverview({ params }: { params: { caseId: string } }) {
+export default async function CaseOverview({ params }: { params: { caseId: string } }) {
   const c = CASE_FIXTURE
   const base = `/cases/${params.caseId}`
+
+  // Real events for a real case id, under RLS. The fixture route id resolves
+  // to nothing, and a reader failure must not take the whole case down.
+  const supabase = createServerSupabaseClient()
+  const live = await loadCaseUpdates(supabase, params.caseId).catch(() => [])
+  const usingFixture = live.length === 0
+
+  // The shipped builder either way. Nothing on screen is pre-grouped.
+  const delta = usingFixture
+    ? buildSinceLastReviewView(c.sinceLastReview, c.lastReviewAt, '2026-10-05T09:00:00.000Z')
+    : buildSinceLastReviewView(live, c.lastReviewAt)
 
   const standing = [
     {
@@ -81,22 +114,77 @@ export default function CaseOverview({ params }: { params: { caseId: string } })
       </Block>
 
       {/* ── Since last review — the factual delta ───────────────────────── */}
-      <Block title="Since last review" note={`${c.lastReview} to today · facts only, each dated and attributed`}>
-        <ol style={{ listStyle: 'none', padding: 0, margin: 0, borderLeft: `1px solid ${T.border}` }}>
-          {c.sinceLastReview.map((u) => (
-            <li key={u.at + u.fact} style={{ position: 'relative', padding: '0 0 16px 18px' }}>
-              <span
-                aria-hidden
-                style={{
-                  position: 'absolute', left: '-4px', top: '6px', width: '7px', height: '7px',
-                  borderRadius: '50%', background: T.gold,
-                }}
-              />
-              <p style={{ fontSize: '13.5px', color: T.text, margin: '0 0 2px', lineHeight: 1.5 }}>{u.fact}</p>
-              <p style={{ fontSize: '11.5px', color: T.muted, margin: 0 }}>{u.at} · {u.source}</p>
-            </li>
-          ))}
-        </ol>
+      <Block
+        title="Since last review"
+        note={`${c.lastReview} to today · ${delta.review.count} item(s) · ${delta.clientReportedCount} client reported`}
+      >
+        {delta.nothingChanged ? (
+          <p style={{ fontSize: '13.5px', color: T.muted, margin: 0 }}>
+            Nothing has been recorded since the last review.
+          </p>
+        ) : (
+          delta.review.sections.map((section) => (
+            <div key={section.kind} style={{ marginBottom: '20px' }}>
+              {/* The builder's own label and grouping, not this page's. */}
+              <h3 style={{
+                fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em',
+                color: T.muted, margin: '0 0 8px', fontWeight: 500,
+              }}>
+                {section.label}
+              </h3>
+              <ol style={{ listStyle: 'none', padding: 0, margin: 0, borderLeft: `1px solid ${T.border}` }}>
+                {section.entries.map((u) => (
+                  <li key={u.id} style={{ position: 'relative', padding: '0 0 16px 18px' }}>
+                    <span
+                      aria-hidden
+                      style={{
+                        position: 'absolute', left: '-4px', top: '6px', width: '7px', height: '7px',
+                        borderRadius: '50%', background: T.gold,
+                      }}
+                    />
+                    <p style={{ fontSize: '13.5px', color: T.text, margin: '0 0 2px', lineHeight: 1.5 }}>
+                      {u.statement}
+                    </p>
+                    {/* A before-and-after is shown as two values, never as a
+                        change the practitioner has not yet seen interpreted. */}
+                    {u.previousValue && u.newValue && (
+                      <p style={{ fontSize: '12px', color: T.text2, margin: '0 0 2px' }}>
+                        {u.previousValue} → {u.newValue}
+                      </p>
+                    )}
+                    <p style={{ fontSize: '11.5px', color: T.muted, margin: 0 }}>
+                      {formatWhen(u.at)} · {provenanceLabel(u)}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))
+        )}
+
+        {/* The honest part. A practitioner must be able to tell "the client has
+            said nothing" from "the client has no way to tell us anything". */}
+        {delta.storageUnavailable && (
+          <p style={{
+            fontSize: '11.5px', color: T.muted, margin: '4px 0 0', lineHeight: 1.5,
+            background: T.sunken, border: `1px solid ${T.border}`, borderRadius: '6px', padding: '10px 12px',
+          }}>
+            <strong style={{ color: T.goldInk, fontWeight: 600 }}>
+              {usingFixture ? 'Fictional records · ' : 'Live case events · '}
+            </strong>
+            {usingFixture
+              ? 'no events are recorded against this case id, so invented records are shown through the real delta builder. '
+              : 'read from case_events under row-level security. '}
+            Clients cannot yet record an update themselves: {CLIENT_UPDATE_STORAGE_GAP.gaps[0].what.toLowerCase()}
+            {delta.unattributedCount > 0 && (
+              <>
+                {' '}
+                {delta.unattributedCount} line(s) could not be attributed to a named person —
+                case_events has no author column.
+              </>
+            )}
+          </p>
+        )}
       </Block>
 
       {/* ── What they came with ─────────────────────────────────────────── */}

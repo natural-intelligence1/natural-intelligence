@@ -32,8 +32,24 @@ import { CARE_TEAM_ROLE_LABELS, type CareTeamRole } from '../intakeV2/careTeam'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyClient = SupabaseClient<any>
 
-/** case_team_roles has no client-approval column. Saying so explicitly beats
- *  defaulting to 'approved' and implying a consent nobody recorded. */
+/**
+ * case_team_roles has no client-approval column, and this reader says so
+ * rather than defaulting to 'approved' and implying a consent nobody recorded.
+ *
+ * 'unrecorded' means NOT RECORDED YET, not NOWHERE TO RECORD IT. The store
+ * already exists and needs no migration:
+ *
+ *   consent_records, consent_type = 'practitioner_access'   (in the CHECK)
+ *                    context_practitioner_id                (the column)
+ *                    "Members create own consent records"   (the INSERT policy)
+ *
+ * Zero practitioner_access rows exist today, and no code reads or writes
+ * them. Two things must change in the consent module before anything does:
+ * 'practitioner_access' is absent from CONSENT_PURPOSES, and hasActiveConsent
+ * filters on profile_id + consent_type ALONE — so used as-is for this purpose
+ * it would report a client who approved one practitioner as having approved
+ * any practitioner. The missing purpose is currently what stops that.
+ */
 export const CLIENT_APPROVAL_UNRECORDED = 'unrecorded' as const
 
 export interface CaseTeamMember {

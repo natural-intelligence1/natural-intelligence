@@ -14,6 +14,8 @@
 // Where a real domain module already exists and is safe to use, the section
 // page says so; nothing here invents clinical logic or a scoring rule.
 
+import type { DatedUpdate } from '@natural-intelligence/db/careRecord'
+
 export interface CaseFixture {
   caseId: string
   reference: string
@@ -22,8 +24,14 @@ export interface CaseFixture {
   stage: string
   status: 'in_care' | 'awaiting_review' | 'closed'
   lastReview: string
+  /** ISO, so the real delta builder can use it as the review cutoff. */
+  lastReviewAt: string
   nextReview: string
-  sinceLastReview: Array<{ at: string; fact: string; source: string }>
+  /** Real DatedUpdate records, NOT pre-rendered lines. The Overview passes
+   *  these through buildSinceLastReview, so the grouping, ordering, cutoff
+   *  and attribution on screen are the shipped builder's, not the fixture's.
+   *  Only the CONTENT is invented. */
+  sinceLastReview: DatedUpdate[]
   concerns: Array<{ label: string; inOwnWords: string; duration: string }>
   systemsUnderConsideration: string[]
   synopsis: { state: 'draft' | 'current'; generatedAt: string | null; sections: number }
@@ -41,14 +49,43 @@ export const CASE_FIXTURE: CaseFixture = {
   stage: 'In care · second review cycle',
   status: 'in_care',
   lastReview: '18 Sep 2026',
+  lastReviewAt: '2026-09-18T10:00:00.000Z',
   nextReview: '16 Oct 2026',
 
-  // Facts with a date and a source. No interpretation, no ranking.
+  // Facts with a date, a kind and an author. No interpretation, no ranking.
+  //
+  // Deliberately NOT in display order: the builder orders and groups these,
+  // so if it ever stopped doing so the Overview would visibly show it rather
+  // than silently relying on the order they happen to be written in. The last
+  // entry is before the review cutoff and must NOT appear.
   sinceLastReview: [
-    { at: '2 Oct 2026',  fact: 'Reported sleeping through the night on 5 of the last 7 nights.', source: 'Client check-in' },
-    { at: '28 Sep 2026', fact: 'Started the daylight walk on most weekday mornings.',            source: 'Client check-in' },
-    { at: '24 Sep 2026', fact: 'Stopped magnesium for four days — digestion felt loose.',         source: 'Client message' },
-    { at: '21 Sep 2026', fact: 'GP changed blood pressure medication dose.',                      source: 'Client-reported' },
+    {
+      id: 'u-3', at: '2026-09-24T18:40:00.000Z', authorRole: 'client', authorId: 'client-rowan',
+      kind: 'supplement_change', sourceRef: 'supplements/magnesium',
+      statement: 'Stopped magnesium for four days. Digestion felt loose over the same period.',
+      previousValue: 'Magnesium glycinate, 1 capsule at night', newValue: 'Not taken, 20–24 Sep',
+    },
+    {
+      id: 'u-1', at: '2026-10-02T07:15:00.000Z', authorRole: 'client', authorId: 'client-rowan',
+      kind: 'client_report', sourceRef: 'concerns/sleep',
+      statement: 'Slept through the night on 5 of the last 7 nights.', concernId: 'sleep',
+    },
+    {
+      id: 'u-4', at: '2026-09-21T09:05:00.000Z', authorRole: 'client', authorId: 'client-rowan',
+      kind: 'medication_change', sourceRef: 'medications/bp',
+      statement: 'GP changed blood pressure medication dose.',
+      previousValue: 'Amlodipine 5mg', newValue: 'Amlodipine 10mg',
+    },
+    {
+      id: 'u-2', at: '2026-09-28T06:50:00.000Z', authorRole: 'client', authorId: 'client-rowan',
+      kind: 'daily_path_obstacle', sourceRef: 'dailypath/daylight-walk',
+      statement: 'Did the daylight walk on most weekday mornings, not at weekends.',
+    },
+    {
+      id: 'u-0', at: '2026-09-02T11:00:00.000Z', authorRole: 'client', authorId: 'client-rowan',
+      kind: 'client_report', sourceRef: 'concerns/energy',
+      statement: 'Before the September review: afternoons still flat.', concernId: 'energy',
+    },
   ],
 
   concerns: [

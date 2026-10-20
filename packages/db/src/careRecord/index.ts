@@ -25,3 +25,17 @@ export {
   summariseCaseTeam, CLIENT_APPROVAL_UNRECORDED,
 } from './caseTeamView'
 export type { CaseTeamMember, CaseTeamSummary } from './caseTeamView'
+
+// Client update -> practitioner "Since last review". READ PATH REAL over
+// case_events; WRITE PATH BLOCKED on one missing INSERT policy, recorded in
+// CLIENT_UPDATE_STORAGE_GAP. buildSinceLastReview is re-exported from the
+// intakeV2 module it already lives in, never reimplemented here.
+export {
+  CLIENT_UPDATE_STORAGE_GAP, CASE_EVENT_TYPES, loadCaseUpdates, eventToUpdate,
+  recordClientUpdate, checkFactualStatement, provenanceLabel, isClientReported,
+  isUnattributed, sinceLastReviewFor, buildSinceLastReviewView, UPDATE_KIND_LABELS,
+} from './caseUpdates'
+export type {
+  CaseEventType, ClientUpdateDraft, ClientUpdateResult, StatementCheck,
+  SinceLastReviewView, DatedUpdate, SinceLastReview, UpdateKind, UpdateAuthorRole,
+} from './caseUpdates'

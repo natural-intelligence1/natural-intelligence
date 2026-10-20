@@ -8,7 +8,7 @@ export default function Page() {
     <NotYetAvailable
       title="Progress"
       what="Follow what has actually happened between reviews, and how the signed plan is being lived."
-      domain="updates.ts / buildSinceLastReview is complete, tested and already in use — it produces the Since last review list on the Overview. DailyPath is live for clients; the practitioner-side progress view is not built."
+      domain="buildSinceLastReview is complete, tested and in use — it produces the Since last review list on the Overview, now reading real case_events through careRecord/caseUpdates.ts. Clients cannot yet record an update themselves: case_events has no client INSERT policy, so only service_role can write one. DailyPath is live for clients; the practitioner-side progress view is not built."
     />
   )
 }
