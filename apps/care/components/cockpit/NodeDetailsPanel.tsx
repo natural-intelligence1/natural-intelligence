@@ -25,13 +25,25 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
 }
 
 export function NodeDetailsPanel({
-  details, onClose, pilot, mapping, annex,
+  details, onClose, pilot, mapping, annex, annexNodes, unsupplied,
 }: {
   details: NodeDetails | null
   onClose: () => void
   pilot: PilotScope
   mapping: MappingPackSummary
-  annex: { present: boolean; whatIsMissing: readonly string[]; consequence: string }
+  annex: {
+    present: boolean
+    source: string
+    validationStatus: string
+    approvedRuleCount: number
+    rulesSuppliedForPilot: readonly number[]
+    note: string
+  }
+  annexNodes: ReadonlyArray<{
+    ruleId: string; ruleNumber: number; topic: string; approvedQuestion: string
+    notice: string; annexStreams: string[]; pilotSections: string[]; quantified: boolean
+  }>
+  unsupplied: ReadonlyArray<{ questionId: string; section: string; value: string }>
 }) {
   return (
     <section
@@ -80,11 +92,40 @@ export function NodeDetailsPanel({
             : 'some permitted'}
         />
         <Row k="needs a new field" v={mapping.needNewField.join(', ') || '—'} />
+        <Row k="Annex 1" v={`${annex.source} — ${annex.validationStatus}`} />
         <Row
-          k="Annex 1"
-          v={annex.present
-            ? 'present'
-            : <span style={{ color: T.goldInk }}>ABSENT — missing: {annex.whatIsMissing.join(', ')}</span>}
+          k="Annex rules"
+          v={`${annex.approvedRuleCount} approved; ${annex.rulesSuppliedForPilot.join(', ')} supplied for this pilot`}
+        />
+      </dl>
+
+      {/* The approved safety nodes, as their own objects. */}
+      <h3 style={{ fontSize: '12px', color: T.text, margin: '0 0 8px', fontWeight: 600 }}>
+        Approved Annex 1 nodes
+      </h3>
+      <dl style={{ margin: '0 0 20px' }}>
+        {annexNodes.map((n) => (
+          <Row
+            key={n.ruleId}
+            k={`rule ${n.ruleNumber}`}
+            v={
+              <>
+                {n.topic} · notice {n.notice}{n.quantified ? ' · quantified trigger' : ''}
+                <span style={{ display: 'block', color: T.text2 }}>“{n.approvedQuestion}”</span>
+                <span style={{ display: 'block', color: T.muted }}>
+                  asked once in: {n.annexStreams.join(' | ')} → {n.pilotSections.join(', ')}
+                </span>
+              </>
+            }
+          />
+        ))}
+        <Row
+          k="no rule supplied"
+          v={unsupplied.length === 0
+            ? '—'
+            : <span style={{ color: T.goldInk }}>
+                {unsupplied.map((u) => u.value).join(' | ')} — still raise review, not Annex-approved wording
+              </span>}
         />
       </dl>
 
@@ -96,14 +137,21 @@ export function NodeDetailsPanel({
           </h3>
           <dl style={{ margin: 0 }}>
             <Row k="question id" v={details.questionId} />
-            <Row k="concept id" v={details.conceptId ?? <span style={{ color: T.muted }}>null</span>} />
+            <Row k="concept id" v={details.conceptRef?.conceptId ?? <span style={{ color: T.muted }}>null</span>} />
+            {/* The variant is half the identity. Shown separately so it
+                cannot be read past. */}
+            <Row
+              k="concept variant"
+              v={details.conceptRef?.variant
+                ?? <span style={{ color: T.muted }}>none (concept is not parameterised)</span>}
+            />
             <Row k="canonical field(s)" v={details.fieldIds.join(', ') || <span style={{ color: T.muted }}>none</span>} />
             <Row k="mapping status" v={details.mappingStatus} />
             <Row k="capture owner" v={details.captureOwner ?? '—'} />
             <Row k="provenance rule" v={details.provenanceRule ?? '—'} />
             <Row k="SaMD class" v={details.samd} />
             <Row k="red-flag values" v={details.redFlagValues.join(' | ') || '—'} />
-            <Row k="Annex rule id" v={<span style={{ color: T.muted }}>null · awaiting Annex 1</span>} />
+            <Row k="Annex rule" v={details.annexRuleIds.length > 0 ? details.annexRuleIds.join(", ") : <span style={{ color: T.muted }}>no rule supplied for these values</span>} />
             <Row k="Call Sheet linked" v={String(details.callSheetLinked)} />
             <Row
               k="write blocked"

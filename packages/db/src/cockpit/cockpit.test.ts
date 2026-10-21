@@ -17,10 +17,14 @@ import {
   newCaptureState, recordAnswer, recordBranchDetail, isBranchSufficient,
   outstandingTargets, markBranchNoLongerRelevant, reopenBranch,
   branchesNeedingReconciliation, studentDrafts, amendedAnswers,
-  // safety
-  ANNEX_1_STATUS, deriveCockpitSafetyItems, triggersHumanReview,
-  raiseForFollowUpDetail, consolidateSafety, openItemsElsewhere,
-  pilotRedFlagInventory,
+  // safety — Annex 1
+  ANNEX_1_STATUS, ANNEX_1_SOURCE, ANNEX_1_PILOT_RULES, ANNEX_FOLLOW_UPS,
+  annexRuleById, answerTriggersReview, rule26Threshold, buildSafetyNodes,
+  unaskedRelevantNodes, deriveCockpitSafetyItems, raiseForFollowUpDetail,
+  consolidateSafety, openItemsElsewhere, annexNodeInventory, unsuppliedSafetyValues,
+  // concept reference
+  conceptReference, conceptReferenceForField, conceptRefKey, sameConcept,
+  groupByConceptReference,
   // guidance
   buildGuidancePanel, orient, nodeDetails,
   // section status
@@ -33,8 +37,10 @@ import {
   completeTimer, toWorkLogEntry, TIMER_CANNOT_AFFECT_CONTENT, formatDuration,
   // chain
   resolveChain, contributions, summariseContributions,
-  type CaptureActor,
+  type CaptureActor, type SafetyNodeAnswer,
 } from './index'
+import { CONCEPT_LAYER } from '../intakeV2/questionGraph/concepts'
+import { V2_FIELD_REGISTRY } from '../intakeV2/fieldRegistry'
 
 const AT = '2026-10-21T10:00:00.000Z'
 const LATER = '2026-10-21T10:05:00.000Z'
@@ -72,15 +78,28 @@ describe('the mapping gate', () => {
     expect(persistenceBlockReason('v2.nonsense.thing')).toMatch(/No mapping entry/)
   })
 
-  it('refuses to guess a destination it does not have', () => {
-    // The three the pilot deliberately left UNMAPPED rather than force-fit.
-    for (const id of ['v2.digestion.bowel_frequency', 'v2.digestion.stool_form', 'v2.sleep.hours']) {
-      const m = mappingFor(id)!
-      expect(m.status, id).toBe('UNMAPPED')
-      expect(m.fieldIds, id).toEqual([])
-      expect(m.rationale, id).toBeTruthy()
-      expect(m.gap, id).toMatch(/registry decision/i)
+  it('uses the authorised fields rather than the ones it refused', () => {
+    // These three were UNMAPPED because no field could hold them without
+    // changing its meaning. The Founder authorised three fields; the refusals
+    // that produced them must still hold.
+    const expected: Record<string, string> = {
+      'v2.digestion.bowel_frequency': 'intake.systems.digestive.bowel_frequency',
+      'v2.digestion.stool_form':      'intake.systems.digestive.stool_form',
+      'v2.sleep.hours':               'intake.systems.sleep.typical_sleep_duration_hours',
     }
+    for (const [id, field] of Object.entries(expected)) {
+      const m = mappingFor(id)!
+      expect(m.fieldIds, id).toEqual([field])
+      expect(m.proposedBy, id).toBe('founder_authorised_field')
+      // A field is not a mapping. Still NEEDS_REVIEW, still unwritable.
+      expect(m.status, id).toBe('NEEDS_REVIEW')
+      expect(canPersistCanonically(id), id).toBe(false)
+    }
+    // And neither symptom-frequency field was co-opted.
+    expect(mappingFor('v2.digestion.bowel_frequency')!.fieldIds)
+      .not.toContain('intake.systems.digestive.frequency')
+    expect(mappingFor('v2.sleep.hours')!.fieldIds)
+      .not.toContain('intake.systems.sleep.frequency')
   })
 
   it('every non-approved entry states what is missing', () => {
@@ -248,81 +267,365 @@ describe('changed answers', () => {
   })
 })
 
-// ── §8 Safety ───────────────────────────────────────────────────────────────
+// ── §1/§2 Annex 1 as the authoritative source, in explicit ask-once nodes ───
 
-describe('safety', () => {
-  const answer = (value: unknown, questionId = DIGESTION_Q) =>
-    deriveCockpitSafetyItems({ caseId: CASE, at: AT, answers: [{ questionId, value }] })
+describe('Annex 1 is the clinical authority', () => {
+  const nodes = (answers: Array<{ questionId: string; value: unknown }> = [],
+                 nodeAnswers?: Record<string, SafetyNodeAnswer>) =>
+    buildSafetyNodes({ caseId: CASE, answers, nodeAnswers })
 
-  it('states plainly that Annex 1 is absent and substitutes nothing', () => {
-    expect(ANNEX_1_STATUS.present).toBe(false)
-    expect(ANNEX_1_STATUS.whatIsMissing).toEqual(
-      expect.arrayContaining(['Annex 1 approved wording', 'Rule 7', 'Rule 9', 'Rule 26']),
-    )
-    // Every item leaves the rule link empty rather than inventing one.
-    for (const i of answer(['Blood in the stool'])) {
-      expect(i.annexRuleId).toBeNull()
-      expect(i.annexStatus).toBe('awaiting_annex_1')
+  it('names the approved source and status', () => {
+    expect(ANNEX_1_STATUS.present).toBe(true)
+    expect(ANNEX_1_SOURCE.validationStatus).toBe('CLOSED — APPROVED WITH AMENDMENTS')
+    expect(ANNEX_1_SOURCE.approvedRuleCount).toBe(37)
+    expect(ANNEX_1_SOURCE.rulesSuppliedForPilot).toEqual([7, 9, 26])
+  })
+
+  it('carries each approved question VERBATIM', () => {
+    // The wording IS the authority. A paraphrase here is a different question.
+    expect(annexRuleById('annex1.rule7')!.approvedQuestion)
+      .toBe('Have you noticed blood in or on your stools, or when you wipe?')
+    expect(annexRuleById('annex1.rule9')!.approvedQuestion)
+      .toBe('Have your stools been black and sticky like tar, or have you vomited blood or something like coffee grounds?')
+    expect(annexRuleById('annex1.rule26')!.approvedQuestion)
+      .toBe('Have you lost weight without trying? How much, and over how long?')
+  })
+
+  it('records each approved notice and stream list verbatim', () => {
+    expect(annexRuleById('annex1.rule9')!.notice).toBe('NOW')
+    expect(annexRuleById('annex1.rule7')!.notice).toBe('END')
+    expect(annexRuleById('annex1.rule26')!.notice).toBe('END')
+    expect(annexRuleById('annex1.rule7')!.askedOnceIn)
+      .toEqual(['GIT: Diarrhoea', 'GIT: Mucus/blood', 'GIT: Frequency/stool'])
+    expect(annexRuleById('annex1.rule26')!.askedOnceIn)
+      .toEqual(['Endocrine: Weight', 'Endocrine: Fatigue', 'Endocrine: Frequent urination'])
+  })
+
+  it('is an explicit node, not a chip hidden inside a symptom list', () => {
+    const all = nodes()
+    expect(all).toHaveLength(3)
+    for (const n of all) {
+      expect(n.approvedQuestion.length).toBeGreaterThan(0)
+      // The node exists before anything is asked, so the guide can say "not
+      // yet asked" rather than silently omitting it.
+      expect(n.state).toBe('dormant')
+      expect(n.answer).toBeNull()
+      expect(n.needsHumanReview).toBe(false)
     }
   })
 
-  it('a reported red flag raises an item needing a human', () => {
-    const items = answer(['Bloating', 'Blood in the stool'])
-    expect(items).toHaveLength(1)
-    expect(items[0].record.state).toBe('open')
-    expect(items[0].reason).toBe('red_flag_value_selected')
-    expect(items[0].matchedOptions).toEqual(['Blood in the stool'])
+  it('YES to the approved question needs a human', () => {
+    const n = nodes([], {
+      'annex1.rule7': {
+        answer: 'YES', at: AT, actorId: 'prac-1', actorDisplayName: 'Amara Okafor',
+        via: 'approved_question',
+      },
+    }).find((x) => x.ruleId === 'annex1.rule7')!
+    expect(n.state).toBe('answered')
+    expect(n.needsHumanReview).toBe(true)
+    expect(n.triggerReason).toBe('annex_question_yes')
+    expect(n.answer!.via).toBe('approved_question')
   })
 
-  it('asks once: one item per question carrying every matched red flag', () => {
-    const items = answer(['Blood in the stool', 'Black, tar-like stool', 'Difficulty swallowing'])
-    expect(items).toHaveLength(1)
-    expect(items[0].matchedOptions).toHaveLength(3)
-    expect(items[0].linkedSections).toEqual(['digestion'])
+  it('NOT SURE needs a human, on every rule', () => {
+    for (const ruleId of ['annex1.rule7', 'annex1.rule9', 'annex1.rule26']) {
+      const n = nodes([], {
+        [ruleId]: {
+          answer: 'NOT_SURE', at: AT, actorId: 'prac-1', actorDisplayName: 'A',
+          via: 'approved_question',
+        },
+      }).find((x) => x.ruleId === ruleId)!
+      expect(n.needsHumanReview, ruleId).toBe(true)
+      expect(n.triggerReason, ruleId).toBe('annex_question_not_sure')
+    }
   })
 
-  it('keeps the full reported answer, not just the red flags', () => {
-    const items = answer(['Bloating', 'Wind', 'Blood in the stool'])
-    expect(items[0].rawAnswer).toEqual(['Bloating', 'Wind', 'Blood in the stool'])
+  it('NO to the approved question does not', () => {
+    const n = nodes([], {
+      'annex1.rule7': {
+        answer: 'NO', at: AT, actorId: 'prac-1', actorDisplayName: 'A', via: 'approved_question',
+      },
+    }).find((x) => x.ruleId === 'annex1.rule7')!
+    expect(n.state).toBe('answered')
+    expect(n.needsHumanReview).toBe(false)
+  })
+
+  it('is ONE fact linked to every stream Annex 1 names', () => {
+    const all = nodes()
+    const rule7 = all.find((x) => x.ruleId === 'annex1.rule7')!
+    expect(rule7.annexStreams).toHaveLength(3)
+    expect(rule7.linkedSections).toEqual(['digestion'])
+    // One node, not one per stream. Answering it answers it everywhere.
+    expect(all.filter((n) => n.ruleId === 'annex1.rule7')).toHaveLength(1)
+  })
+})
+
+describe('what a system answer may and may not do', () => {
+  const nodes = (answers: Array<{ questionId: string; value: unknown }>) =>
+    buildSafetyNodes({ caseId: CASE, answers })
+
+  it('an affirmative chip can satisfy the approved YES', () => {
+    const n = nodes([{ questionId: DIGESTION_Q, value: ['Blood in the stool'] }])
+      .find((x) => x.ruleId === 'annex1.rule7')!
+    expect(n.state).toBe('answered')
+    expect(n.needsHumanReview).toBe(true)
+    expect(n.triggerReason).toBe('system_answer_satisfied_yes')
+    // The record says HOW it was answered, so it never implies the approved
+    // question was read out when it was not.
+    expect(n.answer!.via).toBe('system_answer_equivalent')
+    expect(n.answer!.viaOptionValue).toBe('Blood in the stool')
+  })
+
+  it('NOT selecting a chip never answers NO', () => {
+    // The asymmetry that matters: a client who bleeds only on wiping answers
+    // the chip NO and the approved question YES.
+    const n = nodes([{ questionId: DIGESTION_Q, value: ['Bloating', 'Wind'] }])
+      .find((x) => x.ruleId === 'annex1.rule7')!
+    expect(n.state).not.toBe('answered')
+    expect(n.answer).toBeNull()
+    for (const r of ANNEX_1_PILOT_RULES) expect(r.absenceCanSatisfyNo, r.id).toBe(false)
+  })
+
+  it('a related-but-different chip only establishes relevance', () => {
+    // "Vomiting" is not "vomiting blood or coffee grounds". Treating it as
+    // Rule 9's second limb would invent a report the client never made.
+    const n = nodes([{ questionId: DIGESTION_Q, value: ['Vomiting'] }])
+      .find((x) => x.ruleId === 'annex1.rule9')!
+    expect(n.state).toBe('relevant_unasked')
+    expect(n.needsHumanReview).toBe(false)
+    expect(n.relevanceReason).toMatch(/Vomiting/)
+  })
+
+  it('a quantified rule is never satisfied by an unquantified chip', () => {
+    const answers = [{ questionId: 'v2.energy.noticed', value: ['Weight going down without trying'] }]
+    const n = nodes(answers).find((x) => x.ruleId === 'annex1.rule26')!
+    expect(n.state).toBe('relevant_unasked')
+    expect(n.needsHumanReview).toBe(false)
+    expect(unaskedRelevantNodes(nodes(answers)).map((x) => x.ruleId)).toContain('annex1.rule26')
+  })
+
+  it('a direct answer always beats a system inference', () => {
+    const n = buildSafetyNodes({
+      caseId: CASE,
+      answers: [{ questionId: DIGESTION_Q, value: ['Blood in the stool'] }],
+      nodeAnswers: {
+        'annex1.rule7': {
+          answer: 'NO', at: AT, actorId: 'prac-1', actorDisplayName: 'A', via: 'approved_question',
+        },
+      },
+    }).find((x) => x.ruleId === 'annex1.rule7')!
+    // The practitioner asked and got a NO — the chip was a mis-tap.
+    expect(n.answer!.via).toBe('approved_question')
+    expect(n.needsHumanReview).toBe(false)
+  })
+
+  it('every link states why it is what it is', () => {
+    for (const r of ANNEX_1_PILOT_RULES) {
+      for (const l of r.systemAnswerLinks) {
+        expect(l.rationale.length, `${r.id}/${l.optionValue}`).toBeGreaterThan(20)
+      }
+    }
+  })
+})
+
+describe('Rule 26 quantified trigger', () => {
+  it('meets the threshold at 5% or more over 6-12 months', () => {
+    expect(rule26Threshold({ percentLost: 6, overMonths: 8 })).toBe('met')
+    expect(rule26Threshold({ percentLost: 5, overMonths: 12 })).toBe('met')
+  })
+
+  it('meets it on noticeable unexplained loss over weeks', () => {
+    expect(rule26Threshold({ noticeableOverWeeks: true })).toBe('met')
+  })
+
+  it('is UNKNOWN, not "not met", when the client cannot say', () => {
+    // Fail-closed. NI cannot rule a threshold out on absent information, and
+    // recording "not met" from silence would be exactly that.
+    expect(rule26Threshold(null)).toBe('unknown')
+    expect(rule26Threshold({})).toBe('unknown')
+    expect(rule26Threshold({ percentLost: 7 })).toBe('unknown')
+    expect(rule26Threshold({ overMonths: 9 })).toBe('unknown')
+  })
+
+  it('is "not met" only with both figures and an explicit no to the weeks limb', () => {
+    expect(rule26Threshold({ percentLost: 2, overMonths: 9, noticeableOverWeeks: false }))
+      .toBe('not_met')
+  })
+
+  it('raises review on YES unless the threshold is genuinely not met', () => {
+    const r26 = annexRuleById('annex1.rule26')!
+    expect(answerTriggersReview(r26, 'YES', { percentLost: 7, overMonths: 8 })).toBe(true)
+    expect(answerTriggersReview(r26, 'YES', null)).toBe(true)
+    expect(answerTriggersReview(r26, 'NOT_SURE',
+      { percentLost: 1, overMonths: 9, noticeableOverWeeks: false })).toBe(true)
+    expect(answerTriggersReview(r26, 'YES',
+      { percentLost: 1, overMonths: 9, noticeableOverWeeks: false })).toBe(false)
+  })
+
+  it('an unquantified rule needs no threshold', () => {
+    expect(answerTriggersReview(annexRuleById('annex1.rule7')!, 'YES')).toBe(true)
+  })
+})
+
+describe('review items', () => {
+  const answer = (value: unknown, questionId = DIGESTION_Q) =>
+    deriveCockpitSafetyItems({ caseId: CASE, at: AT, answers: [{ questionId, value }] })
+
+  it('an Annex-backed item names its rule and notice', () => {
+    const item = answer(['Black, tar-like stool']).find((i) => i.annexRuleId === 'annex1.rule9')!
+    expect(item.annexRuleNumber).toBe(9)
+    expect(item.annexStatus).toBe('approved_annex_1_rule')
+    expect(item.notice).toBe('NOW')
+    expect(item.questionLabel).toBe(annexRuleById('annex1.rule9')!.approvedQuestion)
+    expect(item.record.state).toBe('open')
+  })
+
+  it('carries safety values whose Annex rule was not supplied, clearly marked', () => {
+    // Losing a safety signal is worse than carrying an unlabelled one.
+    const item = answer(['Difficulty swallowing'])
+      .find((i) => i.annexStatus === 'rule_not_supplied_for_pilot')!
+    expect(item.annexRuleId).toBeNull()
+    expect(item.record.state).toBe('open')
+    expect(item.matchedOptions).toContain('Difficulty swallowing')
+    expect(unsuppliedSafetyValues().map((v) => v.value)).toContain('Difficulty swallowing')
+  })
+
+  it('does not double-raise a value an Annex rule already owns', () => {
+    const items = answer(['Blood in the stool'])
+    expect(items.filter((i) => i.annexStatus === 'rule_not_supplied_for_pilot')).toHaveLength(0)
+    expect(unsuppliedSafetyValues().map((v) => v.value)).not.toContain('Blood in the stool')
   })
 
   it('an ordinary answer raises nothing', () => {
     expect(answer(['Bloating', 'Wind'])).toEqual([])
-    expect(triggersHumanReview(DIGESTION_Q, 'Bloating')).toBeNull()
-  })
-
-  it('"not sure" on a red-flag question is not a No', () => {
-    expect(triggersHumanReview(DIGESTION_Q, 'Not sure'))
-      .toBe('uncertain_answer_to_red_flag_question')
-    const items = answer(['Not sure'])
-    expect(items).toHaveLength(1)
-    expect(items[0].reason).toBe('uncertain_answer_to_red_flag_question')
-    // Nothing matched, and the item says so rather than pretending otherwise.
-    expect(items[0].matchedOptions).toEqual([])
-  })
-
-  it('does not double-raise when a red flag and an uncertainty both appear', () => {
-    const items = answer(['Blood in the stool', 'Not sure'])
-    expect(items).toHaveLength(1)
-    expect(items[0].reason).toBe('red_flag_value_selected')
   })
 
   it('follow-up detail never raises an item by itself', () => {
     expect(raiseForFollowUpDetail()).toEqual([])
+    expect(ANNEX_FOLLOW_UPS.map((f) => f.id))
+      .toEqual(['started', 'frequency', 'ongoing', 'gp_seen', 'associated'])
   })
 
-  it('the case-level summary is a read-only view, not a questionnaire', () => {
-    const c = consolidateSafety(answer(['Blood in the stool']))
+  it('the case summary is a read-only view, and counts NOW notices', () => {
+    const c = consolidateSafety(answer(['Black, tar-like stool']))
     expect(c.isReadOnlyView).toBe(true)
     expect(c.anyOpen).toBe(true)
-    expect(c.sectionsWithOpenItems).toEqual(['digestion'])
+    expect(c.noticeNowCount).toBe(1)
   })
 
-  it('every approved red-flag value in the pilot is inventoried', () => {
-    const inv = pilotRedFlagInventory()
-    expect(inv.length).toBe(summarisePilot().redFlagValueCount)
-    expect(inv.map((i) => i.value)).toContain('Night sweats that soak the bedding')
-    expect(inv.map((i) => i.value)).not.toContain('Night sweats')
+  it('inventories every approved Annex node for review mode', () => {
+    const inv = annexNodeInventory()
+    expect(inv.map((i) => i.ruleNumber).sort((a, b) => a - b)).toEqual([7, 9, 26])
+    expect(inv.every((i) => i.approvedQuestion.length > 0)).toBe(true)
+  })
+})
+
+// ── §4 Concept identity cannot collapse across variants ────────────────────
+
+describe('concept reference requires its variant', () => {
+  it('refuses a parameterised concept without one', () => {
+    const r = conceptReference('intake.systems.*.symptoms')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toBe('variant_required')
+  })
+
+  it('accepts it with a valid variant', () => {
+    const r = conceptReference('intake.systems.*.symptoms', 'digestive')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.ref).toEqual({ conceptId: 'intake.systems.*.symptoms', variant: 'digestive' })
+  })
+
+  it('refuses a variant the concept does not have', () => {
+    // Catches a plausible-looking but wrong system key — exactly what a
+    // label-based assumption produces.
+    const r = conceptReference('intake.systems.*.symptoms', 'digestion')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toBe('variant_not_valid_for_concept')
+  })
+
+  it('refuses a variant on a concept that has no dimension', () => {
+    const plain = CONCEPT_LAYER.find((c) => !c.id.includes('*'))!
+    const r = conceptReference(plain.id, 'digestive')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toBe('variant_not_applicable')
+  })
+
+  it('derives the variant from the FIELD id, never from a label', () => {
+    const r = conceptReferenceForField('intake.systems.digestive.symptoms')
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.ref.variant).toBe('digestive')
+  })
+
+  it('THREE SYSTEMS SHARING ONE CONCEPT ARE NOT INTERCHANGEABLE', () => {
+    // The collapse this model exists to prevent.
+    const dig = conceptReferenceForField('intake.systems.digestive.symptoms')
+    const slp = conceptReferenceForField('intake.systems.sleep.symptoms')
+    const eng = conceptReferenceForField('intake.systems.energy_endocrine.symptoms')
+    expect(dig.ok && slp.ok && eng.ok).toBe(true)
+    if (!dig.ok || !slp.ok || !eng.ok) return
+
+    // Same concept id...
+    expect(dig.ref.conceptId).toBe(slp.ref.conceptId)
+    expect(dig.ref.conceptId).toBe(eng.ref.conceptId)
+    // ...and NOT the same thing.
+    expect(sameConcept(dig.ref, slp.ref)).toBe(false)
+    expect(sameConcept(dig.ref, eng.ref)).toBe(false)
+    expect(sameConcept(slp.ref, eng.ref)).toBe(false)
+    expect(new Set([dig.ref, slp.ref, eng.ref].map(conceptRefKey)).size).toBe(3)
+  })
+
+  it('grouping keeps the three apart', () => {
+    const fields = [
+      'intake.systems.digestive.symptoms',
+      'intake.systems.sleep.symptoms',
+      'intake.systems.energy_endocrine.symptoms',
+    ]
+    const grouped = groupByConceptReference(fields, (f) => {
+      const r = conceptReferenceForField(f)
+      if (!r.ok) throw new Error(`unresolved ${f}`)
+      return r.ref
+    })
+    // Keyed on concept id alone this would be ONE group of three.
+    expect(grouped.size).toBe(3)
+    for (const [, g] of grouped) expect(g.items).toHaveLength(1)
+  })
+
+  it('does not inflate the concept count by cloning the template', () => {
+    // The template model is preserved: one generic concept across twelve
+    // systems, not twelve copies of it.
+    const symptoms = CONCEPT_LAYER.filter((c) => c.id === 'intake.systems.*.symptoms')
+    expect(symptoms).toHaveLength(1)
+    expect(symptoms[0].variants).toHaveLength(12)
+  })
+})
+
+// ── §3 The three authorised canonical fields ───────────────────────────────
+
+describe('the three authorised fields', () => {
+  it('exist and are distinct from the fields they were kept out of', () => {
+    for (const id of [
+      'intake.systems.digestive.bowel_frequency',
+      'intake.systems.digestive.stool_form',
+      'intake.systems.sleep.typical_sleep_duration_hours',
+    ]) expect(V2_FIELD_REGISTRY.find((f) => f.id === id), id).toBeDefined()
+
+    // The refusals that produced them must stay true.
+    expect(V2_FIELD_REGISTRY.find((f) => f.id === 'intake.systems.digestive.frequency')).toBeDefined()
+    expect(V2_FIELD_REGISTRY.find((f) => f.id === 'intake.systems.sleep.frequency')).toBeDefined()
+  })
+
+  it('takes the registry to 387 fields', () => {
+    // POSITION TEST. 384 -> 387 on Founder authorisation.
+    expect(V2_FIELD_REGISTRY.length).toBe(387)
+  })
+
+  it('closed the three UNMAPPED entries without approving them', () => {
+    const s = summariseMappingPack()
+    expect(s.needNewField).toEqual([])
+    expect(s.byStatus.UNMAPPED).toBe(0)
+    // Authorising a FIELD is not approving a MAPPING.
+    expect(s.approved).toBe(0)
+    expect(s.allWritesBlocked).toBe(true)
   })
 })
 
@@ -424,19 +727,46 @@ describe('the guide', () => {
     }
   })
 
-  it('names approved red-flag questions not yet asked under "Don\'t miss"', () => {
+  it('names the APPROVED ANNEX question not yet asked, verbatim', () => {
     const panel = buildGuidancePanel({ section: 'digestion', state: newCaptureState(CASE) })
     const block = panel.blocks.find((b) => b.id === 'dont_miss')!
     expect(block.lines[0].text).toMatch(/Not yet asked/)
-    expect(block.lines[0].ref).toBe(DIGESTION_Q)
+    // The approved wording, not the chip question's label.
+    expect(block.lines[0].text).toContain('Have you noticed blood in or on your stools')
+    expect(block.lines[0].ref).toMatch(/^annex1\.rule/)
   })
 
-  it('drops "Don\'t miss" once the question has been asked', () => {
+  it('escalates to "relevant now" when an answer makes a rule relevant', () => {
+    const s = recordAnswer(newCaptureState(CASE), {
+      questionId: DIGESTION_Q, value: ['Mucus in the stool'],
+      provenance: 'client_reported', at: AT, actor: PRAC,
+    })
+    const block = buildGuidancePanel({ section: 'digestion', state: s })
+      .blocks.find((b) => b.id === 'dont_miss')!
+    expect(block.lines.some((l) => /Relevant now — ask/.test(l.text))).toBe(true)
+  })
+
+  it('keeps "Don\'t miss" until the APPROVED question is answered', () => {
+    // Answering the chip question is not answering Rule 7. A client who
+    // bleeds only on wiping would be missed if this dropped here.
     const s = recordAnswer(newCaptureState(CASE), {
       questionId: DIGESTION_Q, value: ['Bloating'], provenance: 'client_reported', at: AT, actor: PRAC,
     })
     const panel = buildGuidancePanel({ section: 'digestion', state: s })
-    expect(panel.blocks.find((b) => b.id === 'dont_miss')).toBeUndefined()
+    expect(panel.blocks.find((b) => b.id === 'dont_miss')).toBeDefined()
+
+    // It drops once every Annex node in the section is answered.
+    const answered = buildGuidancePanel({
+      section: 'digestion', state: s,
+      safetyNodes: buildSafetyNodes({
+        caseId: CASE, answers: [],
+        nodeAnswers: {
+          'annex1.rule7': { answer: 'NO', at: AT, actorId: 'p', actorDisplayName: 'A', via: 'approved_question' },
+          'annex1.rule9': { answer: 'NO', at: AT, actorId: 'p', actorDisplayName: 'A', via: 'approved_question' },
+        },
+      }),
+    })
+    expect(answered.blocks.find((b) => b.id === 'dont_miss')).toBeUndefined()
   })
 
   it('shows student support only in student mode', () => {
@@ -474,11 +804,23 @@ describe('the guide', () => {
     const all = Object.values(o).filter(Boolean).join(' ')
     expect(all).not.toMatch(/likely|probably|suggests|indicates|diagnos|urgent|risk of/i)
 
+    // "Don't overlook" clears only when the APPROVED questions are answered —
+    // not when the ordinary questions around them are.
     s = recordAnswer(s, {
       questionId: 'v2.digestion.bowel_frequency', value: 'Every two or three days',
       provenance: 'client_reported', at: AT, actor: PRAC,
     })
-    expect(orient({ section: 'digestion', state: s }).whatMustINotOverlook).toBeNull()
+    expect(orient({ section: 'digestion', state: s }).whatMustINotOverlook).not.toBeNull()
+
+    const allAnswered = buildSafetyNodes({
+      caseId: CASE, answers: [],
+      nodeAnswers: {
+        'annex1.rule7': { answer: 'NO', at: AT, actorId: 'p', actorDisplayName: 'A', via: 'approved_question' },
+        'annex1.rule9': { answer: 'NO', at: AT, actorId: 'p', actorDisplayName: 'A', via: 'approved_question' },
+      },
+    })
+    expect(orient({ section: 'digestion', state: s, safetyNodes: allAnswered }).whatMustINotOverlook)
+      .toBeNull()
   })
 })
 
@@ -487,11 +829,11 @@ describe('the guide', () => {
 describe('node details · review mode', () => {
   it('exposes the plumbing only through nodeDetails', () => {
     const d = nodeDetails(DIGESTION_Q)!
-    expect(d.conceptId).toBe('intake.systems.*.symptoms')
+    expect(d.conceptRef).toEqual({ conceptId: 'intake.systems.*.symptoms', variant: 'digestive' })
     expect(d.fieldIds).toEqual(['intake.systems.digestive.symptoms'])
     expect(d.mappingStatus).toBe('NEEDS_REVIEW')
     expect(d.writeBlocked).toBe(true)
-    expect(d.annexRuleId).toBeNull()
+    expect(d.redFlagValues.length).toBeGreaterThan(0)
     expect(d.edges.length).toBeGreaterThan(0)
     expect(d.redFlagValues).toContain('Blood in the stool')
   })
@@ -709,15 +1051,16 @@ describe('the acceptance chain, end to end', () => {
     expect(summariseContributions(s).nothingPersisted).toBe(true)
   })
 
-  it('reports no_destination rather than inventing one', () => {
+  it('projects to the authorised field, still without writing', () => {
     const s = recordAnswer(newCaptureState(CASE), {
       questionId: 'v2.digestion.stool_form', value: 'Smooth and soft',
       provenance: 'client_reported', at: AT, actor: PRAC,
     })
     const c = contributions(s)[0]
-    expect(c.state).toBe('no_destination')
-    expect(c.fieldIds).toEqual([])
-    expect(c.blockReason).toMatch(/registry decision|No canonical/i)
+    expect(c.state).toBe('projected')
+    expect(c.fieldIds).toEqual(['intake.systems.digestive.stool_form'])
+    expect(c.conceptRef).toEqual({ conceptId: 'intake.systems.*.stool_form', variant: 'digestive' })
+    expect(c.blockReason).toMatch(/NEEDS_REVIEW|APPROVED/)
   })
 
   it('shows where a mapped answer WOULD land in the synopsis', () => {

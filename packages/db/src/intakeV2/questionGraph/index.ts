@@ -4,7 +4,7 @@
 //
 // Three layers, each honest about what it does and does not know:
 //
-//   concepts.ts    the genuinely distinct things beneath the 384 fields,
+//   concepts.ts    the genuinely distinct things beneath the 387 fields,
 //                  DERIVED from the registry so it cannot drift from it
 //   bridge.ts      question ↔ concept ↔ field. Deliberately empty: no
 //                  mapping has been authored, so none is asserted. Name

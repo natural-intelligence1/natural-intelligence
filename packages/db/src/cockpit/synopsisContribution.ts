@@ -21,6 +21,7 @@ import { V2_FIELD_REGISTRY } from '../intakeV2/fieldRegistry'
 import type { V2SynopsisSectionId } from '../intakeV2/fieldRegistry'
 import { type CaptureState, type CapturedAnswer } from './capture'
 import { mappingFor, canPersistCanonically } from './mappingPack'
+import { describeConceptReference, type ConceptReference } from './conceptReference'
 import { pilotQuestionById, type PilotSectionId } from './pilot'
 
 export type ContributionState =
@@ -35,7 +36,7 @@ export interface SynopsisContribution {
   questionId: string
   section: PilotSectionId
   questionLabel: string
-  conceptId: string | null
+  conceptRef: ConceptReference | null
   fieldIds: string[]
   /** Where the field registry says this lands. Null where the field is not
    *  shown in the synopsis, or where there is no field. */
@@ -67,7 +68,7 @@ export function contributionFor(answer: CapturedAnswer): SynopsisContribution | 
     questionId: answer.questionId,
     section: answer.section,
     questionLabel: q.label,
-    conceptId: m?.conceptId ?? null,
+    conceptRef: m?.conceptRef ?? null,
     fieldIds,
     synopsisSections: synopsisSectionsFor(fieldIds),
     state,
@@ -122,8 +123,8 @@ export function resolveChain(args: {
       detail: q ? `${q.id} — approved registry question` : 'not a pilot question',
     },
     {
-      name: 'CONCEPT', present: !!m?.conceptId,
-      detail: m?.conceptId ?? 'no concept (no destination field to resolve one from)',
+      name: 'CONCEPT + VARIANT', present: !!m?.conceptRef && (!m.conceptRef.conceptId.includes('*') || !!m.conceptRef.variant),
+      detail: m?.conceptRef ? describeConceptReference(m.conceptRef) : 'no concept (no destination field to resolve one from)',
     },
     {
       name: 'FIELD', present: (m?.fieldIds.length ?? 0) > 0,

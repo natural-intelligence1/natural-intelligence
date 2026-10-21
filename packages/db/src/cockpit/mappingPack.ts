@@ -1,62 +1,33 @@
 // ─── packages/db/src/cockpit/mappingPack.ts ─────────────────────────────────
-// PILOT MAPPING REVIEW PACK — Question → Concept → canonical Field.
+// PILOT MAPPING REVIEW PACK — Question → Concept(+variant) → canonical Field.
 //
 // ── THE GATE ────────────────────────────────────────────────────────────────
 //
-// Global truth, unchanged by this file: there are ZERO approved
-// Question → Concept → Field mappings. Every entry below is at most a
-// CANDIDATE or NEEDS_REVIEW. Nothing is APPROVED, and `canPersistCanonically`
-// returns false for every question in the pilot.
+// ZERO approved mappings. Every entry is NEEDS_REVIEW. `canPersistCanonically`
+// returns false for every pilot question and takes no override argument.
 //
-// Name-similarity may PROPOSE a candidate. It may never approve one, and this
-// module contains no code path that promotes a mapping without an explicit
-// reviewer and decision. The cockpit therefore runs on local session state,
-// and the UI says so rather than implying a write happened.
+// Three fields the Founder authorised have now closed the three UNMAPPED
+// entries — they have destinations, and they are still NEEDS_REVIEW, because
+// authorising a FIELD is not approving a MAPPING.
 //
-// ── WHAT I REFUSED TO GUESS ─────────────────────────────────────────────────
+// ── SECTION LABEL ↔ CANONICAL SYSTEM KEY IS NOT A SYNONYM RULE ──────────────
 //
-// Three pilot questions have NO plausible canonical destination:
+// `PRODUCT_TO_CANONICAL` below records product section → canonical system key
+// as an explicit translation. It exists to be READ, not applied: every entry
+// in the pack names its own destination independently, and nothing derives a
+// destination from a section at write time.
 //
-//   v2.digestion.bowel_frequency  — intake.systems.digestive.frequency is
-//     "how often (light)", meaning how often the SYMPTOM occurs. Bowel-opening
-//     frequency is a different quantity, and writing one into the other would
-//     silently corrupt both. UNMAPPED.
-//   v2.digestion.stool_form       — no stool-form field exists anywhere in the
-//     registry. UNMAPPED.
-//   v2.sleep.hours                — no sleep-duration field exists. The
-//     systems bundle has symptoms/frequency/free_text/none_reported only.
-//     UNMAPPED.
-//
-// Each needs a new canonical field, which is a registry decision and not
-// mine to make. They are listed with status UNMAPPED and a stated gap, which
-// is the honest answer and the useful one.
-//
-// ── QUESTION → CONCEPT IS MANY-TO-ONE HERE. READ THIS BEFORE APPROVING. ─────
-//
-// All three mapped pilot questions resolve to the SAME concept:
-//
-//   intake.systems.*.symptoms
-//
-// The concept layer collapses the enumerated `system` dimension to `*`, so
-// digestion, sleep and energy share one concept and are distinguished only by
-// its VARIANT. That is the concept layer working as designed, but it has a
-// consequence a reviewer must weigh: the concept alone cannot tell you which
-// body system an answer belongs to. Anything downstream that groups by
-// concept and ignores the variant would merge three domains into one.
-//
-// The FIELD ids remain distinct (`...digestive...`, `...sleep...`,
-// `...energy_endocrine...`), so the canonical destination is unambiguous. It
-// is the concept layer, not the field layer, that is lossy here.
-export const PILOT_SHARED_CONCEPT_ID = 'intake.systems.*.symptoms'
+// Energy & metabolism is the case in point. `energy_endocrine` is the key for
+// the systems bundle, and it does NOT follow that every question in that
+// product section belongs there — weight, thirst and urinary frequency are
+// each capable of belonging elsewhere, and the Annex puts unexplained weight
+// loss under "URINARY & METABOLIC", not under an endocrine systems heading.
 
 import { V2_FIELD_REGISTRY } from '../intakeV2/fieldRegistry'
-import { conceptForField } from '../intakeV2/questionGraph/concepts'
-import {
-  PILOT_SECTION_IDS, SYSTEM_KEY_BY_SECTION, pilotQuestions, pilotQuestionById,
-  type PilotSectionId,
-} from './pilot'
+import { conceptReferenceForField, describeConceptReference, type ConceptReference } from './conceptReference'
+import { PILOT_SECTION_IDS, pilotQuestions, pilotQuestionById, type PilotSectionId } from './pilot'
 
-/** Status progression. Order matters: index is the progression position. */
+/** Status progression. */
 export const MAPPING_STATUSES = [
   'UNMAPPED', 'CANDIDATE', 'NEEDS_REVIEW', 'APPROVED', 'REJECTED',
 ] as const
@@ -65,148 +36,219 @@ export type MappingStatus = (typeof MAPPING_STATUSES)[number]
 /** Only an APPROVED mapping may ever drive a canonical write. */
 export const PERSISTABLE_STATUSES: readonly MappingStatus[] = ['APPROVED']
 
-/** Who owns putting the value into the record. */
 export const CAPTURE_OWNERS = ['client', 'practitioner', 'student_draft', 'system'] as const
 export type CaptureOwner = (typeof CAPTURE_OWNERS)[number]
 
+/**
+ * Product section → canonical system key.
+ *
+ * An EXPLICIT TRANSLATION TABLE, not a synonym rule and not a derivation.
+ * Two of three differ, and "metabolism" and "endocrine" are not the same
+ * word for the same thing.
+ */
+export const PRODUCT_TO_CANONICAL: readonly {
+  productSection: PilotSectionId
+  productLabel: string
+  canonicalSystemKey: string
+  note: string
+}[] = Object.freeze([
+  {
+    productSection: 'digestion',
+    productLabel: 'Digestion',
+    canonicalSystemKey: 'digestive',
+    note: 'Different word, same system. Recorded so nothing has to guess.',
+  },
+  {
+    productSection: 'sleep',
+    productLabel: 'Sleep',
+    canonicalSystemKey: 'sleep',
+    note: 'The one case where the two agree. Still recorded, so agreement is a fact and not a coincidence relied upon.',
+  },
+  {
+    productSection: 'energy_metabolic',
+    productLabel: 'Energy & metabolism',
+    canonicalSystemKey: 'energy_endocrine',
+    note:
+      'The least safe translation in the pilot. "Metabolism" and "endocrine" are not synonyms, and ' +
+      'this key is correct for the SYSTEMS BUNDLE only. It must not be applied to every question ' +
+      'in the product section: Annex 1 places unexplained weight loss under "URINARY & METABOLIC". ' +
+      'Each question names its own destination in this pack.',
+  },
+])
+
+export function canonicalKeyFor(section: PilotSectionId): string {
+  return PRODUCT_TO_CANONICAL.find((t) => t.productSection === section)!.canonicalSystemKey
+}
+
 export interface MappingEntry {
   questionId: string
+  /** The question as the client sees it, verbatim. */
+  displayedQuestion: string
   section: PilotSectionId
-  /** Concept id from the existing concept layer, or null where the
-   *  destination field does not exist so no concept can be resolved. */
-  conceptId: string | null
-  /** Canonical field ids this question would write to. Empty when UNMAPPED. */
+  productLabel: string
+  /** Concept id AND its variant. Neither alone is a semantic identity. */
+  conceptRef: ConceptReference | null
+  answerType: string
+  /** Canonical field ids. Named independently, never derived from the section. */
   fieldIds: string[]
   captureOwner: CaptureOwner
-  /** How the answer becomes the field value, where it is not a plain copy. */
-  writeRule?: string
-  /** What provenance the written value carries. */
+  /** How the answer becomes the field value. */
+  writeRule: string
   provenance: string
   status: MappingStatus
-  /** Required where the mapping is not self-evident, and where it is blocked. */
-  rationale?: string
-  /** What is missing, for anything not APPROVED. */
+  rationale: string
   gap?: string
-  /** How the candidate was arrived at. Name similarity can only propose. */
-  proposedBy: 'name_similarity' | 'explicit_registry_metadata' | 'none'
+  proposedBy: 'name_similarity' | 'explicit_registry_metadata' | 'founder_authorised_field' | 'none'
 }
 
 const fieldExists = (id: string) => V2_FIELD_REGISTRY.some((f) => f.id === id)
 
-/**
- * The pack.
- *
- * NEEDS_REVIEW is used where a destination genuinely exists and the mapping
- * looks right but crosses the section/system-key boundary or collapses
- * several answers into one field — i.e. exactly where a human should look.
- * CANDIDATE is used where name similarity alone proposed it.
- */
+function refFor(fieldId: string): ConceptReference | null {
+  const r = conceptReferenceForField(fieldId)
+  return r.ok ? r.ref : null
+}
+
+const VERBATIM = (id: string) => pilotQuestionById(id)?.label ?? id
+const TYPE_OF = (id: string) => pilotQuestionById(id)?.type ?? 'unknown'
+
 export const PILOT_MAPPING_PACK: readonly MappingEntry[] = Object.freeze([
   // ── Digestion ─────────────────────────────────────────────────────────────
   {
     questionId: 'v2.digestion.noticed',
+    displayedQuestion: VERBATIM('v2.digestion.noticed'),
     section: 'digestion',
-    conceptId: conceptForField('intake.systems.digestive.symptoms')?.id ?? null,
+    productLabel: 'Digestion',
+    conceptRef: refFor('intake.systems.digestive.symptoms'),
+    answerType: TYPE_OF('v2.digestion.noticed'),
     fieldIds: ['intake.systems.digestive.symptoms'],
     captureOwner: 'client',
     writeRule:
-      'Selected chips are stored as a value list, verbatim. Red-flag selections ALSO raise a ' +
-      'safety review item; they are never removed from, or re-worded inside, the stored list. ' +
-      '"None of these" writes intake.systems.digestive.none_reported instead, and must not be ' +
-      'stored as a symptom.',
-    provenance: 'client_reported, or practitioner_verified once confirmed in consultation',
+      'Selected chips stored as a verbatim value list. "None of these" writes ' +
+      'intake.systems.digestive.none_reported instead and must never be stored as a symptom. ' +
+      'Chips that satisfy an Annex rule (Rule 7 "Blood in the stool", Rule 9 "Black, tar-like ' +
+      'stool") stay in this list unchanged AND satisfy the approved safety question — the safety ' +
+      'answer is recorded on its own node, not by editing this list.',
+    provenance: 'client_reported; practitioner_verified once confirmed in consultation',
     status: 'NEEDS_REVIEW',
     rationale:
-      'Section "digestion" maps to system key "digestive" — the names differ, so this crosses the ' +
-      'boundary described in pilot.ts and should be confirmed rather than assumed. The field is ' +
-      'also the right destination for the red-flag options, which carry clinical weight: a ' +
-      'reviewer should confirm that storing them in the ordinary symptom list, with the safety ' +
-      'item raised alongside, is what NI intends.',
+      'Destination is unambiguous (digestive). It is NEEDS_REVIEW because the chip list now ' +
+      'carries values that feed approved Annex safety nodes, and a reviewer should confirm that ' +
+      'storing them here verbatim, with the safety fact held separately, is what NI intends.',
     gap: 'Awaiting Founder approval. No canonical write until APPROVED.',
     proposedBy: 'explicit_registry_metadata',
   },
   {
     questionId: 'v2.digestion.bowel_frequency',
+    displayedQuestion: VERBATIM('v2.digestion.bowel_frequency'),
     section: 'digestion',
-    conceptId: null,
-    fieldIds: [],
+    productLabel: 'Digestion',
+    conceptRef: refFor('intake.systems.digestive.bowel_frequency'),
+    answerType: TYPE_OF('v2.digestion.bowel_frequency'),
+    fieldIds: ['intake.systems.digestive.bowel_frequency'],
     captureOwner: 'client',
-    provenance: 'client_reported',
-    status: 'UNMAPPED',
+    writeRule:
+      'Single selected band stored verbatim as the approved option label ("One to three times a ' +
+      'day"). No numeric conversion — the bands are not evenly spaced and a number would imply a ' +
+      'precision the client did not give.',
+    provenance: 'client_reported; practitioner_verified once confirmed in consultation',
+    status: 'NEEDS_REVIEW',
     rationale:
-      'intake.systems.digestive.frequency is "how often (light)" — how often the SYMPTOM occurs. ' +
-      'How often the bowels open is a different quantity with a different option set. Writing ' +
-      'one into the other would corrupt both readings, so no candidate is proposed.',
-    gap: 'Needs a new canonical field, e.g. a digestive bowel-habit frequency. Registry decision.',
-    proposedBy: 'none',
+      'Field authorised by the Founder specifically for this fact. It must NOT go to ' +
+      'intake.systems.digestive.frequency, which is symptom frequency; that refusal is what ' +
+      'produced the new field.',
+    gap: 'Awaiting Founder approval of the MAPPING. The field now exists; approving a field is not approving a mapping.',
+    proposedBy: 'founder_authorised_field',
   },
   {
     questionId: 'v2.digestion.stool_form',
+    displayedQuestion: VERBATIM('v2.digestion.stool_form'),
     section: 'digestion',
-    conceptId: null,
-    fieldIds: [],
+    productLabel: 'Digestion',
+    conceptRef: refFor('intake.systems.digestive.stool_form'),
+    answerType: TYPE_OF('v2.digestion.stool_form'),
+    fieldIds: ['intake.systems.digestive.stool_form'],
     captureOwner: 'client',
-    provenance: 'client_reported',
-    status: 'UNMAPPED',
+    writeRule:
+      'Selected form stored verbatim as the approved option label ("Smooth and soft"). The ' +
+      'picture-scale interaction is a presentation of the same options when the intake UX reaches ' +
+      'that stage; it must not introduce a numeric scale into the stored value.',
+    provenance: 'client_reported; practitioner_verified once confirmed in consultation',
+    status: 'NEEDS_REVIEW',
     rationale:
-      'No stool-form field exists anywhere in the registry, and none of the systems bundle ' +
-      'fields carries an ordinal scale. There is nothing to map to.',
-    gap: 'Needs a new canonical field for stool form. Registry decision.',
-    proposedBy: 'none',
+      'Field authorised by the Founder. Nothing in the registry previously held stool form, so no ' +
+      'existing field could take it without changing its meaning.',
+    gap: 'Awaiting Founder approval of the MAPPING.',
+    proposedBy: 'founder_authorised_field',
   },
 
   // ── Energy, hormones & metabolism ─────────────────────────────────────────
   {
     questionId: 'v2.energy.noticed',
+    displayedQuestion: VERBATIM('v2.energy.noticed'),
     section: 'energy_metabolic',
-    conceptId: conceptForField('intake.systems.energy_endocrine.symptoms')?.id ?? null,
+    productLabel: 'Energy & metabolism',
+    conceptRef: refFor('intake.systems.energy_endocrine.symptoms'),
+    answerType: TYPE_OF('v2.energy.noticed'),
     fieldIds: ['intake.systems.energy_endocrine.symptoms'],
     captureOwner: 'client',
     writeRule:
-      'As for digestion: verbatim value list; "None of these" writes .none_reported; red-flag ' +
-      'selections also raise a safety item without altering the stored list.',
-    provenance: 'client_reported, or practitioner_verified once confirmed in consultation',
+      'As for digestion: verbatim value list; "None of these" writes .none_reported. ' +
+      '"Weight going down without trying" stays in this list AND makes Annex Rule 26 relevant — ' +
+      'it does NOT answer it, because Rule 26 needs a quantity and a timeframe this chip has not got.',
+    provenance: 'client_reported; practitioner_verified once confirmed in consultation',
     status: 'NEEDS_REVIEW',
     rationale:
-      'Section "energy_metabolic" maps to system key "energy_endocrine" — the names differ ' +
-      'substantially, and "metabolism" and "endocrine" are not synonyms. This is the least ' +
-      'obvious of the three translations and most needs a human decision.',
-    gap: 'Awaiting Founder approval. No canonical write until APPROVED.',
+      'The riskiest destination in the pack. energy_endocrine is right for the systems BUNDLE, but ' +
+      'this question mixes energy, appetite, thirst, urinary frequency, weight and thyroid in one ' +
+      'chip list, and Annex 1 files unexplained weight loss under "URINARY & METABOLIC". A reviewer ' +
+      'should decide whether the whole list belongs in one endocrine field or whether some values ' +
+      'need their own destinations.',
+    gap: 'Awaiting Founder approval. Destination genuinely in doubt for part of the option list.',
     proposedBy: 'explicit_registry_metadata',
   },
 
   // ── Sleep ─────────────────────────────────────────────────────────────────
   {
     questionId: 'v2.sleep.noticed',
+    displayedQuestion: VERBATIM('v2.sleep.noticed'),
     section: 'sleep',
-    conceptId: conceptForField('intake.systems.sleep.symptoms')?.id ?? null,
+    productLabel: 'Sleep',
+    conceptRef: refFor('intake.systems.sleep.symptoms'),
+    answerType: TYPE_OF('v2.sleep.noticed'),
     fieldIds: ['intake.systems.sleep.symptoms'],
     captureOwner: 'client',
     writeRule:
-      'As for digestion. Note the two night-sweats options are distinct values — "Night sweats" ' +
-      'and "Night sweats that soak the bedding" — and only the second is an approved red flag. ' +
-      'They must not be merged.',
-    provenance: 'client_reported, or practitioner_verified once confirmed in consultation',
+      'Verbatim value list. The two night-sweats options — "Night sweats" and "Night sweats that ' +
+      'soak the bedding" — are DISTINCT values and must never be merged; only the second is a ' +
+      'safety value. "None of these" writes .none_reported.',
+    provenance: 'client_reported; practitioner_verified once confirmed in consultation',
     status: 'NEEDS_REVIEW',
     rationale:
-      'Section and system key agree here ("sleep"), so the destination is not in doubt. It is ' +
-      'NEEDS_REVIEW rather than CANDIDATE because of the night-sweats distinction: a mapping ' +
-      'that collapsed the two values would destroy the red flag.',
+      'Section and canonical key agree, so the destination is not in doubt. NEEDS_REVIEW because a ' +
+      'mapping that collapsed the two night-sweats values would destroy a safety signal.',
+    gap: 'Awaiting Founder approval. No canonical write until APPROVED.',
     proposedBy: 'explicit_registry_metadata',
   },
   {
     questionId: 'v2.sleep.hours',
+    displayedQuestion: VERBATIM('v2.sleep.hours'),
     section: 'sleep',
-    conceptId: null,
-    fieldIds: [],
+    productLabel: 'Sleep',
+    conceptRef: refFor('intake.systems.sleep.typical_sleep_duration_hours'),
+    answerType: TYPE_OF('v2.sleep.hours'),
+    fieldIds: ['intake.systems.sleep.typical_sleep_duration_hours'],
     captureOwner: 'client',
-    provenance: 'client_reported',
-    status: 'UNMAPPED',
+    writeRule:
+      'Selected band stored verbatim as the approved option label ("5–6", "It varies wildly"). ' +
+      '"It varies wildly" is a real answer and must be stored as given, not discarded for being ' +
+      'non-numeric and not averaged into a number.',
+    provenance: 'client_reported; practitioner_verified once confirmed in consultation',
+    status: 'NEEDS_REVIEW',
     rationale:
-      'No sleep-duration field exists. intake.systems.sleep.frequency is symptom frequency, not ' +
-      'hours slept, and the banded options ("Under 5", "It varies wildly") do not fit it.',
-    gap: 'Needs a new canonical field for typical sleep duration. Registry decision.',
-    proposedBy: 'none',
+      'Field authorised by the Founder. It must NOT overload intake.systems.sleep.frequency, which ' +
+      'is symptom frequency and whose option set does not fit banded hours.',
+    gap: 'Awaiting Founder approval of the MAPPING.',
+    proposedBy: 'founder_authorised_field',
   },
 ] as const)
 
@@ -219,19 +261,22 @@ export function mappingFor(questionId: string): MappingEntry | undefined {
 /**
  * May this question's answer be written to a canonical field?
  *
- * The single gate. Fail-closed: an unknown question, a missing mapping, a
- * non-APPROVED status and an empty destination all answer false. There is no
- * override argument, and no caller can pass one.
+ * The single gate. Fail-closed: unknown question, missing mapping,
+ * non-APPROVED status, empty destination, missing field, or a concept
+ * reference that is not semantically complete all answer false. No override
+ * argument exists, and no caller can pass one.
  */
 export function canPersistCanonically(questionId: string): boolean {
   const m = mappingFor(questionId)
   if (!m) return false
   if (!PERSISTABLE_STATUSES.includes(m.status)) return false
   if (m.fieldIds.length === 0) return false
-  return m.fieldIds.every(fieldExists)
+  if (!m.fieldIds.every(fieldExists)) return false
+  // A mapping whose concept reference is incomplete is not safe to write:
+  // downstream grouping would lose which system it belongs to.
+  return m.conceptRef !== null
 }
 
-/** Why a write is blocked, in words a reviewer can act on. */
 export function persistenceBlockReason(questionId: string): string | null {
   const m = mappingFor(questionId)
   if (!m) return `No mapping entry exists for ${questionId}.`
@@ -242,32 +287,42 @@ export function persistenceBlockReason(questionId: string): string | null {
   }
   if (m.fieldIds.length === 0) return 'Mapping is APPROVED but names no destination field.'
   const missing = m.fieldIds.filter((f) => !fieldExists(f))
-  return missing.length > 0 ? `Destination field does not exist: ${missing.join(', ')}.` : null
+  if (missing.length > 0) return `Destination field does not exist: ${missing.join(', ')}.`
+  if (m.conceptRef === null) return 'Concept reference is incomplete — no variant resolved.'
+  return null
 }
 
 /**
  * Propose a candidate by name similarity.
  *
- * Returns CANDIDATE at best, never APPROVED — the return type makes that
- * unrepresentable. Offered so the review pack can be extended without
- * hand-writing every row, not so mappings can be generated and trusted.
+ * CANDIDATE at best. Offered so the pack can be extended without hand-writing
+ * every row — NOT so a destination can be derived from a section label. The
+ * returned rationale says so, and §5's translation table is a record, not a
+ * rule this function is permitted to apply silently.
  */
 export function proposeCandidate(questionId: string): MappingEntry | null {
   const q = pilotQuestionById(questionId)
   if (!q) return null
-  const systemKey = SYSTEM_KEY_BY_SECTION[q.section as PilotSectionId]
-  const guess = `intake.systems.${systemKey}.symptoms`
+  const key = canonicalKeyFor(q.section as PilotSectionId)
+  const guess = `intake.systems.${key}.symptoms`
   if (!fieldExists(guess)) return null
   return {
     questionId,
+    displayedQuestion: q.label,
     section: q.section as PilotSectionId,
-    conceptId: conceptForField(guess)?.id ?? null,
+    productLabel: PRODUCT_TO_CANONICAL.find((t) => t.productSection === q.section)!.productLabel,
+    conceptRef: refFor(guess),
+    answerType: q.type,
     fieldIds: [guess],
     captureOwner: 'client',
+    writeRule: 'Not determined — a candidate has no agreed write rule.',
     provenance: 'client_reported',
     status: 'CANDIDATE',
-    rationale: `Proposed by name similarity from section "${q.section}" to system key "${systemKey}". Not reviewed.`,
-    gap: 'A candidate is a suggestion, not a mapping. Needs human review before it means anything.',
+    rationale:
+      `Proposed from the product-to-canonical translation (${q.section} → ${key}). That table is ` +
+      'a record of an explicit mapping, NOT a synonym rule — this proposal must be checked ' +
+      'question by question before it means anything.',
+    gap: 'A candidate is a suggestion, not a mapping.',
     proposedBy: 'name_similarity',
   }
 }
@@ -276,11 +331,11 @@ export interface MappingPackSummary {
   total: number
   byStatus: Record<MappingStatus, number>
   approved: number
-  /** True while nothing in the pilot may be persisted canonically. */
   allWritesBlocked: boolean
-  /** Questions needing a brand-new canonical field. */
   needNewField: string[]
   sections: PilotSectionId[]
+  /** Entries whose concept reference carries a variant. */
+  withVariant: number
 }
 
 export function summariseMappingPack(): MappingPackSummary {
@@ -295,10 +350,31 @@ export function summariseMappingPack(): MappingPackSummary {
     allWritesBlocked: PILOT_MAPPING_PACK.every((m) => !canPersistCanonically(m.questionId)),
     needNewField: PILOT_MAPPING_PACK.filter((m) => m.status === 'UNMAPPED').map((m) => m.questionId),
     sections: [...PILOT_SECTION_IDS],
+    withVariant: PILOT_MAPPING_PACK.filter((m) => m.conceptRef?.variant).length,
   }
 }
 
-/** Every pilot question has a pack entry — so nothing is silently absent. */
 export function unmappedPilotQuestions(): string[] {
   return pilotQuestions().map((q) => q.id).filter((id) => !mappingFor(id))
 }
+
+/** Pack rows for review, with the variant spelled out. */
+export function mappingPackRows(): Array<Record<string, string>> {
+  return PILOT_MAPPING_PACK.map((m) => ({
+    questionId: m.questionId,
+    displayedQuestion: m.displayedQuestion,
+    section: `${m.productLabel} (${m.section})`,
+    conceptId: m.conceptRef?.conceptId ?? '—',
+    conceptVariant: m.conceptRef?.variant ?? '—',
+    conceptReference: m.conceptRef ? describeConceptReference(m.conceptRef) : '—',
+    fieldIds: m.fieldIds.join(', ') || '—',
+    answerType: m.answerType,
+    writeRule: m.writeRule,
+    captureOwner: m.captureOwner,
+    provenance: m.provenance,
+    rationale: m.rationale,
+    status: m.status,
+  }))
+}
+
+export { PILOT_SECTION_IDS }

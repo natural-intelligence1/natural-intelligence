@@ -30,12 +30,16 @@ import {
 import {
   isBranchSufficient, outstandingTargets, type CaptureState,
 } from './capture'
-import { openItemsInSection, openItemsElsewhere, type CockpitSafetyItem } from './safetyLinks'
+import {
+  openItemsInSection, openItemsElsewhere, buildSafetyNodes, nodesForSection,
+  type CockpitSafetyItem, type SafetyNode,
+} from './safetyLinks'
 import {
   pilotQuestions, pilotQuestionById, pilotStreamTitle,
   PILOT_SECTION_IDS, type PilotSectionId,
 } from './pilot'
 import { mappingFor } from './mappingPack'
+import { annexRulesLinkedToQuestion } from './annex1'
 
 /** The approved blocks, in display order. */
 export const GUIDANCE_BLOCKS = [
@@ -148,6 +152,9 @@ export function buildGuidancePanel(args: {
   focusQuestionId?: string | null
   state: CaptureState
   safetyItems?: readonly CockpitSafetyItem[]
+  /** The Annex 1 nodes for this case. Built here if not supplied, so the
+   *  guide can always say which approved questions are still unasked. */
+  safetyNodes?: readonly SafetyNode[]
   callSheet?: CallSheet | null
   isStudent?: boolean
 }): GuidancePanel {
@@ -216,23 +223,32 @@ export function buildGuidancePanel(args: {
   }
   push('explore', exploreLines)
 
-  // ── Don't miss — approved red-flag questions in THIS section not yet asked.
-  const dontMiss = pilotQuestions(section)
-    .filter((q) => (q.safetyOptions?.length ?? 0) > 0)
-    .filter((q) => state.answers[q.id] === undefined)
-    .map((q) => line(
-      `Not yet asked: “${q.label}”. It carries approved safety screening.`,
-      'approved_question_metadata', q.id,
-    ))
-  push('dont_miss', dontMiss)
+  // ── Don't miss — APPROVED ANNEX 1 questions not yet answered here.
+  //
+  // The approved wording is shown VERBATIM, because that is the question the
+  // practitioner is being asked to put. A paraphrase in this block would be a
+  // different question reaching the client.
+  const nodes = args.safetyNodes
+    ?? buildSafetyNodes({ caseId: 'guide', answers: Object.values(state.answers)
+        .map((a) => ({ questionId: a.questionId, value: a.value, capturedAt: a.at })) })
+  const sectionNodes = nodesForSection(nodes, section)
+
+  push('dont_miss', sectionNodes
+    .filter((n) => n.state !== 'answered')
+    .map((n) => line(
+      n.state === 'relevant_unasked'
+        ? `Relevant now — ask: “${n.approvedQuestion}” (${n.relevanceReason})`
+        : `Not yet asked: “${n.approvedQuestion}”`,
+      'approved_question_metadata', n.ruleId,
+    )))
 
   // ── Relevant now · safety screening — items raised in this section.
   const here = openItemsInSection(safetyItems, section)
   push('relevant_now_safety', here.map((i) => line(
-    i.matchedOptions.length > 0
-      ? `Reported: ${i.matchedOptions.join('; ')}. Awaiting human review.`
-      : `Answered “not sure” to “${i.questionLabel}”. Awaiting human review.`,
-    'approved_question_metadata', i.questionId,
+    i.annexRuleNumber !== null
+      ? `Annex rule ${i.annexRuleNumber} · notice ${i.notice} · ${i.matchedOptions.join('; ') || 'answered'}. Awaiting human review.`
+      : `Reported: ${i.matchedOptions.join('; ') || i.rawAnswer.join('; ')}. Awaiting human review — no Annex rule supplied for this value.`,
+    'approved_question_metadata', i.annexRuleId ?? i.questionId ?? undefined,
   )))
 
   // ── Still to cover — this section, then elsewhere, clearly separated.
@@ -281,6 +297,7 @@ export function orient(args: {
   section: PilotSectionId
   state: CaptureState
   safetyItems?: readonly CockpitSafetyItem[]
+  safetyNodes?: readonly SafetyNode[]
 }): PractitionerOrientation {
   const { section, state } = args
   const safetyItems = args.safetyItems ?? []
@@ -299,8 +316,14 @@ export function orient(args: {
     }
   }
 
-  const unaskedRedFlag = pilotQuestions(section)
-    .find((q) => (q.safetyOptions?.length ?? 0) > 0 && state.answers[q.id] === undefined)
+  // An approved Annex question still unanswered in this section. Relevance
+  // first — a rule a client's answer has already made relevant is the one
+  // most at risk of being walked past.
+  const orientNodes = args.safetyNodes
+    ?? buildSafetyNodes({ caseId: 'orient', answers: Object.values(state.answers)
+        .map((a) => ({ questionId: a.questionId, value: a.value, capturedAt: a.at })) })
+  const unanswered = nodesForSection(orientNodes, section).filter((n) => n.state !== 'answered')
+  const unaskedNode = unanswered.find((n) => n.state === 'relevant_unasked') ?? unanswered[0]
 
   const openHere = openItemsInSection(safetyItems, section).length
   const openElse = openItemsElsewhere(safetyItems, section).length
@@ -315,8 +338,10 @@ export function orient(args: {
   return {
     whatShouldIAskNow: nextUnanswered?.label ?? null,
     whatShouldIExploreNext: exploreNext,
-    whatMustINotOverlook: unaskedRedFlag
-      ? `“${unaskedRedFlag.label}” carries approved safety screening and has not been asked.`
+    whatMustINotOverlook: unaskedNode
+      ? (unaskedNode.state === 'relevant_unasked'
+          ? `${unaskedNode.relevanceReason}. Approved safety question not yet asked: “${unaskedNode.approvedQuestion}”`
+          : `Approved safety question not yet asked: “${unaskedNode.approvedQuestion}”`)
       : null,
     whatStillNeedsRecordingOrReview: needs.length > 0 ? needs.join(' · ') : null,
   }
@@ -326,7 +351,7 @@ export function orient(args: {
 
 export interface NodeDetails {
   questionId: string
-  conceptId: string | null
+  conceptRef: import("./conceptReference").ConceptReference | null
   fieldIds: string[]
   mappingStatus: string
   captureOwner: string | null
@@ -335,7 +360,8 @@ export interface NodeDetails {
   edges: Array<{ id: string; trigger: string[]; reviewStatus: string; safetyLinked: boolean; targets: number }>
   /** Approved red-flag values on this question, verbatim. */
   redFlagValues: string[]
-  annexRuleId: null
+  /** Annex rules this question can touch. Empty where no rule was supplied. */
+  annexRuleIds: string[]
   callSheetLinked: boolean
   samd: string
   /** True while the answer cannot reach a canonical field. */
@@ -358,7 +384,7 @@ export function nodeDetails(questionId: string, state?: CaptureState): NodeDetai
 
   return {
     questionId,
-    conceptId: m?.conceptId ?? null,
+    conceptRef: m?.conceptRef ?? null,
     fieldIds: m?.fieldIds ?? [],
     mappingStatus: m?.status ?? 'UNMAPPED',
     captureOwner: m?.captureOwner ?? null,
@@ -371,7 +397,7 @@ export function nodeDetails(questionId: string, state?: CaptureState): NodeDetai
       targets: orderedTargets(e).length,
     })),
     redFlagValues: [...(q.safetyOptions ?? [])],
-    annexRuleId: null,
+    annexRuleIds: annexRulesLinkedToQuestion(questionId).map((r) => r.id),
     callSheetLinked: false,
     samd: q.samd,
     writeBlocked: captured ? captured.canonicalWriteBlocked : true,

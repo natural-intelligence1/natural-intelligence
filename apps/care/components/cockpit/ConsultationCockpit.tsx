@@ -19,21 +19,25 @@ import {
   newCaptureState, recordAnswer, recordBranchDetail, reopenBranch,
   markBranchNoLongerRelevant, edgeFor, studentDrafts,
   // derived
-  deriveCockpitSafetyItems, buildGuidancePanel, orient, nodeDetails,
+  deriveCockpitSafetyItems, buildSafetyNodes, nodesForSection,
+  buildGuidancePanel, orient, nodeDetails,
   sectionStatus, caseWideSafetyStatus, finishSectionGate, finishSection,
   summariseMappingPack, summarisePilot, ANNEX_1_STATUS,
+  annexNodeInventory, unsuppliedSafetyValues,
   pilotQuestions, pilotStreamTitle, PILOT_SECTION_IDS,
   submitForSupervision, can,
   // timer
   newTimer, startTimer, pauseTimer, resumeTimer, completeTimer,
   type CaptureActor, type CaptureState, type PilotSectionId,
-  type OverrunReason, type TimerSession,
+  type OverrunReason, type TimerSession, type SafetyNodeAnswer,
+  type AnnexAnswer, type WeightLossDetail,
 } from '@natural-intelligence/db/cockpit'
 import type { V2Provenance } from '@natural-intelligence/db/intakeV2'
 import { T, FONT_DISPLAY } from '@/components/workspace/caseTheme'
 import { CockpitChrome } from './CockpitChrome'
 import { GuidePane } from './GuidePane'
 import { CapturePane } from './CapturePane'
+import { SafetyNodePanel } from './SafetyNodePanel'
 import { NodeDetailsPanel } from './NodeDetailsPanel'
 
 const PRACTITIONER: CaptureActor = {
@@ -62,27 +66,38 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
   const [detailsFor, setDetailsFor] = useState<string | null>(null)
   const [timer, setTimer] = useState<TimerSession>(() => newTimer(45))
   const [handover, setHandover] = useState<string | null>(null)
+  /** Answers given directly to approved Annex questions, keyed by rule id. */
+  const [nodeAnswers, setNodeAnswers] = useState<Record<string, SafetyNodeAnswer>>({})
 
   const actor = asStudent ? STUDENT : PRACTITIONER
   const questions = useMemo(() => pilotQuestions(section), [section])
 
   // Everything below is DERIVED from capture state on each render. No second
   // copy of the truth is kept, so the panes cannot drift from each other.
+  const answerInputs = useMemo(() => Object.values(state.answers).map((a) => ({
+    questionId: a.questionId, value: a.value, capturedAt: a.at,
+  })), [state.answers])
+
+  /** The Annex 1 nodes. One per approved rule, always present. */
+  const safetyNodes = useMemo(() => buildSafetyNodes({
+    caseId, answers: answerInputs, nodeAnswers,
+  }), [caseId, answerInputs, nodeAnswers])
+
   const safetyItems = useMemo(() => deriveCockpitSafetyItems({
-    caseId,
-    at: now(),
-    answers: Object.values(state.answers).map((a) => ({
-      questionId: a.questionId, value: a.value, capturedAt: a.at,
-    })),
-  }), [caseId, state.answers])
+    caseId, at: now(), answers: answerInputs, nodeAnswers,
+  }), [caseId, answerInputs, nodeAnswers])
+
+  const sectionNodes = useMemo(() => nodesForSection(safetyNodes, section), [safetyNodes, section])
 
   const sStatus = useMemo(() => sectionStatus(state, section, safetyItems), [state, section, safetyItems])
   const caseWide = useMemo(() => caseWideSafetyStatus(state, section, safetyItems), [state, section, safetyItems])
   const gate = useMemo(() => finishSectionGate(state, section, safetyItems), [state, section, safetyItems])
   const panel = useMemo(() => buildGuidancePanel({
-    section, focusQuestionId, state, safetyItems, isStudent: asStudent,
-  }), [section, focusQuestionId, state, safetyItems, asStudent])
-  const orientation = useMemo(() => orient({ section, state, safetyItems }), [section, state, safetyItems])
+    section, focusQuestionId, state, safetyItems, safetyNodes, isStudent: asStudent,
+  }), [section, focusQuestionId, state, safetyItems, safetyNodes, asStudent])
+  const orientation = useMemo(() => orient({
+    section, state, safetyItems, safetyNodes,
+  }), [section, state, safetyItems, safetyNodes])
   const details = useMemo(() => (detailsFor ? nodeDetails(detailsFor, state) : null), [detailsFor, state])
 
   const mapping = summariseMappingPack()
@@ -92,6 +107,36 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
   const onAnswer = (questionId: string, value: unknown, provenance: V2Provenance) => {
     if (!can(actor, 'capture_client_answer').allowed) return
     setState((s) => recordAnswer(s, { questionId, value, provenance, at: now(), actor }))
+  }
+
+  /** Answer an approved Annex question. The wording is fixed; only the
+   *  answer is ours to record. */
+  const onNodeAnswer = (ruleId: string, answer: AnnexAnswer) => {
+    if (!can(actor, 'ask_safety_question').allowed) return
+    setNodeAnswers((prev) => ({
+      ...prev,
+      [ruleId]: {
+        ...prev[ruleId],
+        answer, at: now(), actorId: actor.id, actorDisplayName: actor.displayName,
+        via: 'approved_question',
+      },
+    }))
+  }
+
+  const onNodeFollowUp = (ruleId: string, followUpId: string, value: string) => {
+    setNodeAnswers((prev) => {
+      const existing = prev[ruleId]
+      if (!existing) return prev   // detail without an answer is not a record
+      return { ...prev, [ruleId]: { ...existing, followUp: { ...existing.followUp, [followUpId]: value } } }
+    })
+  }
+
+  const onNodeWeightLoss = (ruleId: string, detail: WeightLossDetail) => {
+    setNodeAnswers((prev) => {
+      const existing = prev[ruleId]
+      if (!existing) return prev
+      return { ...prev, [ruleId]: { ...existing, weightLoss: { ...existing.weightLoss, ...detail } } }
+    })
   }
 
   const onComplete = (overrun?: { reason: OverrunReason; note?: string }) => {
@@ -126,9 +171,12 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
           clears it. Fictional case; no real client data.
         </p>
         <p style={{ fontSize: '11.5px', color: T.goldInk, margin: '7px 0 0', lineHeight: 1.5 }}>
-          Safety screening uses the approved <code>safetyOptions</code> metadata already in the
-          repository. Annex 1 and Rules 7 / 9 / 26 are <strong>not in the repository</strong> and
-          nothing has been invented in their place — every review item records a null Annex rule.
+          Safety screening is governed by <strong>{ANNEX_1_STATUS.source}</strong> —{' '}
+          {ANNEX_1_STATUS.validationStatus}. Rules{' '}
+          {ANNEX_1_STATUS.rulesSuppliedForPilot.join(', ')} of {ANNEX_1_STATUS.approvedRuleCount} are
+          in this pilot, each as its own question node with the approved wording. Registry{' '}
+          <code>safetyOptions</code> are not the wording authority: they establish relevance, and
+          carry the safety values whose Annex rule has not been supplied yet.
         </p>
       </div>
 
@@ -192,6 +240,18 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
       >
         <GuidePane panel={panel} orientation={orientation} reviewMode={reviewMode} />
 
+        <div>
+          {/* Approved Annex 1 questions, above the symptom capture: they are
+              their own nodes, not chips inside it. */}
+          <SafetyNodePanel
+            nodes={sectionNodes}
+            actor={actor}
+            reviewMode={reviewMode}
+            onAnswer={onNodeAnswer}
+            onFollowUp={onNodeFollowUp}
+            onWeightLoss={onNodeWeightLoss}
+          />
+
         <CapturePane
           questions={questions}
           state={state}
@@ -214,6 +274,7 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
           onFinish={() => setState((s) => finishSection(s, section, safetyItems).state)}
           onNodeDetails={(questionId) => setDetailsFor(questionId)}
         />
+        </div>
       </div>
 
       {reviewMode && (
@@ -223,6 +284,8 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
           pilot={pilot}
           mapping={mapping}
           annex={ANNEX_1_STATUS}
+          annexNodes={annexNodeInventory()}
+          unsupplied={unsuppliedSafetyValues()}
         />
       )}
 

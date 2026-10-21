@@ -7,7 +7,7 @@
 //
 //   · 115 questions (V2_QUESTIONS), ids like 'v2.about.dob', whose answers
 //     are persisted keyed by question_id;
-//   · 384 canonical fields (V2_FIELD_REGISTRY), ids like 'profile.dob',
+//   · 387 canonical fields (V2_FIELD_REGISTRY), ids like 'profile.dob',
 //     used for synopsis layout and care-team scoping.
 //
 // V2QuestionDef has no fieldId and nothing in the codebase translates between

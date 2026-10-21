@@ -7,7 +7,7 @@
 //     fail, and if they do something is genuinely broken.
 //
 //   · POSITION tests record what is currently true and incomplete — that no
-//     bridge mapping exists, that 384 fields carry no lawful basis. They are
+//     bridge mapping exists, that 387 fields carry no lawful basis. They are
 //     written to FAIL when the position improves, so that closing a gap
 //     forces someone to come here and acknowledge it rather than letting it
 //     pass silently. Each says so where it could otherwise look like a bug.
@@ -47,7 +47,7 @@ describe('concept layer', () => {
 
   it('collapses fewer concepts than fields — the point of the layer', () => {
     const s = summariseConceptLayer()
-    expect(s.registryFields).toBe(384)
+    expect(s.registryFields).toBe(387)
     expect(s.concepts).toBeLessThan(s.registryFields)
   })
 
@@ -60,9 +60,31 @@ describe('concept layer', () => {
   })
 
   it('collapses the systems review to its aspects, not its systems', () => {
+    // The five GENERIC aspects are asked of every system, so each spans all
+    // twelve variants.
     const systems = CONCEPT_LAYER.filter((c) => c.domain === 'systems')
-    expect(systems.length).toBe(5)
-    expect(systems.every((c) => c.variants.length === 12)).toBe(true)
+    const generic = systems.filter((c) => c.variants.length === 12)
+    expect(generic.map((c) => c.id).sort()).toEqual([
+      'intake.systems.*.free_text',
+      'intake.systems.*.frequency',
+      'intake.systems.*.missing_prompt',
+      'intake.systems.*.none_reported',
+      'intake.systems.*.symptoms',
+    ])
+  })
+
+  it('keeps system-SPECIFIC aspects to the systems they belong to', () => {
+    // Three facts the generic bundle cannot hold, added for the Cockpit V2
+    // pilot. Cloning them across twelve systems would invent 33 meaningless
+    // fields — stool form has no reading in the respiratory system — so each
+    // carries exactly the variant it applies to.
+    const specific = CONCEPT_LAYER
+      .filter((c) => c.domain === 'systems' && c.variants.length < 12)
+    expect(specific.map((c) => [c.id, c.variants]).sort()).toEqual([
+      ['intake.systems.*.bowel_frequency', ['digestive']],
+      ['intake.systems.*.stool_form', ['digestive']],
+      ['intake.systems.*.typical_sleep_duration_hours', ['sleep']],
+    ])
   })
 
   it('separates capture-state records from things a person is asked', () => {
@@ -190,14 +212,14 @@ describe('graph edges', () => {
 
 describe('governance metadata', () => {
   it('reports the gap rather than hiding it', () => {
-    // POSITION TEST. All four requirements are missing on all 384 fields.
+    // POSITION TEST. All four requirements are missing on all 387 fields.
     // This test exists so that no one can make validation pass by supplying
     // a default lawful basis in code.
     const s = summariseGovernance()
     expect(s.complete).toBe(false)
-    expect(s.fieldsWithAnyGap).toBe(384)
+    expect(s.fieldsWithAnyGap).toBe(387)
     for (const req of GOVERNANCE_REQUIREMENTS) {
-      expect(s.fieldsMissingByRequirement[req]).toBe(384)
+      expect(s.fieldsMissingByRequirement[req]).toBe(387)
     }
   })
 

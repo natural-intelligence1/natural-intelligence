@@ -1,60 +1,51 @@
 // ─── packages/db/src/cockpit/safetyLinks.ts ─────────────────────────────────
-// Red-flag answer → NEEDS HUMAN REVIEW, and the stream linkage around it.
+// Approved Annex 1 safety questions as EXPLICIT ASK-ONCE NODES.
 //
-// ── ANNEX 1 IS NOT IN THIS REPOSITORY ───────────────────────────────────────
+// ── THE CORRECTION THIS FILE CARRIES ────────────────────────────────────────
 //
-// The mission specifies Annex 1 wording and Rule 7 / Rule 9 / Rule 26
-// behaviour. Neither Annex 1 nor those rules exist anywhere in the repo — the
-// only reference is one line in docs/planning/connected-care-v4-delta-map.md
-// saying "36 items on the current NI sheet map to Annex 1", pointing at an
-// approved reply document held outside version control.
+// Previously the pilot derived red flags from the registry's `safetyOptions`
+// chips. That proved the mechanics and was never the clinical authority. An
+// approved Annex rule is now its own node: verbatim approved wording, a
+// YES / NO / NOT SURE primary answer, and structured factual follow-up.
 //
-// So this module does NOT invent safety wording or rule identifiers.
-// Fabricating clinical safety content would be the worst possible thing to
-// invent here.
+// A system multi-select may establish relevance, prevent a duplicate ask, or
+// satisfy the fact where it genuinely answers it. It may never substitute
+// different wording or semantics — see annex1.ts for the per-link reasoning.
 //
-// What it DOES implement is the locked BEHAVIOUR from the brief, over the
-// safety content that IS approved and present: the clinician-owned
-// `safetyOptions` metadata on the approved registry questions, derived through
-// the existing `deriveV2SafetyReviewItems` and recorded through the existing
-// `safetyWorkflow`. Neither is reimplemented here.
+// ONE FACT, MANY STREAMS. A node is answered once and linked to every stream
+// Annex 1 names. Answering it in Digestion answers it everywhere.
 //
-// Every item carries `annexRuleId: null` and `annexStatus: 'awaiting_annex_1'`
-// so the rule linkage drops in when Annex 1 arrives.
+// ── SAFETY SIGNALS WITHOUT A SUPPLIED ANNEX RULE ────────────────────────────
 //
-// ── TWO THINGS THE FOUNDER SHOULD KNOW ──────────────────────────────────────
-//
-// 1. The locked rule is "YES or NOT SURE on an approved red-flag question →
-//    NEEDS HUMAN REVIEW". None of the three pilot red-flag questions is a
-//    yes/no/not-sure question — all three are multi-select chip questions. The
-//    rule is implemented in its general form: selecting an approved red-flag
-//    value raises review, AND an uncertain answer to a question that carries
-//    red flags raises review. The literal Yes/Not-sure shape lives at
-//    `v2.mood.safety` (Mood & stress), outside the pilot domains.
-//
-// 2. `deriveV2SafetyReviewItems` matches `safetyOptions` only, so it does not
-//    catch the uncertain-answer case. That is handled as a second, clearly
-//    separated pass here, with `matchedOptions: []` because nothing matched —
-//    which is the truthful value, not a workaround.
+// Three pilot rules were supplied out of Annex 1's 37. Other registry
+// `safetyOptions` values — "Difficulty swallowing", "A change in your usual
+// bowel habit", "Night sweats that soak the bedding", "Swelling at the front
+// of the neck" — have no supplied rule. They are NOT dropped: losing a safety
+// signal is worse than carrying an unlabelled one. They still raise review,
+// marked `annexStatus: 'rule_not_supplied_for_pilot'` so nobody mistakes them
+// for approved Annex wording.
 
-import {
-  deriveV2SafetyReviewItems, type V2SafetyReviewItem,
-} from '../intakeV2/synopsisMapping'
 import {
   raiseSafetyItem, isOpen as workflowIsOpen, type SafetyReviewRecord,
 } from '../intakeV2/safetyWorkflow'
+import type { V2SafetyReviewItem } from '../intakeV2/synopsisMapping'
+import {
+  ANNEX_1_PILOT_RULES, ANNEX_FOLLOW_UPS, annexRuleById, annexRulesForSection,
+  linkFromSelection, answerTriggersReview, rule26Threshold,
+  type AnnexRule, type AnnexAnswer, type AnnexNotice, type WeightLossDetail,
+  type ThresholdState,
+} from './annex1'
 import { pilotQuestionById, pilotRedFlagQuestions, type PilotSectionId } from './pilot'
 
 export const ANNEX_1_STATUS = {
-  present: false,
-  whatIsMissing: ['Annex 1 approved wording', 'Rule 7', 'Rule 9', 'Rule 26'],
-  onlyReferenceInRepo:
-    'docs/planning/connected-care-v4-delta-map.md — "36 items on the current NI sheet map to Annex 1"',
-  approvedContentUsedInstead:
-    'safetyOptions metadata on the approved V2 registry questions — clinician-owned, already in the repo',
-  consequence:
-    'Red-flag BEHAVIOUR is implemented and demonstrable. Annex rule IDENTIFIERS and any Annex-specific ' +
-    'wording are absent, and no substitute has been written. Every review item carries a null annexRuleId.',
+  present: true,
+  source: 'NI Intake V4 — Clinical Validation Reply, 3 October 2026, Annex 1',
+  validationStatus: 'CLOSED — APPROVED WITH AMENDMENTS',
+  approvedRuleCount: 37,
+  rulesSuppliedForPilot: [7, 9, 26],
+  note:
+    'Registry safetyOptions are NOT the clinical wording authority. They remain in use only as ' +
+    'relevance signals, and for safety values whose Annex rule was not supplied for this pilot.',
 } as const
 
 /** Answers meaning "I do not know". Never read as "No". */
@@ -63,149 +54,308 @@ export const UNCERTAIN_VALUES = ['Not sure', 'Sometimes', 'Unsure', "Don't know"
 export const DECLINED_VALUES = ['Prefer not to say'] as const
 
 export type RedFlagTriggerReason =
-  | 'red_flag_value_selected'
-  | 'uncertain_answer_to_red_flag_question'
+  /** The approved Annex question was answered YES (threshold met where one applies). */
+  | 'annex_question_yes'
+  /** The approved Annex question was answered NOT SURE. */
+  | 'annex_question_not_sure'
+  /** A system answer genuinely satisfied the approved question's YES. */
+  | 'system_answer_satisfied_yes'
+  /** A safety value with no Annex rule supplied for this pilot. */
+  | 'safety_value_without_supplied_rule'
 
-export interface CockpitSafetyItem {
+// ── The node ────────────────────────────────────────────────────────────────
+
+export type SafetyNodeState =
+  /** Not relevant yet, and not asked. */
+  | 'dormant'
+  /** A system answer made it relevant; the approved question is still unasked. */
+  | 'relevant_unasked'
+  /** Answered, by the approved question or by an equivalent system answer. */
+  | 'answered'
+
+export interface SafetyNodeAnswer {
+  answer: AnnexAnswer
+  at: string
+  actorId: string
+  actorDisplayName: string
+  /** How the answer arrived. A system-satisfied YES is marked as such so the
+   *  record never implies the approved question was read out when it was not. */
+  via: 'approved_question' | 'system_answer_equivalent'
+  /** The system option that satisfied it, where via is the second. */
+  viaOptionValue?: string
+  /** Structured follow-up, keyed by ANNEX_FOLLOW_UPS id. Detail only. */
+  followUp?: Record<string, string>
+  /** Rule 26 only. */
+  weightLoss?: WeightLossDetail
+}
+
+export interface SafetyNode {
+  /** Stable per case + rule. One fact, one node. */
   id: string
-  questionId: string
-  section: PilotSectionId
-  questionLabel: string
-  /** The approved option values that matched, verbatim. Empty for an
-   *  uncertain answer, because nothing matched. */
-  matchedOptions: string[]
-  /** Everything the client reported for that question, verbatim. */
-  rawAnswer: string[]
-  reason: RedFlagTriggerReason
-  /** Asked ONCE, linked to every relevant stream. A list because the rule is
-   *  one-to-many, even where the pilot yields one. */
+  ruleId: string
+  ruleNumber: number
+  topic: string
+  /** The approved question, verbatim. What the practitioner reads out. */
+  approvedQuestion: string
+  notice: AnnexNotice
+  /** Annex 1's stream names, verbatim. */
+  annexStreams: string[]
+  /** Pilot sections those streams fall within. Explicit translation. */
   linkedSections: PilotSectionId[]
-  /** The record from the existing workflow. Not reimplemented here. */
-  record: SafetyReviewRecord
-  annexRuleId: null
-  annexStatus: 'awaiting_annex_1'
-  /** Always false: follow-up detail never raises an item. Kept in the type so
-   *  the rule is visible, not merely absent. */
-  raisedByFollowUpDetail: false
+  state: SafetyNodeState
+  /** Why it became relevant, where it did. */
+  relevanceReason: string | null
+  answer: SafetyNodeAnswer | null
+  /** For a quantified rule. 'unknown' is fail-closed and raises review. */
+  threshold: ThresholdState | null
+  /** True while this node needs a human. */
+  needsHumanReview: boolean
+  triggerReason: RedFlagTriggerReason | null
 }
 
 export interface CockpitAnswerInput {
   questionId: string
-  /** A chip list, or a single select value. */
   value: unknown
   capturedAt?: string
 }
 
-const asList = (value: unknown): string[] =>
-  Array.isArray(value) ? value.map(String) : typeof value === 'string' ? [value] : []
+const asList = (v: unknown): string[] =>
+  Array.isArray(v) ? v.map(String) : typeof v === 'string' ? [v] : []
 
-/** Does this one value trigger human review for this question? */
-export function triggersHumanReview(questionId: string, value: string): RedFlagTriggerReason | null {
-  const q = pilotQuestionById(questionId)
-  if (!q) return null
-  if ((q.safetyOptions ?? []).includes(value)) return 'red_flag_value_selected'
-  const hasRedFlags = (q.safetyOptions?.length ?? 0) > 0
-  if (hasRedFlags && (UNCERTAIN_VALUES as readonly string[]).includes(value)) {
-    return 'uncertain_answer_to_red_flag_question'
-  }
-  return null
-}
-
-/**
- * Every section a red-flag question belongs to.
- *
- * Returns a LIST because a red-flag question is asked once and linked to every
- * relevant stream. In the pilot each sits in one section, but a caller that
- * assumed one would break the moment a shared red-flag question appears.
- */
-export function linkedSectionsFor(questionId: string): PilotSectionId[] {
-  const q = pilotQuestionById(questionId)
-  return q ? [q.section as PilotSectionId] : []
-}
-
-function wrap(
-  item: V2SafetyReviewItem, reason: RedFlagTriggerReason, caseId: string, at: string,
-): CockpitSafetyItem | null {
-  const q = pilotQuestionById(item.sourceQuestionId)
-  if (!q) return null
-  const id = `safety:${caseId}:${item.sourceQuestionId}`
+function emptyNode(rule: AnnexRule, caseId: string): SafetyNode {
   return {
-    id,
-    questionId: item.sourceQuestionId,
-    section: q.section as PilotSectionId,
-    questionLabel: item.questionLabel,
-    matchedOptions: item.matchedOptions,
-    rawAnswer: item.rawAnswer,
-    reason,
-    linkedSections: linkedSectionsFor(item.sourceQuestionId),
-    record: raiseSafetyItem({ id, caseId, item, at }),
-    annexRuleId: null,
-    annexStatus: 'awaiting_annex_1',
-    raisedByFollowUpDetail: false,
+    id: `safety:${caseId}:${rule.id}`,
+    ruleId: rule.id,
+    ruleNumber: rule.ruleNumber,
+    topic: rule.topic,
+    approvedQuestion: rule.approvedQuestion,
+    notice: rule.notice,
+    annexStreams: [...rule.askedOnceIn],
+    linkedSections: [...rule.pilotSections] as PilotSectionId[],
+    state: 'dormant',
+    relevanceReason: null,
+    answer: null,
+    threshold: rule.quantified ? 'unknown' : null,
+    needsHumanReview: false,
+    triggerReason: null,
   }
 }
 
 /**
- * Derive the case's safety review items from captured answers.
+ * Build every pilot safety node from the current answers.
  *
- * ONE ITEM PER QUESTION, carrying every matched red flag — which is what
- * "asked once" means in the record. Two passes:
+ * Pure and total: one node per supplied Annex rule, always, whatever has been
+ * answered. A node that is dormant is still present, which is what lets the
+ * guide say "not yet asked" rather than silently omitting it.
+ */
+export function buildSafetyNodes(args: {
+  caseId: string
+  answers: readonly CockpitAnswerInput[]
+  /** Answers given directly to approved safety questions, keyed by rule id. */
+  nodeAnswers?: Readonly<Record<string, SafetyNodeAnswer>>
+}): SafetyNode[] {
+  return ANNEX_1_PILOT_RULES.map((rule) => {
+    const node = emptyNode(rule, args.caseId)
+    const direct = args.nodeAnswers?.[rule.id]
+
+    // 1. A direct answer to the approved question always wins.
+    if (direct) {
+      const threshold = rule.quantified ? rule26Threshold(direct.weightLoss) : null
+      const triggers = answerTriggersReview(rule, direct.answer, direct.weightLoss)
+      return {
+        ...node,
+        state: 'answered',
+        answer: direct,
+        threshold,
+        needsHumanReview: triggers,
+        triggerReason: triggers
+          ? (direct.answer === 'NOT_SURE' ? 'annex_question_not_sure' : 'annex_question_yes')
+          : null,
+        relevanceReason: node.relevanceReason,
+      }
+    }
+
+    // 2. Otherwise, see what the system answers do.
+    for (const input of args.answers) {
+      const selected = asList(input.value)
+      const link = linkFromSelection(rule, input.questionId, selected)
+      if (!link) continue
+
+      if (link.kind === 'satisfies_yes') {
+        const q = pilotQuestionById(input.questionId)
+        return {
+          ...node,
+          state: 'answered',
+          relevanceReason: `Reported “${link.optionValue}”`,
+          answer: {
+            answer: 'YES',
+            at: input.capturedAt ?? new Date().toISOString(),
+            actorId: 'system',
+            actorDisplayName: 'Client selection',
+            via: 'system_answer_equivalent',
+            viaOptionValue: link.optionValue,
+          },
+          threshold: rule.quantified ? 'unknown' : null,
+          needsHumanReview: true,
+          triggerReason: 'system_answer_satisfied_yes',
+          linkedSections: node.linkedSections.length > 0
+            ? node.linkedSections
+            : [q?.section as PilotSectionId].filter(Boolean),
+        }
+      }
+
+      // establishes_relevance — the approved question must still be asked.
+      node.state = 'relevant_unasked'
+      node.relevanceReason = `Reported “${link.optionValue}”`
+    }
+
+    return node
+  })
+}
+
+/** Nodes a practitioner still has to ask. */
+export function unaskedRelevantNodes(nodes: readonly SafetyNode[]): SafetyNode[] {
+  return nodes.filter((n) => n.state === 'relevant_unasked')
+}
+
+export function nodesForSection(nodes: readonly SafetyNode[], section: PilotSectionId): SafetyNode[] {
+  return nodes.filter((n) => n.linkedSections.includes(section))
+}
+
+// ── Review items ────────────────────────────────────────────────────────────
+
+export interface CockpitSafetyItem {
+  id: string
+  /** The Annex rule, where one backs this item. */
+  annexRuleId: string | null
+  annexRuleNumber: number | null
+  annexStatus: 'approved_annex_1_rule' | 'rule_not_supplied_for_pilot'
+  notice: AnnexNotice | null
+  /** The approved question, verbatim, or the registry question's label where
+   *  no Annex rule was supplied. */
+  questionLabel: string
+  /** The system question this came from, where it did. */
+  questionId: string | null
+  section: PilotSectionId
+  /** Verbatim values that matched. */
+  matchedOptions: string[]
+  rawAnswer: string[]
+  reason: RedFlagTriggerReason
+  /** Asked once, linked to every relevant stream. */
+  linkedSections: PilotSectionId[]
+  annexStreams: string[]
+  record: SafetyReviewRecord
+  /** Always false: follow-up detail never raises an item. */
+  raisedByFollowUpDetail: false
+}
+
+function recordFor(id: string, caseId: string, item: V2SafetyReviewItem, at: string): SafetyReviewRecord {
+  return raiseSafetyItem({ id, caseId, item, at })
+}
+
+/**
+ * Review items for a case.
  *
- *   1. the approved derivation, for red-flag values actually selected;
- *   2. an uncertainty pass, for "not sure" on a question that carries red
- *      flags, which the approved derivation does not cover.
- *
- * A question caught by pass 1 is never also raised by pass 2.
+ * Two sources, both honest about what backs them:
+ *   1. Annex-backed nodes that need a human;
+ *   2. registry safety values with no supplied Annex rule, which still raise
+ *      review but are labelled as not Annex-approved.
  */
 export function deriveCockpitSafetyItems(args: {
   caseId: string
   answers: readonly CockpitAnswerInput[]
   at: string
+  nodeAnswers?: Readonly<Record<string, SafetyNodeAnswer>>
 }): CockpitSafetyItem[] {
-  const pilotAnswers = args.answers.filter((a) => pilotQuestionById(a.questionId))
-
-  const matched = deriveV2SafetyReviewItems(
-    pilotAnswers.map((a) => ({ questionId: a.questionId, value: a.value, capturedAt: a.capturedAt })),
-  )
   const out: CockpitSafetyItem[] = []
-  const seen = new Set<string>()
+  const nodes = buildSafetyNodes(args)
 
-  for (const item of matched) {
-    const wrapped = wrap(item, 'red_flag_value_selected', args.caseId, args.at)
-    if (wrapped) { out.push(wrapped); seen.add(item.sourceQuestionId) }
+  // 1. Annex-backed.
+  for (const node of nodes) {
+    if (!node.needsHumanReview) continue
+    const rule = annexRuleById(node.ruleId)!
+    const viaOption = node.answer?.viaOptionValue
+    const item: V2SafetyReviewItem = {
+      sourceQuestionId: node.ruleId,
+      questionLabel: node.approvedQuestion,
+      rawAnswer: viaOption ? [viaOption] : [node.answer?.answer ?? 'NOT_SURE'],
+      matchedOptions: viaOption ? [viaOption] : [node.answer?.answer ?? 'NOT_SURE'],
+      capturedAt: node.answer?.at ?? args.at,
+      reviewStatus: 'unreviewed',
+    }
+    out.push({
+      id: node.id,
+      annexRuleId: rule.id,
+      annexRuleNumber: rule.ruleNumber,
+      annexStatus: 'approved_annex_1_rule',
+      notice: rule.notice,
+      questionLabel: node.approvedQuestion,
+      questionId: null,
+      section: node.linkedSections[0],
+      matchedOptions: item.matchedOptions,
+      rawAnswer: item.rawAnswer,
+      reason: node.triggerReason!,
+      linkedSections: node.linkedSections,
+      annexStreams: node.annexStreams,
+      record: recordFor(node.id, args.caseId, item, args.at),
+      raisedByFollowUpDetail: false,
+    })
   }
 
-  for (const a of pilotAnswers) {
-    if (seen.has(a.questionId)) continue
-    const q = pilotQuestionById(a.questionId)
-    if (!q || (q.safetyOptions?.length ?? 0) === 0) continue
-    const reported = asList(a.value)
-    const uncertain = reported.filter((v) => (UNCERTAIN_VALUES as readonly string[]).includes(v))
-    if (uncertain.length === 0) continue
+  // 2. Safety values with no supplied Annex rule. Carried, not dropped.
+  const annexOwned = new Set(
+    ANNEX_1_PILOT_RULES.flatMap((r) => r.systemAnswerLinks
+      .filter((l) => l.kind === 'satisfies_yes')
+      .map((l) => `${l.questionId}::${l.optionValue}`)),
+  )
 
-    const wrapped = wrap(
-      {
-        sourceQuestionId: q.id,
-        questionLabel: q.label,
-        rawAnswer: reported,
-        matchedOptions: [],   // nothing matched; this is the truthful value
-        capturedAt: a.capturedAt ?? null,
-        reviewStatus: 'unreviewed',
-      },
-      'uncertain_answer_to_red_flag_question', args.caseId, args.at,
-    )
-    if (wrapped) { out.push(wrapped); seen.add(q.id) }
+  for (const input of args.answers) {
+    const q = pilotQuestionById(input.questionId)
+    if (!q || (q.safetyOptions?.length ?? 0) === 0) continue
+    const reported = asList(input.value)
+    const matched = reported.filter((v) =>
+      (q.safetyOptions ?? []).includes(v) && !annexOwned.has(`${q.id}::${v}`))
+    const uncertain = reported.filter((v) => (UNCERTAIN_VALUES as readonly string[]).includes(v))
+    const values = matched.length > 0 ? matched : uncertain
+    if (values.length === 0) continue
+
+    const id = `safety:${args.caseId}:${q.id}:unsupplied`
+    const item: V2SafetyReviewItem = {
+      sourceQuestionId: q.id,
+      questionLabel: q.label,
+      rawAnswer: reported,
+      matchedOptions: matched,
+      capturedAt: input.capturedAt ?? args.at,
+      reviewStatus: 'unreviewed',
+    }
+    out.push({
+      id,
+      annexRuleId: null,
+      annexRuleNumber: null,
+      annexStatus: 'rule_not_supplied_for_pilot',
+      notice: null,
+      questionLabel: q.label,
+      questionId: q.id,
+      section: q.section as PilotSectionId,
+      matchedOptions: matched,
+      rawAnswer: reported,
+      reason: 'safety_value_without_supplied_rule',
+      linkedSections: [q.section as PilotSectionId],
+      annexStreams: [],
+      record: recordFor(id, args.caseId, item, args.at),
+      raisedByFollowUpDetail: false,
+    })
   }
 
   return out
 }
 
 /**
- * Follow-up DETAIL captured inside a digging branch.
+ * Follow-up DETAIL captured against a node.
  *
  * Exists to make the locked rule visible: detail may be captured and does NOT
- * itself trigger review. There is no code path from a digging answer to a new
- * safety item, and this says so rather than leaving the absence implicit.
+ * itself raise anything. There is no code path from a follow-up answer to a
+ * new item.
  */
 export function raiseForFollowUpDetail(): CockpitSafetyItem[] {
   return []
@@ -218,8 +368,9 @@ export interface SafetyConsolidation {
   closed: CockpitSafetyItem[]
   sectionsWithOpenItems: PilotSectionId[]
   anyOpen: boolean
-  /** A view over items the streams raised. It cannot create, alter or close
-   *  anything, which is what makes it a summary and not a questionnaire. */
+  /** Open items whose approved notice is NOW. Reported, never acted on. */
+  noticeNowCount: number
+  /** A view over what the streams raised. It cannot create, alter or close. */
   isReadOnlyView: true
 }
 
@@ -230,12 +381,11 @@ export function consolidateSafety(items: readonly CockpitSafetyItem[]): SafetyCo
     closed: items.filter((i) => !workflowIsOpen(i.record)),
     sectionsWithOpenItems: [...new Set(open.flatMap((i) => i.linkedSections))],
     anyOpen: open.length > 0,
+    noticeNowCount: open.filter((i) => i.notice === 'NOW').length,
     isReadOnlyView: true,
   }
 }
 
-/** Open items raised in OTHER streams — what a section footer must show as
- *  case-wide rather than as blocking the current section. */
 export function openItemsElsewhere(
   items: readonly CockpitSafetyItem[], current: PilotSectionId,
 ): CockpitSafetyItem[] {
@@ -248,15 +398,33 @@ export function openItemsInSection(
   return consolidateSafety(items).open.filter((i) => i.linkedSections.includes(current))
 }
 
-/** Every approved red-flag value in the pilot, for the review-mode surface. */
-export function pilotRedFlagInventory(): Array<{
-  questionId: string; section: PilotSectionId; label: string; value: string; offersNotSure: boolean
+/** Approved Annex questions in the pilot, for review mode. */
+export function annexNodeInventory(): Array<{
+  ruleId: string; ruleNumber: number; topic: string; approvedQuestion: string
+  notice: AnnexNotice; annexStreams: string[]; pilotSections: string[]; quantified: boolean
 }> {
-  return pilotRedFlagQuestions().flatMap((q) =>
-    q.redFlagValues.map((value) => ({
-      questionId: q.questionId, section: q.section, label: q.label, value,
-      offersNotSure: q.offersNotSure,
-    })))
+  return ANNEX_1_PILOT_RULES.map((r) => ({
+    ruleId: r.id, ruleNumber: r.ruleNumber, topic: r.topic,
+    approvedQuestion: r.approvedQuestion, notice: r.notice,
+    annexStreams: [...r.askedOnceIn], pilotSections: [...r.pilotSections],
+    quantified: r.quantified,
+  }))
 }
 
-export { workflowIsOpen as isSafetyItemOpen }
+/** Registry safety values still carried without a supplied Annex rule. */
+export function unsuppliedSafetyValues(): Array<{
+  questionId: string; section: PilotSectionId; value: string
+}> {
+  const annexOwned = new Set(
+    ANNEX_1_PILOT_RULES.flatMap((r) => r.systemAnswerLinks
+      .filter((l) => l.kind === 'satisfies_yes')
+      .map((l) => `${l.questionId}::${l.optionValue}`)),
+  )
+  return pilotRedFlagQuestions().flatMap((q) =>
+    q.redFlagValues
+      .filter((v) => !annexOwned.has(`${q.questionId}::${v}`))
+      .map((value) => ({ questionId: q.questionId, section: q.section, value })))
+}
+
+export { ANNEX_FOLLOW_UPS, annexRulesForSection, workflowIsOpen as isSafetyItemOpen }
+export type { AnnexRule, AnnexAnswer, AnnexNotice, WeightLossDetail, ThresholdState }

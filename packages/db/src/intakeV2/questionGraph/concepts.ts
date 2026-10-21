@@ -1,10 +1,10 @@
 // ─── packages/db/src/intakeV2/questionGraph/concepts.ts ─────────────────────
 // The canonical CONCEPT layer: the genuinely distinct things NI asks or
-// records, beneath the 384 registry fields.
+// records, beneath the 387 registry fields.
 //
 // WHY THIS EXISTS
 //
-// 384 is a count of storage locations, not of questions. Two generated
+// 387 is a count of storage locations, not of questions. Two generated
 // matrices account for more than half of it: family history is 16 categories
 // asked about 9 relatives (144 fields), and the systems review is 12 systems
 // with 5 capture aspects each (60 fields). Treating those as 204 distinct

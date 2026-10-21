@@ -259,6 +259,40 @@ const SYSTEMS: V2FieldDef[] = V2_SYSTEM_KEYS.flatMap((system) => [
       notes: 'Practitioner follow-up prompt, never a conclusion.' }),
 ])
 
+/**
+ * System-SPECIFIC facts that the generic five-field bundle above cannot hold.
+ *
+ * Added per Founder authorisation (Cockpit V2 pilot). Deliberately NOT part of
+ * the per-system bundle: cloning them across all twelve systems would create
+ * 36 fields, 33 of which would be meaningless — stool form has no reading in
+ * the respiratory system. Three systems gain one or two fields each; the rest
+ * are untouched.
+ *
+ * Each exists because mapping its question anywhere else would have corrupted
+ * an existing field's meaning. See cockpit/mappingPack.ts for the refusals
+ * that produced them.
+ */
+const SYSTEMS_SPECIFIC: V2FieldDef[] = [
+  // Usual bowel-opening frequency. NOT intake.systems.digestive.frequency,
+  // which is how often the SYMPTOM occurs — a different quantity with a
+  // different option set. Writing one into the other would corrupt both.
+  f({ id: 'intake.systems.digestive.bowel_frequency', label: 'Systems — digestive — usual bowel-opening frequency',
+      domain: 'systems', source: 'intake_v2', synopsisSection: 'systems_review',
+      notes: 'Usual bowel-opening frequency. Distinct from .frequency, which is symptom frequency.' }),
+
+  // Usual stool form/consistency. Picture-scale interaction when the intake
+  // UX reaches that stage; the stored value stays the approved option label.
+  f({ id: 'intake.systems.digestive.stool_form', label: 'Systems — digestive — usual stool form',
+      domain: 'systems', source: 'intake_v2', synopsisSection: 'systems_review',
+      notes: 'Usual stool form/consistency. Clinically approved picture-scale model when the intake UX reaches it.' }),
+
+  // Typical sleep duration. NOT overloaded onto intake.systems.sleep.frequency,
+  // which is symptom frequency; the banded hour options do not fit it.
+  f({ id: 'intake.systems.sleep.typical_sleep_duration_hours', label: 'Systems — sleep — typical sleep duration (hours)',
+      domain: 'systems', source: 'intake_v2', synopsisSection: 'systems_review',
+      notes: 'Typical nightly sleep duration, banded. Distinct from .frequency, which is symptom frequency.' }),
+]
+
 // ─── L. Reproductive pathway (routed; all skippable; all sensitive) ──────────
 
 const REPRODUCTIVE: V2FieldDef[] = [
@@ -398,7 +432,7 @@ const ANALYSIS: V2FieldDef[] = [
 export const V2_FIELD_REGISTRY: V2FieldDef[] = [
   ...IDENTITY, ...CARE_CONTEXT, ...CASE_SNAPSHOT, ...CARE_IN_PLACE, ...CONCERNS,
   ...DIAGNOSES, ...MEDICATIONS, ...SUPPLEMENTS, ...FAMILY, ...EARLY_LIFE,
-  ...SYSTEMS, ...REPRODUCTIVE, ...FOOD, ...LIFESTYLE, ...TIMELINE,
+  ...SYSTEMS, ...SYSTEMS_SPECIFIC, ...REPRODUCTIVE, ...FOOD, ...LIFESTYLE, ...TIMELINE,
   ...OBSERVATIONS, ...SAFETY, ...ANALYSIS,
 ]
 

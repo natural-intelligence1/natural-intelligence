@@ -35,11 +35,24 @@ export type { PilotSectionId, PilotRedFlagQuestion, PilotScope, V2QuestionDef, V
 
 export {
   MAPPING_STATUSES, PERSISTABLE_STATUSES, CAPTURE_OWNERS, PILOT_MAPPING_PACK,
-  PILOT_SHARED_CONCEPT_ID, mappingFor, canPersistCanonically,
+  PRODUCT_TO_CANONICAL, canonicalKeyFor, mappingFor, canPersistCanonically,
   persistenceBlockReason, proposeCandidate, summariseMappingPack,
-  unmappedPilotQuestions,
+  unmappedPilotQuestions, mappingPackRows,
 } from './mappingPack'
 export type { MappingStatus, CaptureOwner, MappingEntry, MappingPackSummary } from './mappingPack'
+
+export {
+  ANNEX_1_SOURCE, ANNEX_1_PILOT_RULES, ANNEX_ANSWERS, annexRuleById,
+  annexRulesLinkedToQuestion, linkFromSelection, answerTriggersReview,
+  rule26Threshold, summariseAnnex,
+} from './annex1'
+export type { SystemAnswerLink, SystemAnswerLinkKind, AnnexFollowUp, AnnexSummary } from './annex1'
+
+export {
+  isParameterised, conceptReference, conceptReferenceForField, conceptRefKey,
+  sameConcept, groupByConceptReference, describeConceptReference,
+} from './conceptReference'
+export type { ConceptReference, ConceptReferenceResult } from './conceptReference'
 
 export {
   DIGGING_REVIEW_STATUSES, DIGGING_EDGE_VERSION, PILOT_DIGGING_EDGES,
@@ -64,13 +77,16 @@ export type {
 } from './capture'
 
 export {
-  ANNEX_1_STATUS, UNCERTAIN_VALUES, DECLINED_VALUES, triggersHumanReview,
-  linkedSectionsFor, deriveCockpitSafetyItems, raiseForFollowUpDetail,
-  consolidateSafety, openItemsElsewhere, openItemsInSection,
-  pilotRedFlagInventory, isSafetyItemOpen,
+  ANNEX_1_STATUS, UNCERTAIN_VALUES, DECLINED_VALUES, ANNEX_FOLLOW_UPS,
+  buildSafetyNodes, unaskedRelevantNodes, nodesForSection,
+  deriveCockpitSafetyItems, raiseForFollowUpDetail, consolidateSafety,
+  openItemsElsewhere, openItemsInSection, annexNodeInventory,
+  unsuppliedSafetyValues, annexRulesForSection, isSafetyItemOpen,
 } from './safetyLinks'
 export type {
   RedFlagTriggerReason, CockpitSafetyItem, CockpitAnswerInput, SafetyConsolidation,
+  SafetyNode, SafetyNodeAnswer, SafetyNodeState, AnnexRule, AnnexAnswer,
+  AnnexNotice, WeightLossDetail, ThresholdState,
 } from './safetyLinks'
 
 export {

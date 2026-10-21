@@ -43,7 +43,31 @@ describe('field registry v1 — structure', () => {
   })
 
   it('instantiates all twelve systems with the five per-system fields', () => {
-    expect(v2FieldsForDomain('systems')).toHaveLength(V2_SYSTEM_KEYS.length * 5)
+    // The generic bundle: every system gets the same five.
+    const generic = ['symptoms', 'frequency', 'free_text', 'none_reported', 'missing_prompt']
+    for (const system of V2_SYSTEM_KEYS) {
+      for (const aspect of generic) {
+        expect(v2FieldById(`intake.systems.${system}.${aspect}`), `${system}.${aspect}`).toBeDefined()
+      }
+    }
+    expect(v2FieldsForDomain('systems').length).toBeGreaterThanOrEqual(V2_SYSTEM_KEYS.length * 5)
+  })
+
+  it('adds system-specific fields only to the systems they apply to', () => {
+    // Three facts the generic bundle cannot hold, authorised for the Cockpit
+    // V2 pilot. NOT cloned across all twelve systems — stool form has no
+    // reading in the respiratory system.
+    const specific = [
+      'intake.systems.digestive.bowel_frequency',
+      'intake.systems.digestive.stool_form',
+      'intake.systems.sleep.typical_sleep_duration_hours',
+    ]
+    for (const id of specific) expect(v2FieldById(id), id).toBeDefined()
+    expect(v2FieldsForDomain('systems')).toHaveLength(V2_SYSTEM_KEYS.length * 5 + specific.length)
+
+    // Each must stay distinct from the generic .frequency it was kept out of.
+    expect(v2FieldById('intake.systems.digestive.bowel_frequency')!.id)
+      .not.toBe(v2FieldById('intake.systems.digestive.frequency')!.id)
   })
 
   it('family mental_health is sensitive (needs why-we-ask) for every relative', () => {

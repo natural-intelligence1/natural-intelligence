@@ -13,7 +13,7 @@
 // CURRENT POSITION, from the registry as it stands:
 //
 //   · V2FieldDef has no key for purpose, lawful basis, Article 9 handling or
-//     retention. All 384 fields therefore lack all four.
+//     retention. All 387 fields therefore lack all four.
 //   · V2QuestionDef declares `retentionCategory?: string` — and not one of
 //     the 115 questions sets it. Declared is not implemented.
 //   · V2QuestionDef does populate `samd` on all 115, which is a different
