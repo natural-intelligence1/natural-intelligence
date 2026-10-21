@@ -56,6 +56,7 @@ const CHIP: Record<V2Provenance, { label: string; bg: string; fg: string; border
   declined:                               { label: 'Preferred to discuss',   bg: 'transparent', fg: '#5F6862', border: '#C9C2B2', dashed: true },
   system_organised:                       { label: 'Organised by NI',        bg: '#F3F1EA', fg: '#5F6862', border: '#DCD5C4' },
   system_structured_from_client_language: { label: 'From client’s words',    bg: '#F3F1EA', fg: '#5F6862', border: '#DCD5C4' },
+  observed:                               { label: 'Observed',              bg: 'transparent', fg: '#2E4636', border: '#2E4636', dashed: true },
   practitioner_interpreted:               { label: 'Practitioner view',      bg: '#E9EFEA', fg: '#2E4636', border: '#B9CBBE' },
 }
 

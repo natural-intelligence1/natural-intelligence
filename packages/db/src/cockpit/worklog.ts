@@ -28,46 +28,58 @@ export const TIMER_STATES = ['not_started', 'running', 'paused', 'completed'] as
 export type TimerState = (typeof TIMER_STATES)[number]
 
 /**
- * Fixed reasons for running over. A closed list on purpose: free text here
- * would collect clinical detail into an operational record.
+ * The APPROVED overrun reasons (UI handover §0 — LOCKED PRODUCT DESIGN).
+ *
+ * A closed list on purpose: free text here would collect clinical detail into
+ * an operational record. The wording and the set are approved; an earlier
+ * draft of this module had a different seven-item list of my own, which was
+ * replaced wholesale rather than merged.
  */
 export const OVERRUN_REASONS = [
-  'more_history_than_expected',
-  'safety_matter_needed_time',
-  'client_needed_longer',
-  'interpreter_or_access_need',
-  'technical_problem',
-  'records_took_time_to_locate',
-  'other_operational',
+  'complexity_or_additional_history',
+  'client_accessibility_or_support_needs',
+  'technical_interruption',
+  'safety_or_safeguarding_clarification',
+  'client_interruption',
+  'other',
 ] as const
 export type OverrunReason = (typeof OVERRUN_REASONS)[number]
 
 export const OVERRUN_REASON_LABELS: Record<OverrunReason, string> = {
-  more_history_than_expected:  'More history to take than planned',
-  safety_matter_needed_time:   'A safety matter needed time',
-  client_needed_longer:        'Client needed longer',
-  interpreter_or_access_need:  'Interpreter or access need',
-  technical_problem:           'Technical problem',
-  records_took_time_to_locate: 'Records took time to locate',
-  other_operational:           'Other operational reason',
+  complexity_or_additional_history:      'Complexity or additional history',
+  client_accessibility_or_support_needs: 'Client accessibility or support needs',
+  technical_interruption:                'Technical interruption',
+  safety_or_safeguarding_clarification:  'Safety or safeguarding clarification',
+  client_interruption:                   'Client interruption',
+  other:                                 'Other',
 }
 
-/** The operational record. Every field here is safe to send to payroll. */
+/**
+ * The operational record. Every field here is safe to send to payroll.
+ *
+ * The approved field list (UI handover §5) is exactly: practitioner, work
+ * reference, planned duration, active duration, pause duration, overrun, and
+ * the structured overrun reason. Nothing clinical, and no free-text field
+ * that could become clinical — any clinical note goes to the case record
+ * under clinical access controls, by a different path entirely.
+ */
 export interface WorkLogEntry {
   caseId: string
   practitionerId: string
+  practitionerDisplayName: string
+  /** Operational reference for payment and capacity, e.g. NI-W-0217. */
+  workReference: string
   plannedMinutes: number
   /** Accumulated active time, excluding pauses. */
   activeSeconds: number
+  /** Total paused time, logged as its own segment. */
+  pauseSeconds: number
   startedAt: string | null
   completedAt: string | null
   pauseCount: number
   overran: boolean
   overrunSeconds: number
   overrunReason: OverrunReason | null
-  /** Set only where 'other_operational' was chosen. Capped hard, and the UI
-   *  must label it as operational-only. Still not a clinical note. */
-  overrunNote: string | null
 }
 
 export interface TimerSession {
@@ -77,10 +89,15 @@ export interface TimerSession {
   /** When the current running stretch began. Null while paused. */
   runningSince: string | null
   accumulatedSeconds: number
+  /** Total paused time. Logged as its own segment, per the approved log. */
+  pausedSeconds: number
+  /** When the current pause began. Null while running. */
+  pausedSince: string | null
   pauseCount: number
+  /** Optional, operational, shown on the paused state. Never clinical. */
+  pauseReason: string | null
   completedAt: string | null
   overrunReason: OverrunReason | null
-  overrunNote: string | null
 }
 
 export const TIMER_CANNOT_AFFECT_CONTENT = {
@@ -99,10 +116,12 @@ export function newTimer(plannedMinutes: number): TimerSession {
     startedAt: null,
     runningSince: null,
     accumulatedSeconds: 0,
+    pausedSeconds: 0,
+    pausedSince: null,
     pauseCount: 0,
+    pauseReason: null,
     completedAt: null,
     overrunReason: null,
-    overrunNote: null,
   }
 }
 
@@ -114,20 +133,38 @@ export function startTimer(t: TimerSession, at: string): TimerSession {
   return { ...t, state: 'running', startedAt: t.startedAt ?? at, runningSince: at }
 }
 
-export function pauseTimer(t: TimerSession, at: string): TimerSession {
+/** Pause. Capture is saved and nothing is lost; the pause becomes its own
+ *  logged segment with an optional operational reason. */
+export function pauseTimer(t: TimerSession, at: string, reason?: string): TimerSession {
   if (t.state !== 'running' || !t.runningSince) return t
   return {
     ...t,
     state: 'paused',
     accumulatedSeconds: t.accumulatedSeconds + secondsBetween(t.runningSince, at),
     runningSince: null,
+    pausedSince: at,
     pauseCount: t.pauseCount + 1,
+    pauseReason: reason?.trim() || null,
   }
 }
 
 export function resumeTimer(t: TimerSession, at: string): TimerSession {
   if (t.state !== 'paused') return t
-  return { ...t, state: 'running', runningSince: at }
+  return {
+    ...t,
+    state: 'running',
+    runningSince: at,
+    pausedSeconds: t.pausedSeconds + (t.pausedSince ? secondsBetween(t.pausedSince, at) : 0),
+    pausedSince: null,
+    pauseReason: null,
+  }
+}
+
+/** Paused seconds as of `at`, including the current pause. */
+export function pausedSeconds(t: TimerSession, at: string): number {
+  return t.state === 'paused' && t.pausedSince
+    ? t.pausedSeconds + secondsBetween(t.pausedSince, at)
+    : t.pausedSeconds
 }
 
 /** Active seconds as of `at`, including the current running stretch. */
@@ -159,11 +196,18 @@ export type CompleteTimerResult =
  */
 export function completeTimer(
   t: TimerSession, at: string,
-  overrun?: { reason: OverrunReason; note?: string },
+  overrun?: { reason: OverrunReason },
 ): CompleteTimerResult {
-  const stopped = t.state === 'running' ? pauseTimer(t, at) : t
-  const over = overrunSeconds(stopped, at) > 0
+  // Stop the clock without counting a pause: finishing is not pausing.
+  const stopped: TimerSession = t.state === 'running' && t.runningSince
+    ? {
+        ...t,
+        accumulatedSeconds: activeSeconds(t, at),
+        runningSince: null,
+      }
+    : { ...t, pausedSeconds: pausedSeconds(t, at), pausedSince: null }
 
+  const over = overrunSeconds(stopped, at) > 0
   if (over && !overrun) {
     return { ok: false, reason: 'overrun_reason_required', session: stopped }
   }
@@ -174,11 +218,7 @@ export function completeTimer(
       ...stopped,
       state: 'completed',
       completedAt: at,
-      pauseCount: t.state === 'running' ? t.pauseCount : stopped.pauseCount,
       overrunReason: over ? overrun!.reason : null,
-      overrunNote: over && overrun!.reason === 'other_operational'
-        ? (overrun!.note ?? '').slice(0, 140).trim() || null
-        : null,
     },
   }
 }
@@ -186,24 +226,39 @@ export function completeTimer(
 /**
  * The operational record for payroll and capacity.
  *
- * Takes the timer and two ids. It cannot reach the clinical record, because
- * it is not given it.
+ * ── IT CANNOT CARRY A CLINICAL NOTE, BY CONSTRUCTION ────────────────────────
+ *
+ * Note the arguments: a timer, two ids, a display name and a work reference.
+ * There is no note parameter and no free-text field on WorkLogEntry. The
+ * clinical note offered when finishing a consultation goes to the CASE
+ * RECORD under clinical access controls, by a different path that does not
+ * pass through here — so a clinical detail cannot reach payroll data even by
+ * mistake.
  */
 export function toWorkLogEntry(
-  t: TimerSession, args: { caseId: string; practitionerId: string; at: string },
+  t: TimerSession,
+  args: {
+    caseId: string
+    practitionerId: string
+    practitionerDisplayName: string
+    workReference: string
+    at: string
+  },
 ): WorkLogEntry {
   return {
     caseId: args.caseId,
     practitionerId: args.practitionerId,
+    practitionerDisplayName: args.practitionerDisplayName,
+    workReference: args.workReference,
     plannedMinutes: t.plannedMinutes,
     activeSeconds: activeSeconds(t, args.at),
+    pauseSeconds: pausedSeconds(t, args.at),
     startedAt: t.startedAt,
     completedAt: t.completedAt,
     pauseCount: t.pauseCount,
     overran: overrunSeconds(t, args.at) > 0,
     overrunSeconds: overrunSeconds(t, args.at),
     overrunReason: t.overrunReason,
-    overrunNote: t.overrunNote,
   }
 }
 

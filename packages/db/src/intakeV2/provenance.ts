@@ -33,6 +33,12 @@ export const V2_PROVENANCE_STATES = [
   'unconfirmed',
   'not_asked',
   'declined',
+  /** Something the practitioner NOTICED and recorded as fact — the client
+   *  hesitated, winced, could not finish a sentence. Distinct from
+   *  'practitioner_interpreted', which is a judgement about what something
+   *  means: an observation says what happened, an interpretation says what
+   *  it signifies. Required by the approved Cockpit V2 provenance set. */
+  'observed',
   'system_organised',
   'system_structured_from_client_language',
   'practitioner_interpreted',
@@ -44,9 +50,12 @@ export const SYSTEM_SETTABLE_PROVENANCE = [
   'system_organised', 'system_structured_from_client_language',
 ] as const
 
-/** States that carry clinical meaning and are practitioner-owned. */
+/** States that carry clinical meaning and are practitioner-owned.
+ *  'observed' is here because only a clinician in the room can record one —
+ *  but a STUDENT may record it as a draft for supervision, which the cockpit's
+ *  capability matrix handles separately. */
 export const PRACTITIONER_ONLY_PROVENANCE = [
-  'practitioner_verified', 'corrected', 'practitioner_interpreted',
+  'practitioner_verified', 'corrected', 'practitioner_interpreted', 'observed',
 ] as const
 
 export function isPractitionerOnlyProvenance(p: V2Provenance): boolean {

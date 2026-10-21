@@ -115,7 +115,7 @@ export type {
 export {
   TIMER_STATES, OVERRUN_REASONS, OVERRUN_REASON_LABELS,
   TIMER_CANNOT_AFFECT_CONTENT, newTimer, startTimer, pauseTimer, resumeTimer,
-  activeSeconds, isOverrunning, overrunSeconds, completeTimer,
+  activeSeconds, pausedSeconds, isOverrunning, overrunSeconds, completeTimer,
   toWorkLogEntry, formatDuration,
 } from './worklog'
 export type {
@@ -125,6 +125,12 @@ export type {
 export {
   contributionFor, contributions, resolveChain, summariseContributions,
 } from './synopsisContribution'
+
+export {
+  V4_REVIEW_OUTCOMES, V4_REVIEW_OUTCOME_LABELS, isV4ReviewOutcome,
+  DEFAULT_REVIEW_OUTCOME, recordReviewOutcome,
+} from './reviewOutcomes'
+export type { V4ReviewOutcome, RecordedOutcome, RecordOutcomeResult } from './reviewOutcomes'
 export type {
   ContributionState, SynopsisContribution, ChainLink, ContributionSummary,
 } from './synopsisContribution'

@@ -33,14 +33,19 @@ import {
   // student
   can, submitForSupervision, attributionLine, STUDENT_CAPABILITIES,
   // timer
-  newTimer, startTimer, pauseTimer, resumeTimer, activeSeconds, isOverrunning,
+  newTimer, startTimer, pauseTimer, resumeTimer, activeSeconds, pausedSeconds,
+  isOverrunning, overrunSeconds,
   completeTimer, toWorkLogEntry, TIMER_CANNOT_AFFECT_CONTENT, formatDuration,
+  OVERRUN_REASONS, OVERRUN_REASON_LABELS,
+  // approved V4 review outcomes
+  V4_REVIEW_OUTCOMES, V4_REVIEW_OUTCOME_LABELS, DEFAULT_REVIEW_OUTCOME, recordReviewOutcome,
   // chain
   resolveChain, contributions, summariseContributions,
   type CaptureActor, type SafetyNodeAnswer,
 } from './index'
 import { CONCEPT_LAYER } from '../intakeV2/questionGraph/concepts'
 import { V2_FIELD_REGISTRY } from '../intakeV2/fieldRegistry'
+import * as reviewOutcomesModule from './reviewOutcomes'
 
 const AT = '2026-10-21T10:00:00.000Z'
 const LATER = '2026-10-21T10:05:00.000Z'
@@ -933,33 +938,59 @@ describe('the consultation timer', () => {
   it('runs, pauses, resumes and excludes paused time', () => {
     let t = startTimer(newTimer(60), T0)
     expect(t.state).toBe('running')
-    t = pauseTimer(t, T5)
+    t = pauseTimer(t, T5, 'client stepped out')
     expect(t.state).toBe('paused')
     expect(t.accumulatedSeconds).toBe(300)
     expect(t.pauseCount).toBe(1)
-    // Two minutes pass while paused and must not count.
+    expect(t.pauseReason).toBe('client stepped out')
+    // Two minutes pass while paused and must not count as active.
     t = resumeTimer(t, T7)
     expect(activeSeconds(t, T7)).toBe(300)
+    expect(pausedSeconds(t, T7)).toBe(120)
+  })
+
+  it('logs pause time as its own segment', () => {
+    let t = startTimer(newTimer(60), T0)
+    t = pauseTimer(t, T5)
+    expect(pausedSeconds(t, T7)).toBe(120)   // still paused, clock runs on pause
+    t = resumeTimer(t, T7)
+    expect(pausedSeconds(t, T70)).toBe(120)  // frozen once resumed
   })
 
   it('reports overrun against the planned duration', () => {
     const t = startTimer(newTimer(60), T0)
     expect(isOverrunning(t, T5)).toBe(false)
     expect(isOverrunning(t, T70)).toBe(true)
+    expect(overrunSeconds(t, T70)).toBe(600)
   })
 
   it('refuses to complete an overrun without a structured reason', () => {
-    const t = startTimer(newTimer(60), T0)
-    const r = completeTimer(t, T70)
+    const r = completeTimer(startTimer(newTimer(60), T0), T70)
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.reason).toBe('overrun_reason_required')
   })
 
-  it('completes an overrun with a reason from the fixed list', () => {
-    const t = startTimer(newTimer(60), T0)
-    const r = completeTimer(t, T70, { reason: 'safety_matter_needed_time' })
+  it('completes an overrun with a reason from the APPROVED list', () => {
+    const r = completeTimer(startTimer(newTimer(60), T0), T70, {
+      reason: 'safety_or_safeguarding_clarification',
+    })
     expect(r.ok).toBe(true)
-    if (r.ok) expect(r.session.overrunReason).toBe('safety_matter_needed_time')
+    if (r.ok) expect(r.session.overrunReason).toBe('safety_or_safeguarding_clarification')
+  })
+
+  it('uses exactly the six approved overrun reasons', () => {
+    // LOCKED PRODUCT DESIGN. An earlier draft had seven reasons of my own;
+    // they were replaced wholesale, not merged.
+    expect([...OVERRUN_REASONS]).toEqual([
+      'complexity_or_additional_history',
+      'client_accessibility_or_support_needs',
+      'technical_interruption',
+      'safety_or_safeguarding_clarification',
+      'client_interruption',
+      'other',
+    ])
+    expect(OVERRUN_REASON_LABELS.safety_or_safeguarding_clarification)
+      .toBe('Safety or safeguarding clarification')
   })
 
   it('completes within time without needing a reason', () => {
@@ -968,43 +999,41 @@ describe('the consultation timer', () => {
     if (r.ok) {
       expect(r.session.state).toBe('completed')
       expect(r.session.overrunReason).toBeNull()
+      expect(r.session.completedAt).toBe(T5)
     }
   })
 
-  it('keeps the operational log free of clinical content', () => {
-    const r = completeTimer(startTimer(newTimer(60), T0), T70, {
-      reason: 'other_operational', note: 'Room double-booked.',
-    })
-    const entry = toWorkLogEntry((r as { session: ReturnType<typeof newTimer> }).session, {
-      caseId: CASE, practitionerId: 'prac-1', at: T70,
-    })
-    // The whole shape, pinned. A clinical field could not be added without
-    // this failing.
-    expect(Object.keys(entry).sort()).toEqual([
-      'activeSeconds', 'caseId', 'completedAt', 'overran', 'overrunNote',
-      'overrunReason', 'overrunSeconds', 'pauseCount', 'plannedMinutes',
-      'practitionerId', 'startedAt',
-    ])
-    expect(entry.overran).toBe(true)
+  it('stops the clock on completion without counting a pause', () => {
+    const r = completeTimer(startTimer(newTimer(60), T0), T5)
+    if (r.ok) {
+      expect(r.session.pauseCount).toBe(0)
+      expect(r.session.pausedSeconds).toBe(0)
+      expect(activeSeconds(r.session, T70)).toBe(300)   // frozen at completion
+    }
   })
 
-  it('keeps a free-text note only for the operational reason, and caps it', () => {
-    const long = 'x'.repeat(400)
-    const r = completeTimer(startTimer(newTimer(60), T0), T70, { reason: 'other_operational', note: long })
-    if (r.ok) expect(r.session.overrunNote!.length).toBeLessThanOrEqual(140)
-
-    // A note offered with a non-"other" reason is discarded — there is no
-    // route for clinical detail to ride in on a structured reason.
-    const r2 = completeTimer(startTimer(newTimer(60), T0), T70, {
-      reason: 'client_needed_longer', note: 'Discussed her blood results in detail.',
+  it('holds exactly the approved operational fields, and no clinical note', () => {
+    // THE WHOLE SHAPE, PINNED. A clinical field could not be added without
+    // this failing, and there is no free-text field for one to arrive in.
+    const r = completeTimer(startTimer(newTimer(60), T0), T70, { reason: 'client_interruption' })
+    const entry = toWorkLogEntry((r as { session: ReturnType<typeof newTimer> }).session, {
+      caseId: CASE, practitionerId: 'prac-1', practitionerDisplayName: 'Amara Okafor',
+      workReference: 'NI-W-0217', at: T70,
     })
-    if (r2.ok) expect(r2.session.overrunNote).toBeNull()
+    expect(Object.keys(entry).sort()).toEqual([
+      'activeSeconds', 'caseId', 'completedAt', 'overran', 'overrunReason',
+      'overrunSeconds', 'pauseCount', 'pauseSeconds', 'plannedMinutes',
+      'practitionerDisplayName', 'practitionerId', 'startedAt', 'workReference',
+    ])
+    expect(entry.overran).toBe(true)
+    expect(entry.workReference).toBe('NI-W-0217')
+    // No field anywhere in the entry can hold prose.
+    expect(JSON.stringify(entry)).not.toMatch(/note/i)
   })
 
   it('cannot influence what is asked', () => {
     expect(TIMER_CANNOT_AFFECT_CONTENT.takesNoClinicalInput).toBe(true)
     expect(TIMER_CANNOT_AFFECT_CONTENT.operationalFieldsOnly).toBe(true)
-    // The timer never appears in the section gate or the safety path.
     const gate = finishSectionGate(newCaptureState(CASE), 'digestion')
     expect(JSON.stringify(gate)).not.toMatch(/timer|minute|overrun/i)
   })
@@ -1015,6 +1044,71 @@ describe('the consultation timer', () => {
     expect(formatDuration(3725)).toBe('1:02:05')
   })
 })
+
+// ── Approved V4 human-review outcomes ──────────────────────────────────────
+
+describe('V4 review outcomes', () => {
+  const REVIEWER = { reviewerId: 'prac-1', reviewerDisplayName: 'Elin Marsh', at: AT, canClose: true }
+
+  it('are exactly the approved five, in order', () => {
+    expect([...V4_REVIEW_OUTCOMES]).toEqual([
+      'prompt_clinical_review',
+      'routine_practitioner_review',
+      'safeguarding_action',
+      'needs_human_contact_for_more_information',
+      'no_further_action_required',
+    ])
+    expect(V4_REVIEW_OUTCOME_LABELS.needs_human_contact_for_more_information)
+      .toBe('Needs human contact for more information')
+  })
+
+  it('pre-selects nothing', () => {
+    expect(DEFAULT_REVIEW_OUTCOME).toBeNull()
+    expect(recordReviewOutcome({ ...REVIEWER, outcome: null }))
+      .toMatchObject({ ok: false, reason: 'no_outcome_selected' })
+  })
+
+  it('records a named human decision', () => {
+    const r = recordReviewOutcome({
+      ...REVIEWER, outcome: 'routine_practitioner_review',
+      actionTaken: 'Asked her to book with her GP; she agreed.',
+    })
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.recorded.reviewerDisplayName).toBe('Elin Marsh')
+      expect(r.recorded.at).toBe(AT)
+    }
+  })
+
+  it('refuses an outcome outside the approved list', () => {
+    expect(recordReviewOutcome({ ...REVIEWER, outcome: 'urgent_referral' }))
+      .toMatchObject({ ok: false, reason: 'unknown_outcome' })
+  })
+
+  it('refuses an unnamed reviewer', () => {
+    expect(recordReviewOutcome({
+      ...REVIEWER, outcome: 'no_further_action_required', reviewerDisplayName: '  ',
+    })).toMatchObject({ ok: false, reason: 'no_reviewer' })
+  })
+
+  it('refuses anyone who may not close the item', () => {
+    // A student may capture a safety answer and may not close it. The
+    // boundary is enforced by the caller and respected here.
+    expect(recordReviewOutcome({
+      ...REVIEWER, outcome: 'no_further_action_required', canClose: false,
+    })).toMatchObject({ ok: false, reason: 'not_permitted' })
+    expect(can(STUDENT, 'close_safety_review').allowed).toBe(false)
+  })
+
+  it('offers no function that suggests an outcome', () => {
+    // NI shows the approved list and records what a human chose. If a
+    // "suggest" or "recommend" export ever appeared, this would fail.
+    const names = Object.keys(reviewOutcomesModule).join(' ')
+    expect(names).not.toMatch(/suggest|recommend|infer|score|rank|triage|urgency/i)
+    expect(names).toContain('recordReviewOutcome')
+  })
+})
+
 
 // ── §17 The acceptance chain ────────────────────────────────────────────────
 

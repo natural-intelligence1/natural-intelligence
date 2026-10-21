@@ -106,6 +106,7 @@ const PROVENANCE_LABELS: Record<V2Provenance, string> = {
   declined:                               'Preferred to discuss',
   system_organised:                       'Organised by NI',
   system_structured_from_client_language: 'Structured from client’s words',
+  observed:                               'Practitioner observed',
   practitioner_interpreted:               'Practitioner interpretation',
 }
 
