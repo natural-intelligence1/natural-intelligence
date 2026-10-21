@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest'
 import {
   CARE_RECORD_FLOWS, SHARED_IDENTIFIERS, flowById, summariseContract,
   isSigned, isCurrentPlan, selectCurrentPlan, supersededPlans, draftVersions, planState,
+  CASE_EVENT_VISIBILITY_DRIFT,
   type ProtocolVersionRow,
 } from './index'
 
@@ -65,15 +66,16 @@ describe('the contract names one source of truth per flow', () => {
     expect(s.blockedOnProtocolIntegration).toContain('signed_protocol_action_to_today')
   })
 
-  it('does not call the client-update flow wired on the strength of its read path', () => {
+  it('does not call the client-update flow wired while 0062 is unapplied', () => {
     // The specific over-claim this slice could have made. A practitioner
-    // surface reading real data is NOT the same as the flow working: without
-    // a client INSERT policy the client end does not exist.
+    // surface reading real data, plus a writer and a tested migration, is
+    // still NOT the flow working: until 0062 is applied the client end
+    // cannot store anything.
     const f = flowById('client_update_to_since_last_review')!
     expect(f.status).not.toBe('wired')
     expect(f.sourceOfTruth).toContain('case_events')
-    expect(f.gap).toMatch(/WRITE PATH BLOCKED/)
-    expect(f.gap).toMatch(/no client INSERT policy/i)
+    expect(f.gap).toMatch(/AWAITING MIGRATION/)
+    expect(f.gap).toMatch(/0062_case_events_client_authorship\.sql is NOT APPLIED/)
   })
 })
 
@@ -150,5 +152,18 @@ describe('which version is the client\'s current plan', () => {
     const half = v({ id: 'p1', version: 1, signed_at: '2026-10-18T09:00:00Z' })
     expect(isSigned(half)).toBe(false)
     expect(selectCurrentPlan([half])).toBeNull()
+  })
+})
+
+describe('case event visibility drift', () => {
+  it('names the canonical chain and refuses to be silently fixed', () => {
+    // Recorded, not fixed: narrowing a live read policy is its own migration.
+    // This test exists so the finding cannot be deleted without a decision.
+    expect(CASE_EVENT_VISIBILITY_DRIFT.policy).toBe('case_events_practitioner_select')
+    expect(CASE_EVENT_VISIBILITY_DRIFT.resolvesThrough).toBe('case_practitioner_work')
+    expect(CASE_EVENT_VISIBILITY_DRIFT.shouldResolveThrough).toMatch(/can_access_case_care_profile/)
+    expect(CASE_EVENT_VISIBILITY_DRIFT.tooWide).toMatch(/consent/)
+    expect(CASE_EVENT_VISIBILITY_DRIFT.requiresMigration).toBe(true)
+    expect(CASE_EVENT_VISIBILITY_DRIFT.requiresFounderApproval).toBe(true)
   })
 })

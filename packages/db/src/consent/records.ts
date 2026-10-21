@@ -13,6 +13,7 @@ import {
   CONSENT_TEXTS, CONSENT_TEXT_VERSION,
   isConsentPurpose, type ConsentPurpose,
 } from './purposes'
+import { isPractitionerScopedConsent } from './practitionerAccess'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyClient = SupabaseClient<any>
@@ -129,10 +130,19 @@ export async function getMemberConsents(client: AnyClient, memberId: string): Pr
  * True when the member's LATEST row for the purpose is a grant (consented,
  * not withdrawn). Fail-closed: any read error, missing table or missing row
  * counts as NOT consented — collection must never proceed on uncertainty.
+ *
+ * MEMBER-WIDE ONLY. This filters on profile_id + consent_type and nothing
+ * else, so it must never be asked about a purpose that is scoped to a named
+ * practitioner: it would return the client's grant for ANY practitioner and
+ * so let Practitioner A's consent authorise Practitioner B. Those purposes
+ * are kept out of ConsentPurpose, and refused here as well for callers that
+ * reach this with a cast.
  */
 export async function hasActiveConsent(
   client: AnyClient, memberId: string, purpose: ConsentPurpose,
 ): Promise<boolean> {
+  if (isPractitionerScopedConsent(purpose)) return false
+
   const { data, error } = await (client as AnyClient)
     .from('consent_records')
     .select('consented, withdrawn_at, consented_at')
@@ -173,6 +183,16 @@ export async function hasAllConsents(
 export async function withdrawConsent(
   client: AnyClient, purpose: ConsentPurpose,
 ): Promise<number> {
+  // MEMBER-WIDE ONLY. The RPC treats a null p_context_practitioner_id as
+  // "every row for this purpose", so calling it here for a practitioner-scoped
+  // purpose would withdraw access from EVERY practitioner at once. Use
+  // withdrawPractitionerAccess, which always names one.
+  if (isPractitionerScopedConsent(purpose)) {
+    throw new Error(
+      `withdrawConsent cannot withdraw ${purpose}: it is scoped to one practitioner. ` +
+      'Use withdrawPractitionerAccess(client, practitionerId).',
+    )
+  }
   const { data, error } = await (client as AnyClient)
     .rpc('withdraw_own_consent', { p_consent_type: purpose })
   if (error) throw new Error(`withdrawConsent failed [${error.code}]: ${error.message}`)

@@ -161,14 +161,15 @@ export const CARE_RECORD_FLOWS: readonly CareRecordFlow[] = Object.freeze([
       'summarise or interpret. An event with no statement is skipped, never described in NI\'s ' +
       'own words.',
     gap:
-      'READ PATH REAL: the practitioner Overview queries case_events under RLS through ' +
-      'loadCaseUpdates. WRITE PATH BLOCKED: case_events has one insert-capable policy, ' +
-      'case_events_service_all (service_role); there is no client INSERT policy, so a client ' +
-      'cannot record an update on their own case. Two further gaps — case_events has no author ' +
-      'column, so attribution rests on an unenforced event_payload convention, and append-only ' +
-      'holds only by absence of a client UPDATE/DELETE policy rather than by a trigger. Also ' +
-      'diverges from the case-team flow: practitioner read access here resolves through ' +
-      'case_practitioner_work, not case_team_roles.',
+      'READ PATH LIVE: the practitioner Overview queries case_events under RLS through ' +
+      'loadCaseUpdates, before and after 0062. CLIENT WRITE PATH AWAITING MIGRATION: ' +
+      'recordClientUpdate is written against the post-0062 contract, but ' +
+      '0062_case_events_client_authorship.sql is NOT APPLIED, so a client still cannot record ' +
+      'an update on their own case — case_events_client_insert, actor_user_id, actor_capacity, ' +
+      'occurred_at and both triggers all arrive with it. 30 PGlite tests prove the migration\'s ' +
+      'behaviour against real Postgres; none of it is live. Also diverges from the case-team ' +
+      'flow: practitioner read access here resolves through case_practitioner_work, not ' +
+      'case_team_roles, so a care-team practitioner is not guaranteed to see a case\'s events.',
   },
   {
     id: 'case_team_to_both_views',
@@ -199,6 +200,73 @@ export const CARE_RECORD_FLOWS: readonly CareRecordFlow[] = Object.freeze([
 export function flowById(id: string): CareRecordFlow | undefined {
   return CARE_RECORD_FLOWS.find((f) => f.id === id)
 }
+
+/**
+ * CASE EVENT VISIBILITY RESOLVES THROUGH THE WRONG CHAIN.
+ *
+ * Recorded here rather than fixed: narrowing a live read policy is a
+ * deliberate migration, not something to slip into a feature slice.
+ *
+ * `can_access_case_care_profile(case_id)` is the canonical authority chain,
+ * live since 0057 and used by case_contributions and case_analysis_plan. It
+ * requires ALL of: an active client_practitioner_links row, an active
+ * case_team_roles role on the case, practitioner_assignment_eligibility,
+ * explicit practitioner_access consent from the client, and — for a student —
+ * a non-student supervisor active on the same case.
+ *
+ * `case_events_practitioner_select` requires NONE of that. It asks only for a
+ * case_practitioner_work row. It predates case_team_roles by about four
+ * months, and was never revisited when 0057 introduced the care team.
+ *
+ * VERDICT: historical drift (B), which is already a visibility defect (C) in
+ * both directions:
+ *
+ *   TOO NARROW — a care-team practitioner with no work item cannot read the
+ *   case's events at all. Nobody is affected while case_team_roles has no
+ *   rows; everybody is, the moment the eligibility gate clears.
+ *
+ *   TOO WIDE, and this is the serious one — a practitioner holding a work item
+ *   can read a case's events WITHOUT eligibility, without an active client
+ *   link, and without the client's practitioner_access consent. Since
+ *   client-reported updates now live in case_events, a client's own words
+ *   would be readable under a weaker authority chain than a practitioner's
+ *   notes on the same case. Three case_practitioner_work rows exist today and
+ *   no practitioner_access consent rows exist at all.
+ *
+ * INTENDED CHAIN: case_events_practitioner_select should resolve through
+ * can_access_case_care_profile(case_id), exactly as case_contributions does,
+ * so one function defines practitioner access to a case and there is nothing
+ * to keep in step by hand.
+ *
+ * TESTS REQUIRED BEFORE CHANGING IT, as database-level tests against the real
+ * policy, not application assertions:
+ *   1. a care-team practitioner with an active role, eligibility and consent
+ *      READS the case's events — including ones they have no work item for;
+ *   2. a practitioner with a work item but NO consent reads NOTHING;
+ *   3. a practitioner with a work item but no active client link, or who
+ *      fails eligibility, reads NOTHING;
+ *   4. a student with no active non-student supervisor on the case reads
+ *      NOTHING;
+ *   5. a practitioner whose role has ended reads NOTHING;
+ *   6. the client's own read is unaffected in every case above;
+ *   7. the existing complete_practitioner_work path still writes and still
+ *      reads back what it wrote.
+ *
+ * Until then: the read is authorised more loosely than NI intends, and no
+ * code in this package relies on the looser grant.
+ */
+export const CASE_EVENT_VISIBILITY_DRIFT = {
+  policy: 'case_events_practitioner_select',
+  resolvesThrough: 'case_practitioner_work',
+  shouldResolveThrough: 'can_access_case_care_profile(case_id)',
+  verdict: 'historical_drift_and_visibility_defect' as const,
+  tooNarrow: 'a care-team practitioner with no work item cannot read the case at all',
+  tooWide:
+    'a work item alone grants reads without eligibility, without an active client link, ' +
+    'and without the client\'s practitioner_access consent',
+  requiresMigration: true,
+  requiresFounderApproval: true,
+} as const
 
 export interface ContractSummary {
   flows: number

@@ -19,14 +19,14 @@
 //
 // A real case id gets real events. The fixture route id has none, so it falls
 // back to invented records through the SAME builder, and says which it is
-// showing. Clients cannot yet record an update at all (one missing INSERT
-// policy — see CLIENT_UPDATE_STORAGE_GAP), which the block states plainly
-// rather than letting an empty list imply the client has said nothing.
+// showing. Clients cannot yet record an update at all — migration 0062 adds
+// the policy that lets them and is not applied — which the block states
+// plainly rather than letting an empty list imply the client has said nothing.
 
 import Link from 'next/link'
 import { createServerSupabaseClient } from '@natural-intelligence/db'
 import {
-  loadCaseUpdates, buildSinceLastReviewView, provenanceLabel, CLIENT_UPDATE_STORAGE_GAP,
+  loadCaseUpdates, buildSinceLastReviewView, provenanceLabel, CLIENT_UPDATE_WRITE_PATH,
 } from '@natural-intelligence/db/careRecord'
 import { T, FONT_DISPLAY } from '@/components/workspace/caseTheme'
 import { CASE_FIXTURE } from './caseFixture'
@@ -164,7 +164,7 @@ export default async function CaseOverview({ params }: { params: { caseId: strin
 
         {/* The honest part. A practitioner must be able to tell "the client has
             said nothing" from "the client has no way to tell us anything". */}
-        {delta.storageUnavailable && (
+        {delta.clientWritesUnavailable && (
           <p style={{
             fontSize: '11.5px', color: T.muted, margin: '4px 0 0', lineHeight: 1.5,
             background: T.sunken, border: `1px solid ${T.border}`, borderRadius: '6px', padding: '10px 12px',
@@ -175,12 +175,12 @@ export default async function CaseOverview({ params }: { params: { caseId: strin
             {usingFixture
               ? 'no events are recorded against this case id, so invented records are shown through the real delta builder. '
               : 'read from case_events under row-level security. '}
-            Clients cannot yet record an update themselves: {CLIENT_UPDATE_STORAGE_GAP.gaps[0].what.toLowerCase()}
+            Clients cannot yet record an update themselves: {CLIENT_UPDATE_WRITE_PATH.what}.
             {delta.unattributedCount > 0 && (
               <>
                 {' '}
                 {delta.unattributedCount} line(s) could not be attributed to a named person —
-                case_events has no author column.
+                recorded before attribution existed, or the person has since been erased.
               </>
             )}
           </p>

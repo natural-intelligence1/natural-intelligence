@@ -202,3 +202,50 @@ policies, constraints or function behaviour needs both.
 applied** (confirmed: `functional_ranges.range_type` and `source_label` are
 both absent live). It is deferred by founder ruling and is not a dependency of
 any current release. Do not apply it as part of unrelated work.
+
+## Reserved identifiers — unapplied migrations on other branches
+
+**`ls` in this folder does not tell you which identifier is free.** NI keeps
+unapplied migrations on feature branches, so a number can be taken by a file
+that is not on your branch and not in the live history either.
+
+| Id | File | Where it lives | Status |
+|---|---|---|---|
+| `0061` | `0061_protocol_version_items.sql` | `feat/protocol-adoption-signing` only | Written, **not applied**. Reserved. |
+| `0062` | `0062_case_events_client_authorship.sql` | `feat/care-path-foundations` | Written and tested, **not applied**. |
+
+`0062` took the next free number rather than `0061` for exactly this reason:
+on `feat/care-path-foundations` the folder ends at `0060`, which makes `0061`
+look free when it is not. Two migrations sharing an identifier — one of them
+touching protocol signing — is the kind of collision that is cheap to avoid
+now and expensive to untangle later.
+
+`0061` and `0062` are independent and may be applied in either order.
+
+**Before writing a new migration**, check every branch, not just yours:
+
+```bash
+for b in $(git branch -a --format='%(refname:short)'); do
+  git ls-tree --name-only "$b" supabase/migrations/ 2>/dev/null
+done | sort -u | tail -15
+```
+
+### `0062_case_events_client_authorship.sql`
+
+Additive change to `case_events` that lets a client record their own dated
+update: a narrow INSERT policy (`follow_up_answer` only, own case only, self
+attributed only), first-class actor attribution (`actor_user_id`,
+`actor_capacity`), `occurred_at` separate from `created_at`, and structural
+append-only enforcement for every role including `service_role`.
+
+Every column is nullable with no default and every new CHECK passes for a NULL
+capacity, so the existing rows and the existing `complete_practitioner_work`
+writer are unaffected and **no backfill is required**.
+
+Behaviour is covered by 30 PGlite tests in
+`packages/db/src/careRecord/caseEvents.db.test.ts`, which execute this file
+verbatim against a real Postgres — including RLS, which the `0061` suite could
+not exercise. Those tests found two defects in earlier drafts of this file: an
+unconditional append-only guard that refused its own `ON DELETE SET NULL`, and
+an actor-coherence CHECK that would have blocked erasing a person. Both are
+fixed and both have a test.

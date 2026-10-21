@@ -7,11 +7,11 @@
 // Pure — no database, no network. The RLS behaviour these rely on is asserted
 // by the policies themselves, not re-implemented here.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   eventToUpdate, loadCaseUpdates, recordClientUpdate, checkFactualStatement,
   provenanceLabel, isClientReported, isUnattributed, sinceLastReviewFor,
-  buildSinceLastReviewView, CLIENT_UPDATE_STORAGE_GAP, CASE_EVENT_TYPES,
+  buildSinceLastReviewView, CLIENT_UPDATE_WRITE_PATH, CASE_EVENT_TYPES,
 } from './caseUpdates'
 
 const REVIEW = '2026-09-18T10:00:00.000Z'
@@ -145,35 +145,178 @@ describe('the reader', () => {
   })
 })
 
-describe('the write path is blocked, and says so', () => {
-  it('refuses to store, naming the gap', async () => {
-    const r = await recordClientUpdate({} as never, {
-      caseId: 'case-1', authorId: 'client-1',
-      statement: 'Slept through on five nights.', occurredAt: '2026-10-02T07:15:00.000Z',
+describe('the client writer', () => {
+  const DRAFT = {
+    caseId: 'case-1', actorUserId: 'client-1',
+    statement: 'Slept through on five of seven nights.',
+    occurredAt: '2026-10-02T07:15:00.000Z',
+  }
+
+  type Row = Record<string, unknown>
+
+  /** Captures exactly what would be sent to case_events. */
+  function writerClient(result: { data?: unknown; error?: unknown } = {}) {
+    const insert = vi.fn((_row: Row) => ({
+      select: () => ({
+        single: () => Promise.resolve({
+          data: result.data ?? { id: 'event-1' }, error: result.error ?? null,
+        }),
+      }),
+    }))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return { client: { from: () => ({ insert }) } as any, insert }
+  }
+
+  it('writes one follow_up_answer, attributed to the client', async () => {
+    const { client, insert } = writerClient()
+    const r = await recordClientUpdate(client, DRAFT)
+
+    expect(r).toEqual({ stored: true, eventId: 'event-1' })
+    expect(insert).toHaveBeenCalledWith({
+      case_id: 'case-1',
+      event_type: 'follow_up_answer',
+      event_payload: { statement: 'Slept through on five of seven nights.' },
+      actor_user_id: 'client-1',
+      actor_capacity: 'client',
+      occurred_at: '2026-10-02T07:15:00.000Z',
     })
-    expect(r.stored).toBe(false)
-    expect(r.reason).toBe('storage_gap')
-    if (r.reason === 'storage_gap') expect(r.gap.gaps[0].severity).toBe('blocking')
   })
 
-  it('validates before refusing, so the UI can still correct the client', async () => {
-    const r = await recordClientUpdate({} as never, {
-      caseId: 'case-1', authorId: 'client-1', statement: '  ',
+  it('never sends created_at — the database stamps it', async () => {
+    // Otherwise a client could backdate their own submission and appear to
+    // have reported something before a review that had already happened.
+    const { client, insert } = writerClient()
+    await recordClientUpdate(client, DRAFT)
+    expect(Object.keys(insert.mock.calls[0][0])).not.toContain('created_at')
+  })
+
+  it('cannot be used to write any other event type or capacity', async () => {
+    const { client, insert } = writerClient()
+    await recordClientUpdate(client, DRAFT)
+    const row = insert.mock.calls[0][0] as Record<string, unknown>
+    expect(row.event_type).toBe('follow_up_answer')
+    expect(row.actor_capacity).toBe('client')
+  })
+
+  it('records a before and after only when both exist', async () => {
+    const { client, insert } = writerClient()
+    await recordClientUpdate(client, { ...DRAFT, previousValue: '5mg', newValue: '10mg' })
+    expect(insert.mock.calls[0][0].event_payload).toMatchObject({
+      previous_value: '5mg', new_value: '10mg',
+    })
+
+    // A lone "after" is not a change, and recording it as one would overstate
+    // what the client reported.
+    const second = writerClient()
+    await recordClientUpdate(second.client, { ...DRAFT, newValue: '10mg' })
+    expect(second.insert.mock.calls[0][0].event_payload).toEqual({ statement: DRAFT.statement })
+  })
+
+  it('rejects causal phrasing before it reaches the database', async () => {
+    const { client, insert } = writerClient()
+    const r = await recordClientUpdate(client, {
+      ...DRAFT, statement: 'My sleep improved because I stopped the magnesium.',
+    })
+    expect(r).toMatchObject({ stored: false, reason: 'invalid' })
+    expect(insert).not.toHaveBeenCalled()
+  })
+
+  it('rejects a missing or future date', async () => {
+    const { client } = writerClient()
+    expect(await recordClientUpdate(client, { ...DRAFT, occurredAt: 'not a date' }))
+      .toMatchObject({ reason: 'invalid' })
+    expect(await recordClientUpdate(client, { ...DRAFT, occurredAt: '2099-01-01T00:00:00.000Z' }))
+      .toMatchObject({ reason: 'invalid' })
+  })
+
+  it('reports the unapplied migration distinctly from a refusal', async () => {
+    // These must not look the same. One is "NI has not switched this on yet";
+    // the other is "the database says you may not do that".
+    const unmigrated = writerClient({
+      data: null, error: { code: '42703', message: 'column "actor_capacity" does not exist' },
+    })
+    expect(await recordClientUpdate(unmigrated.client, DRAFT)).toMatchObject({
+      stored: false, reason: 'awaiting_migration',
+      migration: '0062_case_events_client_authorship.sql',
+    })
+
+    const refused = writerClient({
+      data: null, error: { code: '42501', message: 'new row violates row-level security policy' },
+    })
+    expect(await recordClientUpdate(refused.client, DRAFT)).toMatchObject({
+      stored: false, reason: 'not_permitted',
+    })
+  })
+
+  it('never retries a refusal another way', async () => {
+    // No service-role fallback. A refusal is final.
+    const refused = writerClient({
+      data: null, error: { code: '42501', message: 'new row violates row-level security policy' },
+    })
+    await recordClientUpdate(refused.client, DRAFT)
+    expect(refused.insert).toHaveBeenCalledTimes(1)
+  })
+
+  it('names the migration and what it adds', () => {
+    expect(CLIENT_UPDATE_WRITE_PATH.status).toBe('awaiting_migration')
+    expect(CLIENT_UPDATE_WRITE_PATH.table).toBe('case_events')
+    expect(CLIENT_UPDATE_WRITE_PATH.migration).toBe('0062_case_events_client_authorship.sql')
+    expect(CLIENT_UPDATE_WRITE_PATH.adds.join(' ')).toMatch(/case_events_client_insert/)
+    expect(CLIENT_UPDATE_WRITE_PATH.divergenceToFlag).toMatch(/case_practitioner_work/)
+  })
+})
+
+describe('both ends share one pipeline', () => {
+  it('a client-written event reaches Since last review through the same builder', async () => {
+    // The app-level guarantee: what the client writes is what the practitioner
+    // reads, through buildSinceLastReview, with no second code path and no
+    // copy taken in between.
+    const written: Record<string, unknown>[] = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const client = {
+      from: () => ({
+        insert: (row: Record<string, unknown>) => {
+          written.push(row)
+          return { select: () => ({ single: () => Promise.resolve({ data: { id: 'e-new' }, error: null }) }) }
+        },
+        select: () => ({
+          eq: () => ({
+            order: () => Promise.resolve({
+              // What the practitioner's reader would see for that row.
+              data: written.map((w, i) => ({
+                id: `e-${i}`, case_id: w.case_id, event_type: w.event_type,
+                source_table: null, source_id: null, event_payload: w.event_payload,
+                created_at: '2026-10-02T09:00:00.000Z',
+                actor_user_id: w.actor_user_id, actor_capacity: w.actor_capacity,
+                occurred_at: w.occurred_at,
+              })),
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
+
+    const stored = await recordClientUpdate(client, {
+      caseId: 'case-1', actorUserId: 'client-1',
+      statement: 'Slept through on five of seven nights.',
       occurredAt: '2026-10-02T07:15:00.000Z',
     })
-    expect(r.reason).toBe('invalid')
-  })
+    expect(stored.stored).toBe(true)
 
-  it('records the gap as one missing policy, not a new table', () => {
-    // The finding the Founder acts on. If this ever became a table proposal
-    // again, that would be a bigger change than the evidence supports.
-    expect(CLIENT_UPDATE_STORAGE_GAP.table).toBe('case_events')
-    expect(CLIENT_UPDATE_STORAGE_GAP.readPath).toBe('available')
-    expect(CLIENT_UPDATE_STORAGE_GAP.writePath).toBe('blocked')
-    expect(CLIENT_UPDATE_STORAGE_GAP.gaps[0].smallestFix).toMatch(/INSERT policy/i)
-    expect(CLIENT_UPDATE_STORAGE_GAP.gaps[0].smallestFix).toMatch(/follow_up_answer/)
-    expect(CLIENT_UPDATE_STORAGE_GAP.divergenceToFlag).toMatch(/case_practitioner_work/)
-    expect(CLIENT_UPDATE_STORAGE_GAP.requiresFounderApproval).toBe(true)
+    const updates = await loadCaseUpdates(client, 'case-1')
+    const view = buildSinceLastReviewView(updates, REVIEW, NOW)
+
+    expect(view.nothingChanged).toBe(false)
+    expect(view.clientReportedCount).toBe(1)
+    expect(view.unattributedCount).toBe(0)        // 0062 attributes it properly
+    const entry = view.review.sections[0].entries[0]
+    expect(entry.statement).toBe('Slept through on five of seven nights.')
+    expect(provenanceLabel(entry)).toBe('Client reported')
+    expect(entry.authorId).toBe('client-1')
+    // Dated when it happened, not when NI received it.
+    expect(entry.at).toBe('2026-10-02T07:15:00.000Z')
   })
 })
 
@@ -246,12 +389,12 @@ describe('the delta reuses the shipped builder', () => {
     const v = buildSinceLastReviewView(updates, REVIEW, NOW)
     expect(v.clientReportedCount).toBe(2)
     expect(v.unattributedCount).toBe(2)
-    expect(v.storageUnavailable).toBe(true)
+    expect(v.clientWritesUnavailable).toBe(true)
   })
 
   it('still reports storage unavailable when the window is empty', () => {
     // Otherwise an empty delta reads as "the client has said nothing", when
     // the truth is that the client has no way to say anything.
-    expect(buildSinceLastReviewView([], REVIEW, NOW).storageUnavailable).toBe(true)
+    expect(buildSinceLastReviewView([], REVIEW, NOW).clientWritesUnavailable).toBe(true)
   })
 })
