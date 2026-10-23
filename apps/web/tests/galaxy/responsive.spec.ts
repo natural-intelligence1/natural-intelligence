@@ -22,7 +22,7 @@ for (const [name, width, height] of WIDTHS) {
     await page.setViewportSize({ width, height });
     await page.goto(URL);
     await page.waitForFunction(
-      () => (window as any).__niGalaxy?.E?.planets?.length === 24, null, { timeout: 30_000 });
+      () => (window as any).__niGalaxy?.E?.planets?.length === 26, null, { timeout: 30_000 });
 
     const overflow = await page.evaluate(() => ({
       docScroll: document.documentElement.scrollWidth,
@@ -43,7 +43,7 @@ test('mobile touch targets are at least 40px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(URL);
   await page.waitForFunction(
-    () => (window as any).__niGalaxy?.E?.planets?.length === 24, null, { timeout: 30_000 });
+    () => (window as any).__niGalaxy?.E?.planets?.length === 26, null, { timeout: 30_000 });
 
   // Scoped to the galaxy itself. The surrounding site header/footer are
   // pre-existing chrome and out of scope for this mission.
@@ -72,7 +72,7 @@ for (const [name, width, height] of [
     await page.setViewportSize({ width, height });
     await page.goto(URL);
     await page.waitForFunction(
-      () => (window as any).__niGalaxy?.E?.planets?.length === 24, null, { timeout: 30_000 });
+      () => (window as any).__niGalaxy?.E?.planets?.length === 26, null, { timeout: 30_000 });
     await page.waitForTimeout(500); // let the fit measurement + ResizeObserver settle
 
     const fit = await page.evaluate(() => {
@@ -107,7 +107,7 @@ test('mobile 390×844: every galaxy control is hit-testable after consent', asyn
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(URL);
   await page.waitForFunction(
-    () => (window as any).__niGalaxy?.E?.planets?.length === 24, null, { timeout: 30_000 });
+    () => (window as any).__niGalaxy?.E?.planets?.length === 26, null, { timeout: 30_000 });
 
   const consent = page.getByRole('button', { name: /accept|decline optional/i }).first();
   if (await consent.count()) { await consent.click(); await page.waitForTimeout(800); }

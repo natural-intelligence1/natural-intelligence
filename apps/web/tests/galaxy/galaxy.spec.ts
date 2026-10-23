@@ -12,7 +12,7 @@ async function open(page: Page, errors: string[]) {
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(URL);
-  await page.waitForFunction(() => (window as any).__niGalaxy?.E?.planets?.length === 24, null, { timeout: 30_000 });
+  await page.waitForFunction(() => (window as any).__niGalaxy?.E?.planets?.length === 26, null, { timeout: 30_000 });
 }
 
 test('renders WebGL galaxy with the canonical model and no errors', async ({ page }) => {
@@ -22,7 +22,7 @@ test('renders WebGL galaxy with the canonical model and no errors', async ({ pag
     const g = (window as any).__niGalaxy, D = g.nidata();
     return { fallback: g.state.fallback, discs: D.discs.length, nodes: D.nodes.length, links: D.nodes.reduce((a: number, n: any) => a + n.links.length, 0) };
   });
-  expect(s).toEqual({ fallback: false, discs: 45, nodes: 24, links: 138 });
+  expect(s).toEqual({ fallback: false, discs: 45, nodes: 26, links: 149 });
   await expect(page.getByRole('img', { name: /Interactive 3D galaxy/ })).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -122,4 +122,51 @@ test.describe('mobile', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });
+});
+
+/* ---------------- v2: roots, pathways, "Start from what you notice" ---------------- */
+
+const visibleThreads = (page: Page) => page.evaluate(() => (window as any).__niGalaxy.E.threads.filter((t: any) => t.line.visible && t.tgt === 1).length);
+
+test('hovering a root lights its pathways and names the planets they reach', async ({ page }) => {
+  await open(page, []);
+  await page.evaluate(() => (window as any).__niGalaxy.listHover('planet', 'sleep'));
+  await expect.poll(() => visibleThreads(page)).toBe(3);
+  await expect.poll(() => page.evaluate(() => Array.from((window as any).__niGalaxy.tagsEl.children).filter((e: any) => e.style.opacity === '1').map((e: any) => e.textContent).sort().join('|')))
+    .toContain('Circadian Regulation');
+  await page.evaluate(() => (window as any).__niGalaxy.listHover(null));
+  await expect.poll(() => visibleThreads(page)).toBe(0);
+});
+
+test('a system panel lists the roots that can shape it', async ({ page }) => {
+  await open(page, []);
+  await page.getByRole('button', { name: /^Endocrine/ }).first().click();
+  const panel = page.getByRole('complementary', { name: 'Details' });
+  await expect(panel).toContainText('Roots that can shape it');
+  await expect(panel).toContainText('Sleep  →  Circadian Regulation');
+  await expect(panel).toContainText('Common associations — not causes.');
+});
+
+test('Start from what you notice: trace, signpost, return', async ({ page }) => {
+  const errors: string[] = [];
+  await open(page, errors);
+  const chip = page.getByRole('group', { name: 'Everyday experiences' }).getByRole('button', { name: 'Poor sleep' });
+  await chip.click();
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  const panel = page.getByRole('complementary', { name: 'Details' });
+  for (const t of ['Where it often shows', 'What sits underneath', 'What can shape it', 'Who can help', 'Circadian Regulation', 'General Practitioner', 'See your GP', 'Educational only'])
+    await expect(panel).toContainText(t);
+  await expect(panel).not.toContainText(/you may have|you have (a|an) /i);
+  await expect.poll(() => visibleThreads(page)).toBe(4);
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+  await expect(chip).toHaveAttribute('aria-pressed', 'false');
+  expect(errors).toEqual([]);
+});
+
+test('every experience opens with a GP-first helper list and safety signposting', async ({ page }) => {
+  await open(page, []);
+  const res = await page.evaluate(() => (window as any).__niGalaxy.nidata().exps.map((x: any) => ({ id: x.id, first: x.help[0].id, care: x.care, n: x.paths.length })));
+  expect(res).toHaveLength(8);
+  for (const r of res) { expect(r.first).toBe('gp'); expect(r.care).toMatch(/GP|999|NHS 111/); expect(r.n).toBeGreaterThanOrEqual(3); }
 });

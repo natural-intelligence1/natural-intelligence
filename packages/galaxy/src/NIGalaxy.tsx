@@ -36,19 +36,26 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
     var reduced = false;
     try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
     this.state = { w: 0, h: 0, ready: false, fallback: false, selected: null, discipline: null, hover: null,
-      paused: reduced, reduced: reduced, speed: 1, moonsMode: 'featured', filter: 'all', perf: false, sheetOpen: false, announce: '' };
+      paused: reduced, reduced: reduced, speed: 1, moonsMode: 'featured', filter: 'all', perf: false, sheetOpen: false, announce: '', trace: null };
     var self = this;
     this.rootRef = function (el) { self.rootEl = el; };
     this.canvasRef = function (el) { self.canvasEl = el; };
     this.wpRef = function (el) { self.wpEl = el; };
     this.phraseRef = function (el) { self.phraseEl = el; };
+    this.tagsRef = function (el) { self.tagsEl = el; };
     this.hudRef = function (el) { self.hudEl = el; };
     this.sigRef = function (el) { self.sigEl = el; if (el) self.drawSig(); };
     this.onKey = function (e) { if (e.key === 'Escape') { self.back(); } };
     this.back = function () {
       var s = self.state;
-      if (s.discipline) self.setState({ discipline: null, hover: null, announce: 'Back to ' + self.nameOf(s.selected) });
-      else if (s.selected) self.setState({ selected: null, hover: null, announce: 'Whole galaxy view' });
+      if (s.discipline) self.setState({ discipline: null, hover: null, announce: 'Back to ' + (s.selected ? self.nameOf(s.selected) : (s.trace ? self.nidata().expById[s.trace].name : 'the whole galaxy')) });
+      else if (s.selected) self.setState({ selected: null, hover: null, announce: s.trace ? 'Back to ' + self.nidata().expById[s.trace].name : 'Whole galaxy view' });
+      else if (s.trace) self.setState({ trace: null, hover: null, announce: 'Whole galaxy view' });
+    };
+    this.pickExp = function (id) {
+      var x = self.nidata().expById[id], off = self.state.trace === id;
+      self.setState({ trace: off ? null : id, selected: null, discipline: null, hover: null, sheetOpen: false,
+        announce: off ? 'Whole galaxy view' : 'Tracing ' + x.name + ': ' + x.systems.length + ' systems, ' + x.procs.length + ' foundations, ' + x.roots.length + ' roots' });
     };
     this.togglePause = function () { self.setState({ paused: !self.state.paused }); };
     this.onSpeed = function (e) { self.setState({ speed: Number(e.target.value) || 1 }); };
@@ -56,12 +63,12 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
     this.togglePerf = function () { self.setState({ perf: !self.state.perf }); };
     this.toggleSheet = function () {
       var s = self.state;
-      if (s.selected || s.discipline) self.setState({ selected: null, discipline: null, sheetOpen: true, hover: null });
+      if (s.selected || s.discipline || s.trace) self.setState({ selected: null, discipline: null, trace: null, sheetOpen: true, hover: null });
       else self.setState({ sheetOpen: !s.sheetOpen });
     };
     this.zoomIn = function () { self.engZoom(0.8); };
     this.zoomOut = function () { self.engZoom(1.25); };
-    this.reset = function () { self.setState({ selected: null, discipline: null, hover: null, filter: 'all', announce: 'View reset' }); self.engReset(); };
+    this.reset = function () { self.setState({ selected: null, discipline: null, trace: null, hover: null, filter: 'all', announce: 'View reset' }); self.engReset(); };
     this.pickWhole = function () { self.select('whole'); };
     this.hoverWhole = function () { self.listHover('center', 'whole'); };
     this.unhover = function () { self.listHover(null); };
@@ -157,6 +164,12 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
         line(0, 0.15, 0, -0.2); tree(0, -0.2, -P / 2, 0.28, 5, 0.5, 0.72); tree(0, 0.15, P / 2, 0.22, 4, 0.6, 0.7); line(-0.8, 0.15, 0.8, 0.15); break;
       case 'lifestyle': // interwoven rings
         circ(0, -0.25, 0.38); circ(-0.28, 0.22, 0.38); circ(0.28, 0.22, 0.38); break;
+      case 'connection': // three people, held together
+        [[0, -0.5], [-0.52, 0.38], [0.52, 0.38]].forEach(function (pp) { circ(pp[0], pp[1], 0.13); g.beginPath(); g.arc(pp[0], pp[1] + 0.36, 0.2, P * 1.15, P * 1.85); g.stroke(); });
+        g.beginPath(); g.arc(0, 0.02, 0.62, P * 1.62, P * 1.88); g.stroke(); g.beginPath(); g.arc(0, 0.02, 0.62, P * 0.38, P * 0.62); g.stroke(); g.beginPath(); g.arc(0, 0.02, 0.62, P * 0.98, P * 1.2); g.stroke(); break;
+      case 'lifeexp': // growth rings of a tree: every year leaves its mark
+        for (var gr = 1; gr <= 5; gr++) { g.beginPath(); for (var ga = 0; ga <= 64; ga++) { var aa2 = ga / 64 * P * 2, rr2 = gr * 0.15 * (1 + 0.07 * Math.sin(aa2 * 3 + gr) + 0.04 * Math.cos(aa2 * 5)); var xg = 0.06 + Math.cos(aa2) * rr2, yg = Math.sin(aa2) * rr2 * 0.94; if (ga) g.lineTo(xg, yg); else g.moveTo(xg, yg); } g.stroke(); }
+        line(0.1, 0.02, 0.62, -0.42); break;
       default: circ(0, 0, 0.5);
     }
     g.restore();
@@ -204,7 +217,7 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
   select(id) {
     var D = this.nidata();
     var msg = id === 'whole' ? 'Uniquely You selected' : (this.nameOf(id) + ' selected. ' + (D.nodeById[id] ? D.nodeById[id].links.length : 0) + ' related areas of expertise.');
-    this.setState({ selected: id, discipline: null, hover: null, sheetOpen: false, announce: msg });
+    this.setState({ selected: id, discipline: null, trace: null, hover: null, sheetOpen: false, announce: msg });
   }
   pickDisc(id) { var d = this.nidata().discById[id]; this.setState({ discipline: id, hover: null, announce: d ? d.name + ' — linked across ' + d.systems.length + ' areas' : '' }); }
   listHover(kind, id) {
@@ -229,7 +242,7 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
   layout() {
     var s = this.state, W = s.w || 1440, H = this.hpx();
     var compact = W < 900;
-    var panel = !!(s.selected || s.discipline);
+    var panel = !!(s.selected || s.discipline || s.trace);
     if (compact) {
       var sheetH = Math.round(H * 0.5);
       return { compact: true, top: 112, left: 0, right: 0, bottom: 72 + ((panel || s.sheetOpen) ? sheetH : 0), sheetH: sheetH };
@@ -242,7 +255,7 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
   renderVals() {
     var self = this, D = this.nidata(), s = this.state, L = this.layout();
     var W = s.w || 1440, H = this.hpx(), compact = L.compact;
-    var panel = !!(s.selected || s.discipline);
+    var panel = !!(s.selected || s.discipline || s.trace);
     var mono = "var(--ni-font-mono, 'JetBrains Mono'), ui-monospace, monospace";
     var hov = s.hover;
     var dotFor = function (o, size) {
@@ -262,7 +275,7 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
 
     var groups = D.ORBITS.map(function (o) {
       return {
-        num: o.num, name: o.name, blurb: o.blurb, count: o.nodes.length + ' nodes', aria: o.name,
+        num: o.num, name: o.name, level: o.level + ' · ' + o.tag, blurb: o.blurb, count: o.nodes.length + ' nodes', aria: o.level + ': ' + o.name,
         enter: function () { if (self.E) { self.E.ringHover = o.num - 1; self.wake(); } },
         leave: function () { if (self.E) { self.E.ringHover = -1; self.wake(); } },
         nodes: o.nodes.map(function (n) {
@@ -285,7 +298,7 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
     var sys = null;
     if (s.selected) {
       if (s.selected === 'whole') {
-        sys = { isWhole: true, hasExp: false, emptyFiltered: false, name: 'Uniquely You', eyebrow: 'The centre · six dimensions',
+        sys = { isWhole: true, hasExp: false, emptyFiltered: false, hasPaths: false, pathRows: [], name: 'Uniquely You', eyebrow: 'The centre · six dimensions',
           desc: 'At the centre glows the NI mark: a fingerprint, because no two people are alike, growing into a tree with living roots. It holds the six dimensions of a life — physical, mental, emotional, social, spiritual and environmental — woven together, never separate. Every orbit turns around you.',
           dot: 'width: 10px; height: 10px; border-radius: 50%; background: #C9A66B',
           dims: D.DIMS.map(function (d) { return { name: d[0], dot: 'width: 8px; height: 8px; flex: none; border-radius: 50%; background: ' + d[1] }; }) };
@@ -302,7 +315,18 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
               pick: function () { self.pickDisc(d.id); }, enter: function () { self.listHover('moon', d.id); }, leave: function () { self.listHover(null); } };
           }) };
         }).filter(Boolean);
-        sys = { isWhole: false, name: n.name, desc: n.desc, eyebrow: n.orbit.name, dot: dotFor(n.orbit, 10),
+        var pk = n.orbit.kind === 2 ? 'root' : (n.orbit.kind === 1 ? 'proc' : 'sys');
+        var pathRows = n.paths.map(function (q) {
+          var a = D.nodeById[q.root], b = D.nodeById[q.proc], c = D.nodeById[q.sys];
+          var label = pk === 'root' ? b.name + '  →  ' + c.name : (pk === 'proc' ? a.name + '  →  ' + c.name : a.name + '  →  ' + b.name);
+          var to = pk === 'sys' ? a : c, hv2 = hov && hov.kind === 'planet' && hov.id === to.id;
+          return { label: label, dot: dotFor(to.orbit, 8), style: rowStyle(hv2),
+            pick: function () { self.select(to.id); }, enter: function () { self.listHover('planet', to.id); }, leave: function () { self.listHover(null); } };
+        });
+        sys = { isWhole: false, name: n.name, desc: n.desc, eyebrow: n.orbit.level + ' · ' + n.orbit.name, dot: dotFor(n.orbit, 10),
+          hasPaths: pathRows.length > 0, pathRows: pathRows,
+          pathTitle: pk === 'root' ? 'What it can shape' : (pk === 'proc' ? 'Roots it carries · where it shows' : 'Roots that can shape it'),
+          pathNote: (pk === 'root' ? 'Through a foundation, into a system.' : (pk === 'proc' ? 'From an everyday root, through this foundation, into a system.' : 'From an everyday root, through a foundation.')) + ' Common associations — not causes.',
           hasSig: true, sigNote: n.orbit.kind === 2 ? 'Signature motif: an everyday influence, drawn as a botanical emblem.' : (n.orbit.kind === 1 ? 'Signature motif: a process that runs across several organs.' : 'Signature motif: drawn from the organ’s own structure.'), hasExp: vis.length > 0, emptyFiltered: vis.length === 0, expCount: vis.length + (vis.length === 1 ? ' discipline' : ' disciplines'), expGroups: eg, dims: [] };
       }
     }
@@ -318,11 +342,38 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
         }) };
     }
 
+    // trace: an everyday experience followed from the leaves back to the roots
+    var trace = null;
+    if (s.trace) {
+      var X = D.expById[s.trace];
+      var tierRow = function (id) {
+        var tn = D.nodeById[id], hv3 = hov && hov.kind === 'planet' && hov.id === id;
+        return { name: tn.name, dot: dotFor(tn.orbit, 9), style: rowStyle(hv3),
+          pick: function () { self.select(id); }, enter: function () { self.listHover('planet', id); }, leave: function () { self.listHover(null); } };
+      };
+      trace = { name: X.name, desc: X.desc, care: X.care,
+        tiers: [
+          { title: 'Where it often shows', note: 'Systems', items: X.systems.map(tierRow) },
+          { title: 'What sits underneath', note: 'Foundations', items: X.procs.map(tierRow) },
+          { title: 'What can shape it', note: 'Roots', items: X.roots.map(tierRow) }
+        ],
+        help: X.help.filter(function (d) { return self.catOk(d); }).map(function (d) {
+          var hv4 = hov && hov.kind === 'moon' && hov.id === d.id;
+          return { name: d.name, meta: d.reg + ' · ' + d.role, glyph: glyphFor(d.cat), style: rowStyle(hv4, 52),
+            pick: function () { self.pickDisc(d.id); }, enter: function () { self.listHover('moon', d.id); }, leave: function () { self.listHover(null); } };
+        }) };
+    }
+    var expChips = D.exps.map(function (x) {
+      var on = s.trace === x.id;
+      return { name: x.short, on: on, pick: function () { self.pickExp(x.id); },
+        style: 'min-height: ' + (compact ? 40 : 32) + 'px; padding: 0 12px; border: 1px solid ' + (on ? '#1E2F24' : 'rgba(184,147,90,0.42)') + '; border-radius: 999px; background: ' + (on ? '#1E2F24' : 'rgba(255,253,249,0.92)') + '; color: ' + (on ? '#F8F6F2' : '#14201A') + '; font: 500 12.5px/1 \'DM Sans\', system-ui, sans-serif; cursor: pointer' };
+    });
+
     // tooltip (stationary: placed once on hover, never follows motion)
     var tip = { show: false };
     if (hov && hov.x != null && !(compact && hov.src === 'list')) {
       var t = null;
-      if (hov.kind === 'planet') { var hn = D.nodeById[hov.id]; t = { eyebrow: hn.orbit.name, name: hn.name, desc: hn.desc }; }
+      if (hov.kind === 'planet') { var hn = D.nodeById[hov.id]; t = { eyebrow: hn.orbit.level + ' · ' + hn.orbit.tag, name: hn.name, desc: hn.desc }; }
       else if (hov.kind === 'center') t = null; // the floating 'Uniquely You' label is the hover state for the centre
       else if (hov.kind === 'moon') { var hd = D.discById[hov.id]; t = { eyebrow: D.CATS[hd.cat].label, name: hd.name, desc: hd.reg + ' · ' + hd.role + (hov.planet ? (hd.coach ? ' · Coaching support for ' : ' · Specialist in ') + D.nodeById[hov.planet].name : '') }; }
       if (t && !(hov.src === 'list' && hov.kind === 'moon' && panel)) {
@@ -358,7 +409,7 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
     });
 
     return {
-      rootRef: this.rootRef, canvasRef: this.canvasRef, phraseRef: this.phraseRef, sigRef: this.sigRef, wpRef: this.wpRef, hudRef: this.hudRef, onKey: this.onKey,
+      rootRef: this.rootRef, canvasRef: this.canvasRef, phraseRef: this.phraseRef, tagsRef: this.tagsRef, sigRef: this.sigRef, wpRef: this.wpRef, hudRef: this.hudRef, onKey: this.onKey,
       h: H, wpSize: compact ? 18 : 23, pad: compact ? 18 : 32, h1Size: compact ? 27 : 44, subSize: compact ? 13.5 : 16,
       showPoster: !s.ready || s.fallback, canvasOpacity: s.ready && !s.fallback ? 1 : 0,
       cursor: hov && hov.src === 'ray' ? 'pointer' : 'grab',
@@ -368,7 +419,8 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
       navVisible: navVisible, navStyle: navStyle, groups: groups, filterOpts: filterOpts, filter: s.filter, onFilter: this.onFilter,
       moonOpts: moonOpts, speed: s.speed, onSpeed: this.onSpeed, speedLabel: s.speed + '×',
       wholeOn: wholeOn, wholeStyle: rowStyle(wholeOn || (hov && hov.kind === 'center'), 52), pickWhole: this.pickWhole, hoverWhole: this.hoverWhole, unhover: this.unhover,
-      panelOpen: panel, panelStyle: panelStyle, sysMode: !!sys && !disc, discMode: !!disc, sys: sys || { dims: [], expGroups: [] }, disc: disc || { systems: [] }, back: this.back,
+      panelOpen: panel, panelStyle: panelStyle, sysMode: !!sys && !disc, discMode: !!disc, sys: sys || { dims: [], expGroups: [], pathRows: [] }, disc: disc || { systems: [] }, back: this.back,
+      traceMode: !!trace && !sys && !disc, trace: trace || { tiers: [], help: [] }, expChips: expChips,
       backStyle: 'align-self: flex-start; min-height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px 0 10px; border: 1px solid rgba(184,147,90,0.35); border-radius: 999px; background: transparent; color: #7A5A2A; font: 500 13px/1 \'DM Sans\', system-ui, sans-serif; cursor: pointer',
       filterLabel: s.filter === 'all' ? '' : D.CATS[s.filter].short.toLowerCase(),
       tip: tip, barStyle: barStyle, iconBtn: iconBtn,
@@ -660,6 +712,26 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
       al.frustumCulled = false; al.visible = false; scene.add(al); E.arcs.push({ line: al, to: null, op: 0 });
     }
 
+    // pathway threads: roots → foundations → systems. One line each; a slow pulse of light flows inward like sap.
+    E.threadCap = 12; E.threads = []; E.threadNodes = {};
+    var thVS = 'attribute float aT; varying float vT; void main(){ vT=aT; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }';
+    var thFS = 'uniform float uOp; uniform float uT; varying float vT; void main(){ float f=fract(vT*2.2-uT*0.32); float pulse=smoothstep(0.0,0.08,f)*smoothstep(0.34,0.08,f);' +
+      ' vec3 base=vec3(0.50,0.40,0.22); vec3 sap=vec3(0.95,0.76,0.34); float edge=smoothstep(0.0,0.05,vT)*smoothstep(1.0,0.95,vT);' +
+      ' gl_FragColor=vec4(mix(base,sap,pulse),uOp*edge*(0.45+0.55*pulse)); }';
+    E.threadN = 49;
+    for (var ti = 0; ti < E.threadCap; ti++) {
+      var tgeo = new T.BufferGeometry(), tts = [];
+      for (var q2 = 0; q2 < E.threadN; q2++) tts.push(q2 / (E.threadN - 1));
+      tgeo.setAttribute('position', new T.Float32BufferAttribute(new Float32Array(E.threadN * 3), 3)); tgeo.setAttribute('aT', new T.Float32BufferAttribute(tts, 1));
+      var tline = new T.Line(tgeo, new T.ShaderMaterial({ vertexShader: thVS, fragmentShader: thFS, uniforms: { uOp: { value: 0 }, uT: { value: ti * 0.9 } }, transparent: true, depthWrite: false }));
+      tline.frustumCulled = false; tline.visible = false; tline.raycast = function () {}; scene.add(tline);
+      E.threads.push({ line: tline, path: null, op: 0, tgt: 0 });
+    }
+
+    E.sapK = 3; var sapP = [], sapS = [], sapA = [], sapC = [];
+    for (var si = 0; si < E.threadCap * E.sapK; si++) { sapP.push(0, 0, 0); sapS.push(si % E.sapK === 0 ? 6.5 : 4.6); sapA.push(0); sapC.push(0.93, 0.72, 0.30); }
+    E.sap = mkPoints(sapP, sapS, sapA, sapC, 1); E.sap.frustumCulled = false; scene.add(E.sap);
+
     // camera rig
     E.target = new T.Vector3(); E.theta = 0.55; E.phi = 0.8; E.dist = 90; E.thetaD = 0.55; E.phiD = 0.98; E.distD = 90; E.offX = 0; E.offY = 0;
     E.raycaster = new T.Raycaster();
@@ -739,9 +811,9 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
     E.speed = s.paused ? 0 : s.speed;
     var L = this.layout(), lk = [L.left, L.right, L.top, L.bottom].join(',');
     var layoutChanged = E.lk !== lk; E.layout = L; E.lk = lk;
-    var selChanged = E.sel !== s.selected || E.disc !== s.discipline;
+    var selChanged = E.sel !== s.selected || E.disc !== s.discipline || E.trace !== s.trace;
     var moonsChanged = selChanged || E.moonsMode !== s.moonsMode || E.filter !== s.filter;
-    E.sel = s.selected; E.disc = s.discipline; E.moonsMode = s.moonsMode; E.filter = s.filter;
+    E.sel = s.selected; E.disc = s.discipline; E.trace = s.trace; E.moonsMode = s.moonsMode; E.filter = s.filter;
     if (moonsChanged) this.rebuildMoons();
     if (selChanged || layoutChanged || first) this.focusCamera(!selChanged);
     E.perf = s.perf;
@@ -798,6 +870,7 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
       add(fp, fp.n.links.filter(function (d) { return self.catOk(d); }), 'focus');
       if (discD) discD.systems.forEach(function (id) { if (id !== focusId) add(E.planetById[id], [discD], 'featured'); });
     } else if (discD) discD.systems.forEach(function (id) { add(E.planetById[id], [discD], 'featured'); });
+    else if (E.trace) { var xx = D.expById[E.trace]; xx.systems.forEach(function (id) { var tp = E.planetById[id]; add(tp, xx.help.filter(function (d) { return tp.n.links.indexOf(d) >= 0 && self.catOk(d); }), 'featured'); }); }
     else if (E.moonsMode === 'featured') E.planets.forEach(function (p) { add(p, self.featuredFor(p.n), 'featured'); });
     else if (E.moonsMode === 'all') E.planets.forEach(function (p) { add(p, p.n.links.filter(function (d) { return self.catOk(d); }), 'all'); });
     var old = {}; E.moons.forEach(function (m) { old[m.key] = m; });
@@ -848,9 +921,16 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
     var sp = E.speed, k = E.reduced ? 1 : 1 - Math.exp(-dt * 3.2), kf = 1 - Math.exp(-dt * 6);
     var D = this.nidata();
     var focusId = E.sel && E.sel !== 'whole' ? E.sel : null;
-    var anySel = !!(E.sel || E.disc);
+    var anySel = !!(E.sel || E.disc || E.trace);
     var discD = E.disc ? D.discById[E.disc] : null;
     var hv = E.listHover || E.rayHover;
+    var traceX = E.trace && !focusId && !discD ? D.expById[E.trace] : null;
+    // which pathways glow: the traced experience, else the hovered planet, else the focused planet
+    var wantP = [];
+    if (traceX) wantP = traceX.paths;
+    else if (!discD) { var tpid = hv && hv.kind === 'planet' ? hv.id : focusId; if (tpid && E.planetById[tpid]) wantP = E.planetById[tpid].n.paths; }
+    wantP = wantP.slice(0, E.threadCap);
+    E.threadNodes = {}; wantP.forEach(function (q) { E.threadNodes[q.root] = 1; E.threadNodes[q.proc] = 1; E.threadNodes[q.sys] = 1; });
     // whatever is under the pointer holds still, so it can be read and clicked comfortably
     var holdId = hv ? (hv.kind === 'planet' ? hv.id : (hv.kind === 'moon' && hv.planet ? hv.planet : null)) : null;
 
@@ -888,6 +968,9 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
       else if (E.sel === 'whole') { dimT = 0.35; }
       else if (filt && !p.n.links.some(function (d) { return d.cat === filt; })) dimT = 0.62;
       if (hv && !isHv && !focusId && !discD && hv.kind === 'planet') dimT = Math.max(dimT, 0.4);
+      if (traceX) { var inX = traceX.nodes.indexOf(p.id) >= 0; dimT = inX ? 0 : 0.78; hiT = inX ? 0.5 : 0; }
+      else if (E.threadNodes[p.id] && hv && hv.kind === 'planet' && !focusId && !discD) dimT = Math.min(dimT, 0.04);
+      else if (E.threadNodes[p.id] && focusId && focusId !== p.id && !discD) dimT = Math.min(dimT, 0.42);
       if (isHv) { hiT = 1; dimT = Math.min(dimT, 0.1); }
       p.dim += (dimT - p.dim) * kf; p.hi += (hiT - p.hi) * kf;
       p.fill += ((focusId === p.id ? 1 : 0) - p.fill) * kf; p.mat.uniforms.uFill.value = p.fill;
@@ -899,7 +982,7 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
 
     // Whole Person
     E.coreMat.uniforms.uTime.value += dt * (sp || 0.0001);
-    var cDim = (focusId || discD) ? 0.6 : 0; E.cDim = (E.cDim || 0) + (cDim - (E.cDim || 0)) * kf;
+    var cDim = (focusId || discD) ? 0.6 : (traceX ? 0.22 : 0); E.cDim = (E.cDim || 0) + (cDim - (E.cDim || 0)) * kf;
     E.coreMat.uniforms.uDim.value = E.cDim;
     var cHi = (hv && hv.kind === 'center') || E.sel === 'whole' ? 0.62 : 0.42;
     E.glow.material.uniforms.uI.value += ((cHi * (1 - E.cDim * 0.7)) - E.glow.material.uniforms.uI.value) * kf;
@@ -983,6 +1066,45 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
       a.line.geometry.attributes.position.needsUpdate = true;
     });
 
+    // pathway threads (pooled; each keeps its pathway while fading so nothing jumps)
+    var wantIds = {}; wantP.forEach(function (q) { wantIds[q.id] = q; });
+    E.threads.forEach(function (t) { if (t.path && wantIds[t.path.id]) { t.tgt = 1; delete wantIds[t.path.id]; } else t.tgt = 0; });
+    Object.keys(wantIds).forEach(function (id) {
+      for (var fi = 0; fi < E.threads.length; fi++) { var ft = E.threads[fi]; if (!ft.path || (ft.tgt === 0 && ft.op < 0.03)) { ft.path = wantIds[id]; ft.tgt = 1; ft.op = 0; return; } }
+    });
+    var thBez = function (arr, o, A0, B0, lift, n) {
+      var mx = (A0.x + B0.x) / 2 * 0.86, my = (A0.y + B0.y) / 2 + lift, mz = (A0.z + B0.z) / 2 * 0.86;
+      for (var q = 0; q < n; q++) {
+        var tq = q / (n - 1), uq = 1 - tq, j = (o + q) * 3;
+        arr[j] = uq * uq * A0.x + 2 * uq * tq * mx + tq * tq * B0.x;
+        arr[j + 1] = uq * uq * A0.y + 2 * uq * tq * my + tq * tq * B0.y;
+        arr[j + 2] = uq * uq * A0.z + 2 * uq * tq * mz + tq * tq * B0.z;
+      }
+    };
+    var sPos = E.sap.geometry.attributes.position.array, sA = E.sap.geometry.attributes.aAlpha.array;
+    for (var sz = 0; sz < sA.length; sz++) sA[sz] = 0;
+    E.threads.forEach(function (t, tix) {
+      if (!t.path) return;
+      t.op += (t.tgt * 0.9 - t.op) * kf;
+      if (t.tgt === 0 && t.op < 0.01) { t.path = null; t.line.visible = false; return; }
+      t.line.visible = true;
+      var u = t.line.material.uniforms; u.uOp.value = t.op; u.uT.value += dt * (sp > 0 ? 1 : 0);
+      var half = (E.threadN - 1) / 2, arr = t.line.geometry.attributes.position.array;
+      thBez(arr, 0, E.planetById[t.path.root].g.position, E.planetById[t.path.proc].g.position, 1.6, half + 1);
+      thBez(arr, half, E.planetById[t.path.proc].g.position, E.planetById[t.path.sys].g.position, 1.2, half + 1);
+      t.line.geometry.attributes.position.needsUpdate = true;
+      for (var sk = 0; sk < E.sapK; sk++) {
+        var st = (sk / E.sapK + u.uT.value * 0.07) % 1, fq = st * (E.threadN - 1), q0 = Math.floor(fq), q1 = Math.min(E.threadN - 1, q0 + 1), fr = fq - q0, si2 = tix * E.sapK + sk;
+        sPos[si2 * 3] = arr[q0 * 3] + (arr[q1 * 3] - arr[q0 * 3]) * fr;
+        sPos[si2 * 3 + 1] = arr[q0 * 3 + 1] + (arr[q1 * 3 + 1] - arr[q0 * 3 + 1]) * fr;
+        sPos[si2 * 3 + 2] = arr[q0 * 3 + 2] + (arr[q1 * 3 + 2] - arr[q0 * 3 + 2]) * fr;
+        sA[si2] = t.op * Math.sin(Math.PI * st) * 0.95;
+      }
+      if (t.op > 0.02 && Math.abs(t.tgt * 0.9 - t.op) > 0.01) E.activeUntil = Math.max(E.activeUntil, now + 200);
+    });
+
+    E.sap.geometry.attributes.position.needsUpdate = true; E.sap.geometry.attributes.aAlpha.needsUpdate = true; E.sap.material.uniforms.uPR.value = E.dpr;
+
     // camera
     E.idleT += dt;
     if (sp > 0 && !anySel && E.idleT > 4 && !E.reduced) E.thetaD += dt * 0.018 * sp;
@@ -1007,7 +1129,37 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
       var sx = (v.x + 1) / 2 * E.W, sy = (1 - v.y) / 2 * E.H;
       var rpx = 3.6 / (E.camera.position.length() * Math.tan(E.camera.fov * Math.PI / 360)) * E.H / 2 * (E.layout.compact ? 1.25 : 1);
       this.wpEl.style.transform = 'translate(' + sx.toFixed(1) + 'px,' + (sy + rpx * 1.0 + 2).toFixed(1) + 'px) translateX(-50%)';
-      this.wpEl.style.opacity = (!focusId && !discD) ? ((hv && hv.kind === 'center') ? '1' : '0.86') : '0';
+      this.wpEl.style.opacity = (!focusId && !discD && !traceX) ? ((hv && hv.kind === 'center') ? '1' : '0.86') : '0';
+    }
+
+    if (this.tagsEl) {
+      if (!this.tagsEl.children.length) {
+        for (var tg = 0; tg < 12; tg++) {
+          var te = document.createElement('div');
+          te.style.cssText = 'position:absolute;left:0;top:0;padding:3px 9px;border-radius:999px;background:rgba(255,253,249,0.9);border:1px solid rgba(184,147,90,0.32);font:500 12px/1.2 \'DM Sans\',system-ui,sans-serif;color:#14201A;white-space:nowrap;opacity:0;transition:opacity 400ms ease;will-change:transform,opacity';
+          this.tagsEl.appendChild(te);
+        }
+      }
+      var tagIds = traceX ? traceX.nodes : ((hv && hv.kind === 'planet' && !focusId && !discD) ? Object.keys(E.threadNodes).filter(function (id) { return id !== hv.id; }) : []);
+      var tanH = Math.tan(E.camera.fov * Math.PI / 360), kids = this.tagsEl.children, placed = [], LL = E.layout;
+      var xMin = LL.compact ? 6 : LL.left + 8, xMax = E.W - (LL.compact ? 6 : LL.right + 8);
+      for (var tk = 0; tk < kids.length; tk++) {
+        var el = kids[tk], tp2 = tk < tagIds.length ? E.planetById[tagIds[tk]] : null;
+        if (!tp2) { if (el.style.opacity !== '0') el.style.opacity = '0'; continue; }
+        var nm = tp2.n.name; if (el.textContent !== nm) el.textContent = nm;
+        var pv = E.v1.copy(tp2.g.position).project(E.camera), px2 = (pv.x + 1) / 2 * E.W, py2 = (1 - pv.y) / 2 * E.H;
+        var prad = tp2.size / (E.camera.position.distanceTo(tp2.g.position) * tanH) * E.H / 2;
+        // place above the planet; if that collides with a tag already placed, try below, then further out
+        var tw2 = nm.length * 6.4 + 20, cx2 = Math.min(xMax - tw2 / 2, Math.max(xMin + tw2 / 2, px2)), best2 = null;
+        [py2 - prad - 26, py2 + prad + 6, py2 - prad - 50, py2 + prad + 30].some(function (yy) {
+          var hit2 = placed.some(function (r2) { return Math.abs(r2.x - cx2) < (r2.w + tw2) / 2 + 4 && Math.abs(r2.y - yy) < 24; });
+          if (!hit2) { best2 = yy; return true; } return false;
+        });
+        if (best2 == null) best2 = py2 - prad - 26;
+        placed.push({ x: cx2, y: best2, w: tw2 });
+        el.style.transform = 'translate(' + cx2.toFixed(1) + 'px,' + best2.toFixed(1) + 'px) translateX(-50%)';
+        el.style.opacity = (pv.z < 1 && best2 > LL.top - 8 && best2 < E.H - LL.bottom - 22 && px2 > xMin - 4 && px2 < xMax + 4) ? '1' : '0';
+      }
     }
 
     // performance meter + adaptive resolution
@@ -1074,6 +1226,7 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
             Uniquely You
           </div>
         </div>
+        <div ref={v.tagsRef} aria-hidden="true" style={css("position: absolute; inset: 0; pointer-events: none; overflow: hidden")}></div>
         <header style={css(`position: absolute; left: ${v.pad}px; top: ${v.pad}px; right: ${v.pad}px; max-width: 760px; pointer-events: none`)}>
           <div style={css("font-family: var(--ni-font-mono, 'JetBrains Mono'), ui-monospace, monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #8A6A35")}>
             Natural Intelligence · Living Galaxy
@@ -1089,7 +1242,7 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
           <>
             <div style={css("position: absolute; right: 32px; top: 34px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px")}>
               <p style={css("margin: 0; max-width: 300px; text-align: right; font-size: 13px; line-height: 1.5; color: rgba(20,32,26,0.72)")}>
-                Small moons are the professional expertise orbiting each system. Drag to rotate · scroll to zoom · select a system to meet all of it.
+                Roots on the outer orbit feed everything inside. Hover any planet to see its pathways glow · drag to rotate · scroll to zoom.
               </p>
               <button type="button" onClick={v.togglePerf} aria-pressed={v.perf} style={css("min-height: 32px; padding: 4px 12px; border: 1px solid rgba(184,147,90,0.35); border-radius: 999px; background: rgba(255,253,249,0.7); color: #7A5A2A; font: 500 11px/1 var(--ni-font-mono, 'JetBrains Mono'), ui-monospace, monospace; letter-spacing: 0.08em; cursor: pointer")}>
                 {v.perfLabel}
@@ -1132,6 +1285,23 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
                   </div>
                 </>
               ) : null}
+              <section aria-label="Start from what you notice" style={css("margin: 0 4px 14px; padding: 12px; border: 1px solid rgba(184,147,90,0.24); border-radius: 12px; background: linear-gradient(180deg, rgba(184,147,90,0.11), rgba(184,147,90,0.03))")}>
+                <div style={css("font-family: var(--ni-font-mono, 'JetBrains Mono'), ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #8A6A35")}>
+                  Start from what you notice
+                </div>
+                <p style={css("margin: 4px 0 10px; font-size: 12.5px; line-height: 1.45; color: rgba(20,32,26,0.72)")}>
+                  Trace an everyday experience back to its roots.
+                </p>
+                <div role="group" aria-label="Everyday experiences" style={css("display: flex; flex-wrap: wrap; gap: 6px")}>
+                  {(v.expChips || []).map((x, $index) => (
+                    <React.Fragment key={$index}>
+                      <button type="button" onClick={x.pick} aria-pressed={x.on} style={css(x.style)}>
+                        {x.name}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </section>
               <label style={css("display: flex; flex-direction: column; gap: 6px; padding: 4px 4px 10px; font-family: var(--ni-font-mono, 'JetBrains Mono'), ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #8A6A35")}>
                 {"Filter expertise "}
                 <select value={v.filter} onChange={v.onFilter} style={css("min-height: 40px; padding: 6px 10px; border: 1px solid rgba(184,147,90,0.35); border-radius: 10px; background: #FFFFFF; color: #14201A; font: 500 14px/1.2 var(--ni-font-ui, 'DM Sans'), system-ui, sans-serif; letter-spacing: 0; text-transform: none")}>
@@ -1188,6 +1358,9 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
                 <React.Fragment key={$index}>
                   <section aria-label={g.aria} style={css("margin-top: 14px")}>
                     <div onMouseEnter={g.enter} onMouseLeave={g.leave} style={css("padding: 0 6px")}>
+                      <div style={css("margin-bottom: 3px; font-family: var(--ni-font-mono, 'JetBrains Mono'), ui-monospace, monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #8A6A35")}>
+                        {g.level}
+                      </div>
                       <h2 style={css("margin: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-family: var(--ni-font-display, 'Cormorant Garamond'), Georgia, serif; font-size: 20px; font-weight: 600; line-height: 1.15; color: #14201A")}>
                         <span>
                           {g.name}
@@ -1260,6 +1433,32 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
                     <p style={css("margin: 0; font-size: 15px; line-height: 1.6; color: rgba(20,32,26,0.86)")}>
                       {v.sys.desc}
                     </p>
+                    {v.sys.hasPaths ? (
+                      <>
+                        <div style={css("display: flex; flex-direction: column; gap: 4px; padding-top: 6px; border-top: 1px solid rgba(184,147,90,0.2)")}>
+                          <h3 style={css("margin: 10px 0 0; font-family: var(--ni-font-mono, 'JetBrains Mono'), ui-monospace, monospace; font-size: 10.5px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #8A6A35")}>
+                            {v.sys.pathTitle}
+                          </h3>
+                          <p style={css("margin: 0 0 4px; font-size: 12.5px; line-height: 1.5; color: rgba(20,32,26,0.68)")}>
+                            {v.sys.pathNote}
+                          </p>
+                          <ul style={css("list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px")}>
+                            {(v.sys.pathRows || []).map((pr, $index) => (
+                              <React.Fragment key={$index}>
+                                <li>
+                                  <button type="button" onClick={pr.pick} onMouseEnter={pr.enter} onMouseLeave={pr.leave} onFocus={pr.enter} onBlur={pr.leave} style={css(pr.style)}>
+                                    <span aria-hidden="true" style={css(pr.dot)}></span>
+                                    <span style={css("flex: 1; font-size: 13.5px")}>
+                                      {pr.label}
+                                    </span>
+                                  </button>
+                                </li>
+                              </React.Fragment>
+                            ))}
+                          </ul>
+                        </div>
+                      </>
+                    ) : null}
                     {v.sys.isWhole ? (
                       <>
                         <ul style={css("list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px")}>
@@ -1329,6 +1528,87 @@ export default class NIGalaxy extends React.Component<NIGalaxyProps, any> {
                     ) : null}
                     <p style={css("margin: 4px 0 0; padding: 12px 14px; border-radius: 10px; background: rgba(20,32,26,0.05); font-size: 12.5px; line-height: 1.55; color: rgba(20,32,26,0.74)")}>
                       Professionals shown may support aspects of this area within their own scope. Coaches support habits and goals; they do not diagnose or treat. For new or worsening symptoms, start with your GP or NHS 111.
+                    </p>
+                  </div>
+                </>
+              ) : null}
+              {v.traceMode ? (
+                <>
+                  <div style={css("display: flex; flex-direction: column; gap: 14px")}>
+                    <button type="button" onClick={v.back} style={css(v.backStyle)}>
+                      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M15 18l-6-6 6-6"></path>
+                      </svg>
+                      Whole galaxy
+                    </button>
+                    <div>
+                      <div style={css("font-family: var(--ni-font-mono, 'JetBrains Mono'), ui-monospace, monospace; font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: #8A6A35")}>
+                        What you notice · traced to its roots
+                      </div>
+                      <h2 style={css("margin: 8px 0 0; font-family: var(--ni-font-display, 'Cormorant Garamond'), Georgia, serif; font-size: 34px; font-weight: 500; line-height: 1.05; color: #14201A")}>
+                        {v.trace.name}
+                      </h2>
+                    </div>
+                    <p style={css("margin: 0; font-size: 15px; line-height: 1.6; color: rgba(20,32,26,0.86)")}>
+                      {v.trace.desc}
+                    </p>
+                    {(v.trace.tiers || []).map((tr, $index) => (
+                      <React.Fragment key={$index}>
+                        <div style={css("display: flex; flex-direction: column; gap: 4px; padding-top: 6px; border-top: 1px solid rgba(184,147,90,0.2)")}>
+                          <div style={css("display: flex; justify-content: space-between; align-items: baseline; margin-top: 10px")}>
+                            <h3 style={css("margin: 0; font-family: var(--ni-font-mono, 'JetBrains Mono'), ui-monospace, monospace; font-size: 10.5px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #8A6A35")}>
+                              {tr.title}
+                            </h3>
+                            <span style={css("font-family: var(--ni-font-mono, 'JetBrains Mono'), ui-monospace, monospace; font-size: 11px; color: rgba(20,32,26,0.55)")}>
+                              {tr.note}
+                            </span>
+                          </div>
+                          <ul style={css("list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px")}>
+                            {(tr.items || []).map((ti, $index) => (
+                              <React.Fragment key={$index}>
+                                <li>
+                                  <button type="button" onClick={ti.pick} onMouseEnter={ti.enter} onMouseLeave={ti.leave} onFocus={ti.enter} onBlur={ti.leave} style={css(ti.style)}>
+                                    <span aria-hidden="true" style={css(ti.dot)}></span>
+                                    <span style={css("flex: 1")}>
+                                      {ti.name}
+                                    </span>
+                                  </button>
+                                </li>
+                              </React.Fragment>
+                            ))}
+                          </ul>
+                        </div>
+                      </React.Fragment>
+                    ))}
+                    <div style={css("display: flex; flex-direction: column; gap: 4px; padding-top: 6px; border-top: 1px solid rgba(184,147,90,0.2)")}>
+                      <h3 style={css("margin: 10px 0 0; font-family: var(--ni-font-mono, 'JetBrains Mono'), ui-monospace, monospace; font-size: 10.5px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: #8A6A35")}>
+                        Who can help
+                      </h3>
+                      <ul style={css("list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px")}>
+                        {(v.trace.help || []).map((th, $index) => (
+                          <React.Fragment key={$index}>
+                            <li>
+                              <button type="button" onClick={th.pick} onMouseEnter={th.enter} onMouseLeave={th.leave} onFocus={th.enter} onBlur={th.leave} style={css(th.style)}>
+                                <span aria-hidden="true" style={css(th.glyph)}></span>
+                                <span style={css("display: flex; flex-direction: column; gap: 3px; flex: 1")}>
+                                  <span style={css("font-size: 15px; font-weight: 500; color: #14201A")}>
+                                    {th.name}
+                                  </span>
+                                  <span style={css("font-size: 12px; color: rgba(20,32,26,0.66)")}>
+                                    {th.meta}
+                                  </span>
+                                </span>
+                              </button>
+                            </li>
+                          </React.Fragment>
+                        ))}
+                      </ul>
+                    </div>
+                    <p style={css("margin: 0; padding: 12px 14px; border: 1px solid rgba(176,138,78,0.45); border-radius: 10px; background: rgba(184,147,90,0.08); font-size: 13px; line-height: 1.55; color: #3A2E1C")}>
+                      {v.trace.care}
+                    </p>
+                    <p style={css("margin: 0; padding: 12px 14px; border-radius: 10px; background: rgba(20,32,26,0.05); font-size: 12.5px; line-height: 1.55; color: rgba(20,32,26,0.74)")}>
+                      Educational only. Everyday experiences have many possible causes — this does not assess you or explain your symptoms. For anything new, persistent or worrying, start with your GP or NHS 111.
                     </p>
                   </div>
                 </>

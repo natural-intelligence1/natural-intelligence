@@ -1,7 +1,7 @@
 /*
- * NI Living Galaxy — canonical content model.
- * Single source of truth for orbits, systems, disciplines and the discipline→system links.
- * CLINICAL SIGN-OFF REQUIRED before production: the LINKS table and every scope/role sentence.
+ * NI Living Galaxy — canonical content model (v2: roots, pathways, everyday experiences).
+ * Single source of truth for orbits, systems, disciplines, discipline→system links,
+ * root→foundation→system pathways and the "Start from what you notice" experiences.
  * Later: replace DISCIPLINES/LINKS with the practitioner directory (see CLAUDE.md §Data integration).
  */
 
@@ -9,11 +9,14 @@ export type OrbitId = 'o1' | 'o2' | 'o3' | 'o4';
 export type CategoryId = 'medical' | 'allied' | 'nutrition' | 'integrative' | 'accredited' | 'coach';
 
 export interface OrbitDef {
-  id: OrbitId; num: number; name: string; blurb: string;
+  id: OrbitId; num: number; name: string;
+  /** tree-language level shown in UI: Systems | Foundations | Roots */ level: string;
+  /** one-line meaning of the level, e.g. "What shapes you" */ tag: string;
+  blurb: string;
   /** semi-major axis (scene units) */ a: number; /** eccentricity */ e: number;
   /** inclination, degrees */ inc: number; /** ascending node, degrees */ node: number;
   dir: 1 | -1; /** planet colours */ A: string; B: string;
-  /** 0 = organ system, 1 = cross-system network, 2 = whole-person influence */ kind: 0 | 1 | 2;
+  /** 0 = organ system, 1 = foundation (cross-system process), 2 = root (whole-person influence) */ kind: 0 | 1 | 2;
 }
 export interface SystemDef { id: string; orbit: OrbitId; name: string; desc: string }
 export interface CategoryDef { label: string; short: string; color: string; role: string; scope: string }
@@ -24,12 +27,20 @@ export interface DisciplineDef {
   /** overrides the category role sentence */ role?: string;
 }
 export interface DimensionDef { name: string; color: string }
+/** [root id (orbit 4), foundation id (orbit 3), system id (orbit 1/2)] */
+export type PathwayDef = [string, string, string];
+export interface ExperienceDef {
+  id: string; /** chip label */ short: string; name: string; desc: string;
+  /** pathway ids "root>foundation>system"; each must exist in PATHWAYS */ paths: string[];
+  /** discipline ids for "Who can help" (GP first) */ help: string[];
+  /** experience-specific safety signposting (red flags, GP / NHS 111 / 999) */ care: string;
+}
 
 export const ORBITS: OrbitDef[] = [
-  {"id": "o1", "num": 1, "name": "Core Regulatory Systems", "blurb": "Systems that continuously regulate the internal environment.", "a": 17.5, "e": 0.07, "inc": 5, "node": 20, "dir": 1, "A": "#5A9E96", "B": "#2D6863", "kind": 0},
-  {"id": "o2", "num": 2, "name": "Specialised Functional Systems", "blurb": "Structure, movement, protection, reproduction and perception.", "a": 28, "e": 0.08, "inc": -8, "node": 140, "dir": -1, "A": "#7595BE", "B": "#3C5C86", "kind": 0},
-  {"id": "o3", "num": 3, "name": "Cross-System Functional Networks", "blurb": "Processes that run across several systems — not separate organs.", "a": 38.5, "e": 0.06, "inc": 10, "node": 250, "dir": 1, "A": "#9989C0", "B": "#5A4C82", "kind": 1},
-  {"id": "o4", "num": 4, "name": "Whole-Person Influences", "blurb": "Everyday factors that shape how every system functions.", "a": 49, "e": 0.07, "inc": -15, "node": 80, "dir": -1, "A": "#8BB188", "B": "#4E7A5C", "kind": 2}
+  {"id": "o1", "num": 1, "name": "Core Regulatory Systems", "level": "Systems", "tag": "Where it shows", "blurb": "Systems that continuously regulate the internal environment.", "a": 17.5, "e": 0.07, "inc": 5, "node": 20, "dir": 1, "A": "#5A9E96", "B": "#2D6863", "kind": 0},
+  {"id": "o2", "num": 2, "name": "Specialised Functional Systems", "level": "Systems", "tag": "Where it shows", "blurb": "Structure, movement, protection, reproduction and perception.", "a": 28, "e": 0.08, "inc": -8, "node": 140, "dir": -1, "A": "#7595BE", "B": "#3C5C86", "kind": 0},
+  {"id": "o3", "num": 3, "name": "Cross-System Functional Networks", "level": "Foundations", "tag": "How the body works as one", "blurb": "Processes that run underneath every system, linking them together — not separate organs.", "a": 38.5, "e": 0.06, "inc": 10, "node": 250, "dir": 1, "A": "#9989C0", "B": "#5A4C82", "kind": 1},
+  {"id": "o4", "num": 4, "name": "Whole-Person Influences", "level": "Roots", "tag": "What shapes you", "blurb": "Everyday influences and life history that feed — or drain — every system.", "a": 49, "e": 0.07, "inc": -15, "node": 80, "dir": -1, "A": "#8BB188", "B": "#4E7A5C", "kind": 2}
 ];
 
 export const SYSTEMS: SystemDef[] = [
@@ -55,8 +66,10 @@ export const SYSTEMS: SystemDef[] = [
   {"id": "movement", "orbit": "o4", "name": "Movement", "desc": "Physical activity, strength, mobility and time spent sitting."},
   {"id": "sleep", "orbit": "o4", "name": "Sleep", "desc": "Sleep duration, quality and regularity."},
   {"id": "stress", "orbit": "o4", "name": "Stress & Resilience", "desc": "How we experience and recover from pressure, and the resources that support us."},
-  {"id": "environment", "orbit": "o4", "name": "Environment", "desc": "Home, work and natural surroundings — air, light, noise, green space and exposures."},
-  {"id": "lifestyle", "orbit": "o4", "name": "Lifestyle & Behaviour", "desc": "Daily habits, routines and relationships, and the choices that shape them over time."}
+  {"id": "environment", "orbit": "o4", "name": "Environment & Exposures", "desc": "Home, work and natural surroundings — air, light, noise and green space — and the pollutants, chemicals and microbes we meet."},
+  {"id": "lifestyle", "orbit": "o4", "name": "Lifestyle & Behaviour", "desc": "Daily habits and routines — such as alcohol, smoking, screens and work patterns — and the choices that shape them over time."},
+  {"id": "connection", "orbit": "o4", "name": "Connection & Relationships", "desc": "Family, friendship, community and belonging — and the support we can draw on."},
+  {"id": "lifeexp", "orbit": "o4", "name": "Life Experiences", "desc": "What we have lived through. Major events, losses and long stretches of pressure can leave a lasting imprint on body and mind."}
 ];
 
 export const CATEGORIES: Record<CategoryId, CategoryDef> = {
@@ -177,8 +190,10 @@ export const LINKS: Record<string, string[]> = {
   movement: ["physio", "cep", "sem", "ot", "movementcoach"],
   sleep: ["sleepphys", "psychologist", "gp", "sleepcoach", "healthcoach"],
   stress: ["psychologist", "counsellor", "psychiatrist", "gp", "stresscoach", "healthcoach"],
-  environment: ["gp", "ot", "naturopath", "lifestylecoach"],
-  lifestyle: ["healthcoach", "lifestylecoach", "behaviourcoach", "psychologist", "gp"]
+  environment: ["gp", "immuno", "ot", "naturopath", "lifestylecoach"],
+  lifestyle: ["healthcoach", "lifestylecoach", "behaviourcoach", "psychologist", "gp"],
+  connection: ["psychologist", "counsellor", "gp", "lifestylecoach", "healthcoach"],
+  lifeexp: ["psychologist", "counsellor", "psychiatrist", "gp", "stresscoach"]
 };
 
 export const DIMENSIONS: DimensionDef[] = [
@@ -190,18 +205,75 @@ export const DIMENSIONS: DimensionDef[] = [
   {"name": "Environmental", "color": "#8BB188"}
 ];
 
+/**
+ * Roots → foundations → systems. Educational associations showing how everyday influences can reach
+ * the body. Not causes, not a diagnosis. Drawn as glowing threads in the galaxy.
+ */
+export const PATHWAYS: PathwayDef[] = [
+  ["nutrition", "metabolism", "endocrine"],
+  ["nutrition", "gutbrain", "digestive"],
+  ["nutrition", "inflammation", "immune"],
+  ["nutrition", "biotrans", "digestive"],
+  ["movement", "metabolism", "muscular"],
+  ["movement", "metabolism", "cardio"],
+  ["movement", "inflammation", "skeletal"],
+  ["sleep", "circadian", "endocrine"],
+  ["sleep", "circadian", "nervous"],
+  ["sleep", "inflammation", "immune"],
+  ["stress", "hormonal", "endocrine"],
+  ["stress", "hormonal", "cardio"],
+  ["stress", "hormonal", "nervous"],
+  ["stress", "gutbrain", "digestive"],
+  ["stress", "inflammation", "skin"],
+  ["environment", "circadian", "nervous"],
+  ["environment", "inflammation", "respiratory"],
+  ["environment", "inflammation", "skin"],
+  ["environment", "biotrans", "renal"],
+  ["lifestyle", "metabolism", "cardio"],
+  ["lifestyle", "circadian", "endocrine"],
+  ["lifestyle", "biotrans", "digestive"],
+  ["connection", "hormonal", "nervous"],
+  ["connection", "hormonal", "cardio"],
+  ["connection", "inflammation", "immune"],
+  ["lifeexp", "hormonal", "endocrine"],
+  ["lifeexp", "gutbrain", "digestive"],
+  ["lifeexp", "inflammation", "immune"]
+];
+
+/**
+ * The leaves: everyday experiences, traced back to their roots ("Start from what you notice").
+ * General public education only — never about an individual, never ranked, no "you may have".
+ */
+export const EXPERIENCES: ExperienceDef[] = [
+  {"id": "tired", "short": "Tiredness", "name": "Tiredness & low energy", "desc": "Feeling drained, even after rest. Energy depends on how we sleep, eat, move and recover — and on how metabolism and hormones keep pace.", "paths": ["sleep>circadian>endocrine", "nutrition>metabolism>endocrine", "stress>hormonal>endocrine", "movement>metabolism>muscular", "lifestyle>circadian>endocrine"], "help": ["gp", "dietitian", "ntherapist", "sleepcoach", "healthcoach"], "care": "See your GP if tiredness lasts more than a few weeks, comes on suddenly, or comes with weight loss, breathlessness or heavy periods."},
+  {"id": "bloating", "short": "Bloating", "name": "Bloating & digestive discomfort", "desc": "Fullness, wind or an unsettled gut. Digestion responds to what and how we eat — and to stress, through the conversation between gut and brain.", "paths": ["nutrition>gutbrain>digestive", "stress>gutbrain>digestive", "nutrition>biotrans>digestive", "lifeexp>gutbrain>digestive"], "help": ["gp", "gastro", "dietitian", "ntherapist", "naturopath"], "care": "See your GP promptly for bloating that keeps coming back, a change in bowel habit, blood in your stool, unexplained weight loss or difficulty swallowing."},
+  {"id": "sleep", "short": "Poor sleep", "name": "Poor sleep", "desc": "Trouble falling or staying asleep, or waking unrefreshed. The body clock is set by light, routine and stress as much as by bedtime.", "paths": ["environment>circadian>nervous", "sleep>circadian>nervous", "stress>hormonal>endocrine", "lifestyle>circadian>endocrine"], "help": ["gp", "sleepphys", "psychologist", "sleepcoach"], "care": "See your GP if poor sleep lasts for months, or if you snore loudly, stop breathing in your sleep or feel very sleepy during the day."},
+  {"id": "mood", "short": "Low mood", "name": "Low mood", "desc": "Feeling flat, low or not yourself. Mood is shaped by sleep, connection and what we have lived through — and by the conversation between gut and brain.", "paths": ["sleep>circadian>nervous", "connection>hormonal>nervous", "stress>hormonal>nervous", "lifeexp>hormonal>endocrine", "nutrition>gutbrain>digestive"], "help": ["gp", "psychologist", "counsellor", "psychiatrist"], "care": "If low mood lasts more than two weeks, talk to your GP. If you feel unable to keep yourself safe, call 999, NHS 111 (choose the mental health option) or Samaritans on 116 123."},
+  {"id": "fog", "short": "Brain fog", "name": "Brain fog", "desc": "Finding it hard to focus, remember or think clearly. Clear thinking draws on sleep, steady energy and how the body handles stress.", "paths": ["sleep>circadian>nervous", "nutrition>metabolism>endocrine", "stress>hormonal>nervous", "sleep>inflammation>immune"], "help": ["gp", "ntherapist", "dietitian", "psychologist", "sleepcoach"], "care": "See your GP if brain fog is new or getting worse. Call 999 for sudden confusion, slurred speech, or weakness on one side of the body."},
+  {"id": "aches", "short": "Aches & stiffness", "name": "Aches & stiffness", "desc": "Sore muscles, stiff joints or a body that feels tight. Movement, recovery, sleep and inflammation all play a part.", "paths": ["movement>inflammation>skeletal", "movement>metabolism>muscular", "sleep>inflammation>immune", "nutrition>inflammation>immune"], "help": ["gp", "physio", "rheum", "osteopath", "movementcoach"], "care": "See your GP for swollen joints, morning stiffness that lasts more than 30 minutes, or pain that wakes you at night or follows an injury."},
+  {"id": "skin", "short": "Skin flare-ups", "name": "Skin flare-ups", "desc": "Itching, redness, dryness or breakouts. Skin is our boundary with the world around us, and often reflects stress and inflammation inside.", "paths": ["environment>inflammation>skin", "stress>inflammation>skin", "nutrition>inflammation>immune", "nutrition>gutbrain>digestive"], "help": ["gp", "derm", "pharmacist", "ntherapist", "dietitian"], "care": "Get urgent help for a rash that does not fade when a glass is pressed on it, or swelling of the face or lips. See your GP for a mole that changes or a rash that will not settle."},
+  {"id": "stressed", "short": "Feeling stressed", "name": "Feeling stressed or on edge", "desc": "Tense, wired or overwhelmed. The stress response is a whole-body signal — it reaches the heart, hormones, sleep and digestion.", "paths": ["stress>hormonal>endocrine", "stress>hormonal>cardio", "connection>hormonal>nervous", "lifeexp>hormonal>endocrine", "sleep>circadian>nervous"], "help": ["gp", "psychologist", "counsellor", "stresscoach"], "care": "Talk to your GP if stress or anxiety is affecting daily life. If you feel unable to cope or unsafe, call NHS 111 (choose the mental health option) or Samaritans on 116 123."}
+];
+
 /** Rotating centre phrases (5.2 s cycle, 1.1 s crossfade). First one is the static/reduced-motion label. */
 export const PHRASES: string[] = ["Uniquely You", "One of a Kind", "Beautifully Different", "Nobody Quite Like You", "Made to Be You", "Wonderfully Individual", "Created Like No Other"];
 
 /* ---------------- runtime graph (shape consumed by NIGalaxy) ---------------- */
-export interface GalaxyNode { id: string; orbit: any; name: string; desc: string; idx: number; k: number; links: GalaxyDiscipline[] }
+export interface GalaxyPath { id: string; i: number; root: string; proc: string; sys: string }
+export interface GalaxyNode { id: string; orbit: any; name: string; desc: string; idx: number; k: number; links: GalaxyDiscipline[]; paths: GalaxyPath[] }
 export interface GalaxyDiscipline { id: string; name: string; cat: CategoryId; reg: string; scope: string; role: string; coach: boolean; systems: string[] }
+export interface GalaxyExperience {
+  id: string; short: string; name: string; desc: string; care: string; paths: GalaxyPath[]; help: GalaxyDiscipline[];
+  systems: string[]; procs: string[]; roots: string[]; nodes: string[];
+}
 export interface GalaxyData {
   ORBITS: (OrbitDef & { nodes: GalaxyNode[] })[];
   nodes: GalaxyNode[]; nodeById: Record<string, GalaxyNode>;
   CATS: Record<CategoryId, CategoryDef>;
   discs: GalaxyDiscipline[]; discById: Record<string, GalaxyDiscipline>;
   /** [name, colour] tuples */ DIMS: [string, string][];
+  paths: GalaxyPath[]; pathById: Record<string, GalaxyPath>;
+  exps: GalaxyExperience[]; expById: Record<string, GalaxyExperience>;
 }
 
 export function buildGalaxyData(): GalaxyData {
@@ -210,7 +282,7 @@ export function buildGalaxyData(): GalaxyData {
   ORB.forEach((o) => { orbitById[o.id] = o; });
   const nodes: GalaxyNode[] = SYSTEMS.map((n, i) => {
     const o = orbitById[n.orbit];
-    const nd: GalaxyNode = { id: n.id, orbit: o, name: n.name, desc: n.desc, idx: i, k: o.nodes.length, links: [] };
+    const nd: GalaxyNode = { id: n.id, orbit: o, name: n.name, desc: n.desc, idx: i, k: o.nodes.length, links: [], paths: [] };
     o.nodes.push(nd);
     return nd;
   });
@@ -230,5 +302,24 @@ export function buildGalaxyData(): GalaxyData {
       return d;
     });
   });
-  return { ORBITS: ORB, nodes, nodeById, CATS: { ...CATEGORIES }, discs, discById, DIMS: DIMENSIONS.map((d) => [d.name, d.color] as [string, string]) };
+  const paths: GalaxyPath[] = PATHWAYS.map((q, i) => ({ id: q.join('>'), i, root: q[0], proc: q[1], sys: q[2] }));
+  const pathById: Record<string, GalaxyPath> = {};
+  paths.forEach((q) => { pathById[q.id] = q; });
+  nodes.forEach((n) => { n.paths = paths.filter((q) => q.root === n.id || q.proc === n.id || q.sys === n.id); });
+  const uniq = (arr: string[]) => arr.filter((v, i) => arr.indexOf(v) === i);
+  const exps: GalaxyExperience[] = EXPERIENCES.map((x) => {
+    const ps = x.paths.map((id) => {
+      const q = pathById[id];
+      if (!q) throw new Error('galaxy-data: unknown pathway ' + id + ' in experience ' + x.id);
+      return q;
+    });
+    const systems = uniq(ps.map((q) => q.sys)), procs = uniq(ps.map((q) => q.proc)), roots = uniq(ps.map((q) => q.root));
+    return { id: x.id, short: x.short, name: x.name, desc: x.desc, care: x.care, paths: ps,
+      help: x.help.map((id) => { const d = discById[id]; if (!d) throw new Error('galaxy-data: unknown discipline ' + id + ' in experience ' + x.id); return d; }),
+      systems, procs, roots, nodes: systems.concat(procs, roots) };
+  });
+  const expById: Record<string, GalaxyExperience> = {};
+  exps.forEach((x) => { expById[x.id] = x; });
+  return { ORBITS: ORB, nodes, nodeById, CATS: { ...CATEGORIES }, discs, discById,
+    DIMS: DIMENSIONS.map((d) => [d.name, d.color] as [string, string]), paths, pathById, exps, expById };
 }
