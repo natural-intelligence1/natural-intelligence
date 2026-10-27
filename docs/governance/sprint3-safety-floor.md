@@ -17,9 +17,9 @@ legal/clinical wording introduced in this sprint is
 >   Practitioner**. Where the body reads "Category 3 (unregistered)", read
 >   "Category 3 — NI Verified Practitioner". This is terminology only: the
 >   policy is unchanged, and a Category 3 practitioner still cannot be sole LRP
->   at launch. The matching database rename is migration `0063` — written and
->   tested, and NOT applied when this note was written. Ask the database, not
->   this note.
+>   at launch. The matching database rename is migration `0063`, **applied to
+>   Production on 2026-10-27 (`20261027052734`)**, so the database now accepts
+>   only the three canonical values. Ask the database, not this note.
 > - **Sprint migrations.** `0051` and `0052` are applied to Production.
 > - **LRP schema enforcement.** The body states that schema enforcement of the
 >   LRP model is not yet built. Part of it now is, verified in the live
