@@ -295,6 +295,14 @@ describe('is a pure rename of the live function bodies', () => {
    * These are a fingerprint of a specific historical state, which is why they
    * are recorded rather than derived from the scaffold. Once 0063 is applied,
    * Production's own hashes become these values.
+   *
+   * If these three fail on a Windows checkout, do NOT "fix" it by normalising
+   * line endings when the migration is read here. The failure is a TRUE
+   * POSITIVE: a CRLF working tree installs function bodies containing carriage
+   * returns, so Production would not receive the bodies these hashes describe.
+   * .gitattributes pins *.sql to eol=lf precisely so the file on disk is the
+   * one that produces these hashes. Re-materialise the file (rm it, then
+   * git checkout -- <path>) rather than weakening the test.
    */
   const LIVE_TRANSLATED = {
     practitioner_assignment_eligibility: { md5: '4fd356e50abe3f5f985fc8f52b6e477d', len: 2112 },

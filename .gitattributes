@@ -1,0 +1,6 @@
+# SQL is executed, not just read. A migration applied from a CRLF working tree
+# puts carriage returns inside stored function bodies, which changes their
+# md5 and length — so 0063's recorded governance hashes would not match what
+# Production received. Git already stores these blobs with LF; this pins the
+# checkout to LF too, on every platform.
+*.sql text eol=lf
