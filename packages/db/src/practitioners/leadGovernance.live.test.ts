@@ -26,7 +26,7 @@ function mkAdmin() {
 }
 
 const TAG = 'LG60-TEST'
-type Cat = 'regulated_clinician' | 'voluntary_registered' | 'unregistered'
+type Cat = 'regulated_healthcare_professional' | 'accredited_practitioner' | 'ni_verified_practitioner'
 
 describe.skipIf(!HAVE_DB)('Lead governance — live DB enforcement', () => {
   let admin: ReturnType<typeof mkAdmin>
@@ -41,9 +41,9 @@ describe.skipIf(!HAVE_DB)('Lead governance — live DB enforcement', () => {
     credentials_verification_status: 'verified',
     indemnity_required: false,
     scope_status: 'approved',
-    registration_number: category === 'unregistered' ? null : `${TAG}-REG`,
-    registration_body: category === 'unregistered' ? null : `${TAG} Body`,
-    registration_status: category === 'unregistered' ? null : 'registered',
+    registration_number: category === 'ni_verified_practitioner' ? null : `${TAG}-REG`,
+    registration_body: category === 'ni_verified_practitioner' ? null : `${TAG} Body`,
+    registration_status: category === 'ni_verified_practitioner' ? null : 'registered',
     specialisations: [], credentials: [], primary_professions: [], area_tags: [],
     client_types: [], collaboration_types: [],
     accepts_referrals: false, open_to_collaboration: false,
@@ -105,9 +105,9 @@ describe.skipIf(!HAVE_DB)('Lead governance — live DB enforcement', () => {
     if (error) throw error
     caseId = (kase as { id: string }).id
 
-    cat1 = await mkPractitioner('Cat1', 'regulated_clinician')
-    cat2 = await mkPractitioner('Cat2', 'voluntary_registered')
-    cat3 = await mkPractitioner('Cat3', 'unregistered')
+    cat1 = await mkPractitioner('Cat1', 'regulated_healthcare_professional')
+    cat2 = await mkPractitioner('Cat2', 'accredited_practitioner')
+    cat3 = await mkPractitioner('Cat3', 'ni_verified_practitioner')
   })
 
   afterAll(async () => {
@@ -187,13 +187,13 @@ describe.skipIf(!HAVE_DB)('Lead governance — live DB enforcement', () => {
   it('H. a practitioner holding an active Lead CANNOT be demoted to Category 3', async () => {
     // cat1 is the active Lead from test F.
     const { error } = await admin.from('practitioners')
-      .update({ category: 'unregistered' } as never).eq('id', cat1)
+      .update({ category: 'ni_verified_practitioner' } as never).eq('id', cat1)
     expect(error).not.toBeNull()
     expect(`${error?.message}`).toMatch(/active Lead Responsible Practitioner|End or reassign/i)
 
     const { data: after } = await admin.from('practitioners')
       .select('category').eq('id', cat1).single()
-    expect(after!.category).toBe('regulated_clinician')   // unchanged
+    expect(after!.category).toBe('regulated_healthcare_professional')   // unchanged
   })
 
   it('I. an unrelated practitioner update is unaffected by the guard', async () => {
@@ -209,20 +209,20 @@ describe.skipIf(!HAVE_DB)('Lead governance — live DB enforcement', () => {
     expect(end).toBeNull()
 
     const { error } = await admin.from('practitioners')
-      .update({ category: 'unregistered' } as never).eq('id', cat1)
+      .update({ category: 'ni_verified_practitioner' } as never).eq('id', cat1)
     expect(error).toBeNull()
 
     // Restore so the forward guard is exercised consistently.
     await admin.from('practitioners')
-      .update({ category: 'regulated_clinician' } as never).eq('id', cat1)
+      .update({ category: 'regulated_healthcare_professional' } as never).eq('id', cat1)
   })
 
   it('K. demotion is allowed for a care_team member who is not a Lead', async () => {
     const { error } = await admin.from('practitioners')
-      .update({ category: 'unregistered' } as never).eq('id', cat2)
+      .update({ category: 'ni_verified_practitioner' } as never).eq('id', cat2)
     expect(error).toBeNull()
     await admin.from('practitioners')
-      .update({ category: 'voluntary_registered' } as never).eq('id', cat2)
+      .update({ category: 'accredited_practitioner' } as never).eq('id', cat2)
   })
 
   it('L. the invalid state does not exist anywhere after all of the above', async () => {
@@ -233,7 +233,7 @@ describe.skipIf(!HAVE_DB)('Lead governance — live DB enforcement', () => {
     for (const r of data ?? []) {
       const { data: p } = await admin.from('practitioners')
         .select('category').eq('id', r.practitioner_id).single()
-      expect(p!.category).not.toBe('unregistered')
+      expect(p!.category).not.toBe('ni_verified_practitioner')
     }
   })
 })

@@ -244,7 +244,7 @@ describe.skipIf(!HAVE_DB)('negative RLS — agreement acceptance is RPC-only', (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: row, error: insErr } = await (admin as any).from('practitioner_agreements')
       .insert({
-        category: 'unregistered', version: `immut-test-${Date.now()}`,
+        category: 'ni_verified_practitioner', version: `immut-test-${Date.now()}`,
         title: 'Synthetic immutability probe', body: 'synthetic body — is_test_data',
         is_current: false,
       })

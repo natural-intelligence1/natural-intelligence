@@ -41,7 +41,7 @@ const req = (over: Partial<ProtocolSigningRequest> = {}): ProtocolSigningRequest
   caseState: 'open',
   protocol: { id: 'proto-1', version: 3, signedAt: null, isSuperseded: false },
   team: [member()],
-  practitionerClasses: { [LEAD]: 'voluntary_registered' },
+  practitionerClasses: { [LEAD]: 'accredited_practitioner' },
   at: AT,
   ...over,
 })
@@ -61,7 +61,7 @@ describe('authoriseProtocolSigning — the one path that is allowed', () => {
 
   it('B. a regulated clinician Lead is equally authorised', async () => {
     const d = await authoriseProtocolSigning(
-      req({ practitionerClasses: { [LEAD]: 'regulated_clinician' } }), { eligibility: eligible })
+      req({ practitionerClasses: { [LEAD]: 'regulated_healthcare_professional' } }), { eligibility: eligible })
     expect(d.authorised).toBe(true)
   })
 
@@ -133,15 +133,15 @@ describe('server-side callers are refused by the DOMAIN layer, not the database'
 describe('an NI Verified Practitioner cannot act as the sole LRP', () => {
   it('V. refused when they are the only practitioner on the case', async () => {
     const d = await authoriseProtocolSigning(
-      req({ practitionerClasses: { [LEAD]: 'unregistered' } }), { eligibility: eligible })
+      req({ practitionerClasses: { [LEAD]: 'ni_verified_practitioner' } }), { eligibility: eligible })
     expect(d.authorised).toBe(false)
     expect(!d.authorised && d.refusal.code).toBe('sole_unregistered_lead')
   })
 
-  it('W. refused when the only colleague is also unregistered', async () => {
+  it('W. refused when the only colleague is also Category 3', async () => {
     const d = await authoriseProtocolSigning(req({
       team: [member(), member({ practitionerId: COLLEAGUE, teamRole: 'care_team' })],
-      practitionerClasses: { [LEAD]: 'unregistered', [COLLEAGUE]: 'unregistered' },
+      practitionerClasses: { [LEAD]: 'ni_verified_practitioner', [COLLEAGUE]: 'ni_verified_practitioner' },
     }), { eligibility: eligible })
     expect(!d.authorised && d.refusal.code).toBe('sole_unregistered_lead')
   })
@@ -149,7 +149,7 @@ describe('an NI Verified Practitioner cannot act as the sole LRP', () => {
   it('X. refused when the only qualified colleague is a student', async () => {
     const d = await authoriseProtocolSigning(req({
       team: [member(), member({ practitionerId: COLLEAGUE, teamRole: 'student', supervisorId: LEAD })],
-      practitionerClasses: { [LEAD]: 'unregistered', [COLLEAGUE]: 'regulated_clinician' },
+      practitionerClasses: { [LEAD]: 'ni_verified_practitioner', [COLLEAGUE]: 'regulated_healthcare_professional' },
     }), { eligibility: eligible })
     expect(!d.authorised && d.refusal.code).toBe('sole_unregistered_lead')
   })
@@ -158,7 +158,7 @@ describe('an NI Verified Practitioner cannot act as the sole LRP', () => {
     const d = await authoriseProtocolSigning(req({
       team: [member(), member({ practitionerId: COLLEAGUE, teamRole: 'care_team',
         assignment: { status: 'ended', assignedBy: 'a', assignedAt: AT, endedAt: AT } })],
-      practitionerClasses: { [LEAD]: 'unregistered', [COLLEAGUE]: 'voluntary_registered' },
+      practitionerClasses: { [LEAD]: 'ni_verified_practitioner', [COLLEAGUE]: 'accredited_practitioner' },
     }), { eligibility: eligible })
     expect(!d.authorised && d.refusal.code).toBe('sole_unregistered_lead')
   })
@@ -166,7 +166,7 @@ describe('an NI Verified Practitioner cannot act as the sole LRP', () => {
   it('Z. allowed when an active registered colleague is on the case', async () => {
     const d = await authoriseProtocolSigning(req({
       team: [member(), member({ practitionerId: COLLEAGUE, teamRole: 'care_team' })],
-      practitionerClasses: { [LEAD]: 'unregistered', [COLLEAGUE]: 'regulated_clinician' },
+      practitionerClasses: { [LEAD]: 'ni_verified_practitioner', [COLLEAGUE]: 'regulated_healthcare_professional' },
     }), { eligibility: eligible })
     expect(d.authorised).toBe(true)
   })
@@ -285,6 +285,6 @@ describe('the guard has no side effect', () => {
 
   it('AM. only the two registered classes may be a sole LRP', () => {
     const classes: PractitionerClass[] = [...PRACTITIONER_CLASSES]
-    expect(classes).toEqual(['regulated_clinician', 'voluntary_registered', 'unregistered'])
+    expect(classes).toEqual(['regulated_healthcare_professional', 'accredited_practitioner', 'ni_verified_practitioner'])
   })
 })

@@ -65,7 +65,7 @@ describe.skipIf(!HAVE_DB || !OPTED_IN)('0059 — live protocol signing protectio
   // A practitioners row that satisfies practitioner_assignment_eligibility().
   const practitionerRow = (id: string, name: string) => ({
     id, display_name: `${TAG} ${name}`, status: 'active', is_active: true,
-    category: 'unregistered',
+    category: 'ni_verified_practitioner',
     credentials_verification_status: 'verified',
     indemnity_required: false,
     specialisations: [], credentials: [], primary_professions: [], area_tags: [],
@@ -102,7 +102,7 @@ describe.skipIf(!HAVE_DB || !OPTED_IN)('0059 — live protocol signing protectio
     // created here, clearly marked, and removed in cleanup.
     const body = `${TAG} synthetic agreement body — NOT A REAL AGREEMENT`
     const { data: agr } = await admin.from('practitioner_agreements').insert({
-      category: 'unregistered', version: 999,
+      category: 'ni_verified_practitioner', version: 999,
       title: `${TAG} SYNTHETIC — NOT A REAL AGREEMENT`, body, is_current: true,
     } as never).select('id').single()
     agreementId = (agr as { id: string } | null)?.id ?? null

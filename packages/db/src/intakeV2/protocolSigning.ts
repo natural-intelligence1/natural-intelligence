@@ -35,15 +35,15 @@ export const PROTOCOL_SIGNING_GUARD_VERSION = 'protocol-signing-guard.v1'
 
 /** Mirrors live `practitioners.category` (text). Labels live in
  *  practitioners/credentialing.ts — this is the value set, not a second model.
- *  'unregistered' is the NI Verified Practitioner class. */
+ *  'ni_verified_practitioner' is the NI Verified Practitioner class. */
 export const PRACTITIONER_CLASSES = [
-  'regulated_clinician', 'voluntary_registered', 'unregistered',
+  'regulated_healthcare_professional', 'accredited_practitioner', 'ni_verified_practitioner',
 ] as const
 export type PractitionerClass = (typeof PRACTITIONER_CLASSES)[number]
 
 /** Classes that may carry sole clinical responsibility for a signed Protocol. */
 const CLASSES_THAT_MAY_BE_SOLE_LEAD: readonly PractitionerClass[] = [
-  'regulated_clinician', 'voluntary_registered',
+  'regulated_healthcare_professional', 'accredited_practitioner',
 ]
 
 export const SIGNING_REFUSAL_CODES = [
