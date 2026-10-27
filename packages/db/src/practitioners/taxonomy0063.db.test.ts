@@ -313,3 +313,39 @@ describe('is a pure rename of the live function bodies', () => {
       expect({ md5: r[0].md5, len: Number(r[0].len) }).toEqual(expected)
     })
 })
+
+// ── The trigger 0063 has to step around, and must put back ──────────────────
+
+describe('agreement immutability survives the migration', () => {
+  /*
+   * enforce_agreement_immutability refuses ANY change to
+   * practitioner_agreements.category for every role, so 0063's translation
+   * aborts unless it suspends the trigger. The first version of this scaffold
+   * omitted that trigger and the suite passed anyway — which is precisely how
+   * the defect stayed hidden. These tests exist so it cannot hide again.
+   */
+  it('left the immutability trigger ENABLED, not suspended', async () => {
+    // The dangerous failure is not the abort — it is a migration that disables
+    // a governance control and forgets to re-arm it.
+    const t = await rows<{ tgenabled: string }>(`
+      select tgenabled from pg_trigger
+       where tgname = 'trg_practitioner_agreements_immutable' and not tgisinternal`)
+    expect(t).toHaveLength(1)
+    expect(t[0].tgenabled).toBe('O')   // 'O' = enabled, 'D' = disabled
+  })
+
+  it('still refuses an in-place wording change after the migration', async () => {
+    await db.exec(`insert into practitioner_agreements (category, version, title, body)
+                   values ('ni_verified_practitioner','imm-1','T','B');`)
+    const msg = await refusal(
+      `update practitioner_agreements set body = 'edited' where version = 'imm-1';`)
+    expect(msg).toMatch(/practitioner_agreements rows are immutable/)
+
+    // and the controlled field still moves
+    await db.exec(`update practitioner_agreements set is_current = false where version = 'imm-1';`)
+    const r = await rows<{ is_current: boolean }>(
+      `select is_current from practitioner_agreements where version = 'imm-1'`)
+    expect(r[0].is_current).toBe(false)
+    await db.exec(`delete from practitioner_agreements where version = 'imm-1';`)
+  })
+})

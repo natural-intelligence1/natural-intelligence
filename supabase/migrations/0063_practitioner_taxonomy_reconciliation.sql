@@ -113,6 +113,20 @@ update public.practitioners
 
 alter table public.practitioners enable trigger trg_practitioner_class_vs_lead_role;
 
+-- The agreement immutability trigger fires BEFORE UPDATE on
+-- practitioner_agreements and refuses ANY change to category, version, title,
+-- body or created_at, for every role including this one. It exists to stop
+-- changed WORDING being edited in place -- changed wording must be published as
+-- a new version row, because acceptance is checked against a hash of the exact
+-- text. A vocabulary rename is the one case it was not written for: title and
+-- body are untouched here, and republishing as a new version would invalidate
+-- every existing acceptance and force re-acceptance for a pure rename. So it is
+-- suspended for the translation only, inside this transaction, and re-enabled
+-- immediately below. Without this the migration aborts in any environment that
+-- holds agreement rows.
+alter table public.practitioner_agreements
+  disable trigger trg_practitioner_agreements_immutable;
+
 update public.practitioner_agreements
    set category = case category
          when 'regulated_clinician'  then 'regulated_healthcare_professional'
@@ -121,6 +135,9 @@ update public.practitioner_agreements
          else category
        end
  where category is not null;
+
+alter table public.practitioner_agreements
+  enable trigger trg_practitioner_agreements_immutable;
 
 -- ── 3. Refuse anything unexpected, loudly ───────────────────────────────────
 --

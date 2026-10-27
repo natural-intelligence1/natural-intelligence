@@ -11,8 +11,12 @@
 -- separately, against recorded hashes -- see taxonomy0063.db.test.ts,
 -- "is a pure rename of the live function bodies".
 --
--- auth.uid() is stubbed over a GUC; the four value-agnostic agreement
--- functions are not reproduced, because 0063 does not touch them.
+-- auth.uid() is stubbed over a GUC. Of the four value-agnostic agreement
+-- functions, only enforce_agreement_immutability is reproduced: 0063 does not
+-- replace it, but 0063 DOES update practitioner_agreements.category, which that
+-- trigger refuses. Leaving it out of this scaffold is what hid exactly that
+-- defect on the first pass. The other three are not reproduced because nothing
+-- in 0063 either replaces them or trips them.
 
 create schema if not exists auth;
 create schema if not exists extensions;
@@ -186,3 +190,26 @@ create trigger trg_case_team_role_rules before insert or update on public.case_t
   for each row execute function public.enforce_case_team_role_rules();
 create trigger trg_practitioner_class_vs_lead_role before update on public.practitioners
   for each row execute function public.enforce_practitioner_class_vs_lead_role();
+
+-- Agreement immutability, verbatim from the live catalogue. Refuses any change
+-- to category/version/title/body/created_at for every role, which is why 0063
+-- must suspend it around the translation.
+create or replace function public.enforce_agreement_immutability()
+ returns trigger language plpgsql
+as $function$
+BEGIN
+  IF NEW.category   IS DISTINCT FROM OLD.category
+     OR NEW.version    IS DISTINCT FROM OLD.version
+     OR NEW.title      IS DISTINCT FROM OLD.title
+     OR NEW.body       IS DISTINCT FROM OLD.body
+     OR NEW.created_at IS DISTINCT FROM OLD.created_at
+  THEN
+    RAISE EXCEPTION 'practitioner_agreements rows are immutable (only is_current may change); publish changed wording as a NEW version row'
+      USING ERRCODE = 'P0001';
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+
+create trigger trg_practitioner_agreements_immutable before update on public.practitioner_agreements
+  for each row execute function public.enforce_agreement_immutability();
