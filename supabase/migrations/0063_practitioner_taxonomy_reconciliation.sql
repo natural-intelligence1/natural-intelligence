@@ -55,6 +55,24 @@
 --
 -- No RLS policy references category. No generated type does either:
 -- packages/db/src/types.ts types the column as plain text, with no union.
+--
+-- The three replaced bodies are byte-identical to the live ones under pure
+-- literal substitution -- verified, not asserted. After applying this, the
+-- hashes below must come back unchanged, which proves the three literals are
+-- the only difference: no reordering, no reworded error, no dropped branch:
+--
+--   select p.proname, md5(p.prosrc), length(p.prosrc)
+--     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+--    where n.nspname = 'public'
+--      and p.proname in ('practitioner_assignment_eligibility',
+--                        'enforce_case_team_role_rules',
+--                        'enforce_practitioner_class_vs_lead_role');
+--
+--   practitioner_assignment_eligibility      4fd356e50abe3f5f985fc8f52b6e477d  2112
+--   enforce_case_team_role_rules             1b2c04c9993a361764dadda9ed079096  1358
+--   enforce_practitioner_class_vs_lead_role  5ea04c00dffc5be004f79bc52624095c   818
+--
+-- The same check runs in packages/db/src/practitioners/taxonomy0063.db.test.ts.
 
 begin;
 
@@ -216,7 +234,6 @@ BEGIN
   END IF;
 
   -- Registered classes must hold a current registration.
-  -- Categories 1 and 2 only, unchanged from the pre-0063 behaviour.
   IF pr.category IN ('regulated_healthcare_professional','accredited_practitioner') THEN
     IF pr.registration_number IS NULL OR pr.registration_body IS NULL
        OR pr.registration_status IS DISTINCT FROM 'registered' THEN
@@ -287,6 +304,9 @@ $function$;
 
 -- 5c. Demotion guard: refuses moving a practitioner to Category 3 while they
 --     hold an active Lead role.
+--     The closing dollar-quote shares the final line on purpose: the live body
+--     ends "end " with no trailing newline, and matching that exactly keeps the
+--     stored body byte-identical to the live one under literal substitution.
 create or replace function public.enforce_practitioner_class_vs_lead_role()
  returns trigger
  language plpgsql
@@ -319,8 +339,7 @@ begin
   end if;
 
   return new;
-end
-$function$;
+end $function$;
 
 commit;
 

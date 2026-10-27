@@ -270,3 +270,46 @@ describe('unexpected values are refused, not discarded', () => {
     }
   })
 })
+
+// ── The claim that matters most: this is a rename, not a rule change ─────────
+
+describe('is a pure rename of the live function bodies', () => {
+  /*
+   * Recorded from Production (yftxzvdrxnhwpcnsrktn) on 2026-10-27, before 0063
+   * was applied, with:
+   *
+   *   select p.proname,
+   *          md5(replace(replace(replace(p.prosrc,
+   *            'regulated_clinician','regulated_healthcare_professional'),
+   *            'voluntary_registered','accredited_practitioner'),
+   *            '''unregistered''','''ni_verified_practitioner''')) as md5,
+   *          length(...) as len
+   *     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   *    where n.nspname = 'public' and p.proname in (...);
+   *
+   * So each hash is the LIVE body with the three taxonomy literals substituted
+   * and nothing else touched. If what 0063 installs hashes the same, the three
+   * literals are provably the only thing that changed — no reordering, no
+   * reworded error message, no dropped branch, no comment drift.
+   *
+   * These are a fingerprint of a specific historical state, which is why they
+   * are recorded rather than derived from the scaffold. Once 0063 is applied,
+   * Production's own hashes become these values.
+   */
+  const LIVE_TRANSLATED = {
+    practitioner_assignment_eligibility: { md5: '4fd356e50abe3f5f985fc8f52b6e477d', len: 2112 },
+    enforce_case_team_role_rules: { md5: '1b2c04c9993a361764dadda9ed079096', len: 1358 },
+    enforce_practitioner_class_vs_lead_role: { md5: '5ea04c00dffc5be004f79bc52624095c', len: 818 },
+  } as const
+
+  it.each(Object.entries(LIVE_TRANSLATED))(
+    '%s is the live body with only the literals changed',
+    async (proname, expected) => {
+      const r = await rows<{ md5: string; len: number }>(
+        `select md5(prosrc) as md5, length(prosrc) as len
+           from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'public' and p.proname = '${proname}'`)
+      expect(r).toHaveLength(1)
+      expect({ md5: r[0].md5, len: Number(r[0].len) }).toEqual(expected)
+    })
+})

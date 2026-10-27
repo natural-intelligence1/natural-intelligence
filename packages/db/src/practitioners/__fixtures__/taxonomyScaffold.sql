@@ -1,9 +1,15 @@
 -- Stand-ins for the live structures migration 0063 touches.
 --
--- Copied from the production catalogue: both CHECK constraints in their
--- PRE-0063 form, the three functions that carry taxonomy literals, and the two
--- triggers that invoke them. 0063 is then executed against this, so the tests
--- exercise the real migration rather than a paraphrase of it.
+-- Taken from the production catalogue: both CHECK constraints in their PRE-0063
+-- form, the three functions that carry taxonomy literals, and the two triggers
+-- that invoke them. 0063 is then executed against this, so the tests exercise
+-- the real migration rather than a paraphrase of it.
+--
+-- The three function bodies here are faithful in logic and wording but NOT
+-- byte-identical to live: some of the live in-body comments are condensed.
+-- Byte-identity of what 0063 INSTALLS against what Production holds is asserted
+-- separately, against recorded hashes -- see taxonomy0063.db.test.ts,
+-- "is a pure rename of the live function bodies".
 --
 -- auth.uid() is stubbed over a GUC; the four value-agnostic agreement
 -- functions are not reproduced, because 0063 does not touch them.
