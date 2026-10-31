@@ -34,7 +34,7 @@ create table profiles (
 
 create table practitioners (
   id       uuid primary key default gen_random_uuid(),
-  category text not null default 'regulated_clinician'
+  category text not null default 'regulated_healthcare_professional'
 );
 
 create table client_cases (
