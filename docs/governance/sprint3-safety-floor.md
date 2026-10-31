@@ -7,6 +7,31 @@ Nothing real touches the platform until this floor is built **and** reviewed. Al
 legal/clinical wording introduced in this sprint is
 **DRAFT — requires solicitor/clinician review before real-client use.**
 
+> **Current-status note — added 2026-10-27.** This is a Sprint 3 record and the
+> status line above is stale. It is kept as written. Three things have changed
+> since 12 Sep 2026, and where they conflict with the body below, these govern.
+>
+> - **Taxonomy wording.** The canonical names for the three practitioner
+>   categories are now **Category 1 — Regulated Healthcare Professional**,
+>   **Category 2 — Accredited Practitioner** and **Category 3 — NI Verified
+>   Practitioner**. Where the body reads "Category 3 (unregistered)", read
+>   "Category 3 — NI Verified Practitioner". This is terminology only: the
+>   policy is unchanged, and a Category 3 practitioner still cannot be sole LRP
+>   at launch. The matching database rename is migration `0063`, **applied to
+>   Production on 2026-10-27 (`20261027052734`)**, so the database now accepts
+>   only the three canonical values. Ask the database, not this note.
+> - **Sprint migrations.** `0051` and `0052` are applied to Production.
+> - **LRP schema enforcement.** The body states that schema enforcement of the
+>   LRP model is not yet built. Part of it now is, verified in the live
+>   catalogue on 2026-10-27: one active Lead per case
+>   (`uniq_active_lead_per_case`); a Category 3 practitioner cannot be made Lead
+>   and a student requires a named, active supervisor
+>   (`enforce_case_team_role_rules`); and a practitioner cannot be moved to
+>   Category 3 while holding an active Lead role
+>   (`enforce_practitioner_class_vs_lead_role`, migration `0060`). Whether the
+>   written manual LRP loop can now stand down is a Founder decision and is
+>   **not** decided here.
+
 ---
 
 ## Plan of Record correction (Phase 0)

@@ -18,10 +18,16 @@ was written from the file in good faith.
    ascending order up to `0043`. From `0053` onward the actual applied
    sequence was:
 
-   `0053 → 0054 → 0051 → 0056 → 0052 → 0057 → 0058 → 0059 → 0060`
+   `0053 → 0054 → 0051 → 0056 → 0052 → 0057 → 0058 → 0059 → 0060 → 0063`
 
-   `0051` landed after `0053/0054`; `0052` after `0056`. The latest applied
-   migration is `0060` (`20261011170031`). `0055` has never been applied.
+   `0051` landed after `0053/0054`; `0052` after `0056`; `0063` landed while
+   `0061` and `0062` were still unapplied. The latest applied migration is
+   `0063` (`20261027052734`). `0055` has never been applied, and neither have
+   `0061` or `0062` — both are written and sitting on feature branches, and
+   either may still be applied after `0063` without difficulty. Nothing in the
+   apply mechanism reads this folder or compares numeric prefixes: the recorded
+   `version` is the apply timestamp and the file's number survives only in the
+   free-text `name`.
    This list goes stale the moment anything is applied — it is a worked
    illustration, not a substitute for querying the history.
 2. **A file header cannot tell you whether a migration is applied.** Status
@@ -56,6 +62,7 @@ it.
 | `0056`, `0057`, `0058` | Already applied. Restored here as historical records only — see below. |
 | `0059_protocol_signing.sql` | Already applied (`20261010062725`). |
 | `0060_lead_class_demotion_guard.sql` | Already applied (`20261011170031`). Its trigger and function are live; re-running is unnecessary and `create or replace` would silently rewrite a live governance control. |
+| `0063_practitioner_taxonomy_reconciliation.sql` | **Already applied (`20261027052734`).** Its own header still says "NOT YET APPLIED at the time of writing" — that is rule 2 in action, not a fact. It is re-runnable by design and would be a no-op, but it `create or replace`s three live governance functions and suspends two governance triggers around its translation, so do not run it to "check" anything. Verify instead: the three function hashes are recorded in its header and asserted in `packages/db/src/practitioners/taxonomy0063.db.test.ts`. |
 
 ## Historical records restored 2026-10-10
 

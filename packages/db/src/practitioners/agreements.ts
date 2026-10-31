@@ -15,9 +15,9 @@ import { isDevOnlyEnvironment } from '../environment'
 type AnyClient = SupabaseClient<any>
 
 export const PRACTITIONER_CATEGORIES = [
-  'regulated_clinician',    // statutorily regulated (e.g. GMC/NMC/HCPC registrants)
-  'voluntary_registered',   // voluntarily registered (e.g. CNHC/BANT and similar)
-  'unregistered',           // unregistered / non-regulated practitioners
+  'regulated_healthcare_professional',  // Category 1 — statutorily regulated (GMC/NMC/HCPC and similar)
+  'accredited_practitioner',            // Category 2 — PSA-accredited register (CNHC/BANT and similar)
+  'ni_verified_practitioner',           // Category 3 — verified by NI, no statutory or PSA register
 ] as const
 export type PractitionerCategory = (typeof PRACTITIONER_CATEGORIES)[number]
 
@@ -75,19 +75,19 @@ const COMMON_CLAUSES =
   '8. Termination and re-acceptance — access may be suspended for breach; a new agreement version requires re-acceptance before continued platform use.\n'
 
 export const AGREEMENT_TEXTS: Record<PractitionerCategory, { title: string; body: string }> = {
-  regulated_clinician: {
+  regulated_healthcare_professional: {
     title: 'Natural Intelligence Practitioner Agreement — Statutorily Regulated Clinicians',
     body:
       DRAFT_BANNER + COMMON_CLAUSES +
       '9. Registration — the clinician holds current registration with their statutory regulator, will keep their registration body and number on record with Natural Intelligence, and will notify any fitness-to-practise proceedings immediately.\n',
   },
-  voluntary_registered: {
+  accredited_practitioner: {
     title: 'Natural Intelligence Practitioner Agreement — Voluntarily Registered Practitioners',
     body:
       DRAFT_BANNER + COMMON_CLAUSES +
       '9. Registration — the practitioner holds current membership of a recognised voluntary register, will keep the body and number on record, and will notify any conduct proceedings immediately.\n',
   },
-  unregistered: {
+  ni_verified_practitioner: {
     title: 'Natural Intelligence Practitioner Agreement — Unregistered Practitioners',
     body:
       DRAFT_BANNER + COMMON_CLAUSES +
