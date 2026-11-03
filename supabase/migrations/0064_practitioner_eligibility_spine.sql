@@ -631,7 +631,287 @@ as $function$
 $function$;
 
 comment on function public.practitioner_assignment_eligibility(uuid) is
-  'COMPATIBILITY WRAPPER — NOT AUTHORITY. Delegates entirely to practitioner_eligibility(uuid, NULL). Retained so existing callers, and the unapplied 0061, keep working and inherit the canonical semantics. Contains no eligibility logic of its own; do not add any.';
+  'COMPATIBILITY WRAPPER — NOT AUTHORITY. Answers only "is this practitioner eligible for AT LEAST ONE case role". It is NOT authority for a specific case role: the floors, permitted_roles and the Category 3 Lead rule are all role-dependent. Any caller that knows the role MUST call practitioner_eligibility(id, role) instead. Delegates entirely to practitioner_eligibility(uuid, NULL) and contains no rules of its own; do not add any.';
+
+-- ── 8. Role-specific callers now ask the role-specific question ─────────────
+--
+-- The wrapper answers "eligible for ANY role". That is not the same question
+-- as "eligible for THIS role", and after this migration no role-specific
+-- governance decision may rest on the wrapper. Every caller below knows the
+-- role being granted or exercised, so each now passes it.
+--
+-- Each body is reproduced from the live catalogue with ONLY the eligibility
+-- call changed. Error wording, ordering and every other branch are untouched.
+
+-- 8a. Case-team role grant. The role being granted is NEW.team_role, so that
+--     is the role evaluated. The Category 3 Lead check and the student
+--     supervision check stay here: supervisor validity depends on the case,
+--     and keeping the Category 3 branch preserves its specific message as
+--     defence in depth alongside the same rule inside the evaluator.
+create or replace function public.enforce_case_team_role_rules()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+DECLARE
+  v_category TEXT;
+  v_eligible BOOLEAN;
+  v_reasons  TEXT[];
+BEGIN
+  IF NEW.ended_at IS NOT NULL THEN RETURN NEW; END IF; -- ending is always allowed
+
+  SELECT e.eligible, e.blockers INTO v_eligible, v_reasons
+    FROM public.practitioner_eligibility(NEW.practitioner_id, NEW.team_role) e;
+  IF v_eligible IS NOT TRUE THEN
+    RAISE EXCEPTION 'care team: practitioner not assignable as %: %', NEW.team_role, array_to_string(v_reasons, ', ')
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  IF NEW.team_role = 'lead' THEN
+    SELECT category INTO v_category FROM public.practitioners WHERE id = NEW.practitioner_id;
+    IF v_category = 'ni_verified_practitioner' THEN
+      RAISE EXCEPTION 'care team: an NI Verified Practitioner (Category 3) cannot be the sole Lead Responsible Practitioner'
+        USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+
+  IF NEW.team_role = 'student' THEN
+    IF NEW.supervisor_id IS NULL OR NOT EXISTS (
+      SELECT 1 FROM public.case_team_roles s
+       WHERE s.case_id = NEW.case_id
+         AND s.practitioner_id = NEW.supervisor_id
+         AND s.team_role <> 'student'
+         AND s.ended_at IS NULL
+    ) THEN
+      RAISE EXCEPTION 'care team: a Student Practitioner requires a named supervisor holding an active role on the same case'
+        USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+-- 8b. Care-profile access. The role is the one the practitioner ACTUALLY holds
+--     on THIS case, read from case_team_roles. Evaluating any other role would
+--     let a stale or corrupt role row borrow authority the practitioner does
+--     not have for the role recorded against them.
+create or replace function public.can_access_case_care_profile(p_case_id uuid)
+ returns boolean
+ language plpgsql
+ stable security definer
+ set search_path to 'public'
+as $function$
+DECLARE
+  v_client UUID;
+  v_role RECORD;
+  v_eligible BOOLEAN;
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN FALSE; END IF;
+
+  SELECT client_id INTO v_client FROM public.client_cases WHERE id = p_case_id;
+  IF v_client IS NULL THEN RETURN FALSE; END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.client_practitioner_links l
+     WHERE l.client_id = v_client AND l.practitioner_id = auth.uid()
+       AND l.ended_at IS NULL
+  ) THEN RETURN FALSE; END IF;
+
+  SELECT * INTO v_role FROM public.case_team_roles
+   WHERE case_id = p_case_id AND practitioner_id = auth.uid() AND ended_at IS NULL
+   LIMIT 1;
+  IF NOT FOUND THEN RETURN FALSE; END IF;
+
+  -- Role-specific: eligibility for the role actually held, nothing else.
+  SELECT e.eligible INTO v_eligible
+    FROM public.practitioner_eligibility(auth.uid(), v_role.team_role) e;
+  IF v_eligible IS NOT TRUE THEN RETURN FALSE; END IF;
+
+  IF NOT public.has_practitioner_access_consent(v_client, auth.uid()) THEN RETURN FALSE; END IF;
+
+  IF v_role.team_role = 'student' THEN
+    IF v_role.supervisor_id IS NULL OR NOT EXISTS (
+      SELECT 1 FROM public.case_team_roles s
+       WHERE s.case_id = p_case_id AND s.practitioner_id = v_role.supervisor_id
+         AND s.team_role <> 'student' AND s.ended_at IS NULL
+    ) THEN RETURN FALSE; END IF;
+  END IF;
+
+  RETURN TRUE;
+END;
+$function$;
+
+-- 8c. Protocol signing. The function has ALREADY established that the caller
+--     holds an active 'lead' role before it asks about eligibility, so the
+--     authority being exercised is Lead. Proven from the body, not assumed.
+create or replace function public.enforce_protocol_signature_authority()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+declare
+  v_eligible boolean;
+begin
+  if new.signed_at is null
+     or (tg_op = 'UPDATE' and new.signed_at is not distinct from old.signed_at
+                          and new.signed_by is not distinct from old.signed_by) then
+    return new;
+  end if;
+
+  if auth.uid() is null then
+    return new;
+  end if;
+
+  if new.signed_by is distinct from auth.uid() then
+    raise exception 'protocol signing: a protocol may only be signed by the practitioner performing the action'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if new.case_id is null then
+    raise exception 'protocol signing: protocol is not linked to a case, so no Lead can be established'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if not exists (
+    select 1 from public.case_team_roles
+     where case_id = new.case_id and practitioner_id = auth.uid()
+       and team_role = 'lead' and ended_at is null
+  ) then
+    raise exception 'protocol signing: caller is not the active Lead Responsible Practitioner for this case'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  select e.eligible into v_eligible
+    from public.practitioner_eligibility(auth.uid(), 'lead') e;
+  if v_eligible is not true then
+    raise exception 'protocol signing: Lead no longer passes assignment eligibility'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  return new;
+end $function$;
+
+-- 8d. Lead coordination review. Same proof: an active 'lead' role is required
+--     immediately above the eligibility call, so the role is 'lead'.
+create or replace function public.record_lead_coordination_review(p_case_id uuid, p_note text default null::text)
+ returns uuid
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+DECLARE
+  v_ok BOOLEAN;
+  v_id UUID;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.case_team_roles
+     WHERE case_id = p_case_id AND practitioner_id = auth.uid()
+       AND team_role = 'lead' AND ended_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'coordination review: caller is not the active Lead Responsible Practitioner for this case';
+  END IF;
+  SELECT e.eligible INTO v_ok FROM public.practitioner_eligibility(auth.uid(), 'lead') e;
+  IF v_ok IS NOT TRUE THEN
+    RAISE EXCEPTION 'coordination review: Lead no longer passes assignment eligibility';
+  END IF;
+
+  INSERT INTO public.care_plan_coordination (case_id, lead_id, coordination_note)
+  VALUES (p_case_id, auth.uid(), p_note)
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END;
+$function$;
+
+-- 8e. Care-plan release. Same proof: Lead.
+create or replace function public.release_care_plan(p_case_id uuid)
+ returns uuid
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $function$
+DECLARE
+  v_ok BOOLEAN;
+  v_coord UUID;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.case_team_roles
+     WHERE case_id = p_case_id AND practitioner_id = auth.uid()
+       AND team_role = 'lead' AND ended_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'plan release: caller is not the active Lead Responsible Practitioner for this case';
+  END IF;
+  SELECT e.eligible INTO v_ok FROM public.practitioner_eligibility(auth.uid(), 'lead') e;
+  IF v_ok IS NOT TRUE THEN
+    RAISE EXCEPTION 'plan release: Lead no longer passes assignment eligibility';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.case_analysis_plan WHERE case_id = p_case_id) THEN
+    RAISE EXCEPTION 'plan release: no practitioner-authored Analysis & Plan content exists for this case';
+  END IF;
+  SELECT id INTO v_coord FROM public.care_plan_coordination
+   WHERE case_id = p_case_id AND lead_id = auth.uid() AND released_at IS NULL
+   ORDER BY reviewed_at DESC LIMIT 1;
+  IF v_coord IS NULL THEN
+    RAISE EXCEPTION 'plan release: no recorded Lead coordination review exists for this case';
+  END IF;
+
+  UPDATE public.care_plan_coordination
+     SET released_at = now(), released_by = auth.uid()
+   WHERE id = v_coord;
+  RETURN v_coord;
+END;
+$function$;
+
+-- 8f. The shared assignable trigger, on case_practitioner_work and
+--     client_practitioner_links.
+--
+--     case_practitioner_work carries work_type (case_review, safety_review,
+--     protocol_review, escalation_review, follow_up_review, specialist_consult)
+--     — none of which is a canonical case-team role. It is genuinely
+--     role-neutral: it asks whether the practitioner has any assignable
+--     capacity at all.
+--
+--     client_practitioner_links carries its own `role` column, but in a
+--     DIFFERENT vocabulary: lead | specialist | reviewer | temporary. Only
+--     'lead' has an unambiguous canonical counterpart, and for that one the
+--     strict Lead evaluation is used. The other three are NOT silently mapped
+--     onto care_team — that would be inventing governance. They fall back to
+--     the role-neutral question, which is no weaker than today's behaviour.
+--     The vocabulary divergence is recorded for a Founder ruling.
+create or replace function public.enforce_practitioner_assignable()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public', 'extensions'
+as $function$
+DECLARE
+  v_eligible BOOLEAN;
+  v_reasons  TEXT[];
+  v_role     TEXT := NULL;
+BEGIN
+  -- Only 'lead' maps unambiguously onto the canonical role set.
+  --
+  -- NEW.role is read through to_jsonb rather than directly: this one function
+  -- is attached to two tables and case_practitioner_work has no `role`
+  -- column at all. PL/pgSQL resolves NEW.role when the expression is first
+  -- executed, not lazily behind the AND, so a direct reference raises
+  -- 'record "new" has no field "role"' on every work-item insert.
+  IF TG_TABLE_NAME = 'client_practitioner_links'
+     AND (to_jsonb(NEW) ->> 'role') = 'lead' THEN
+    v_role := 'lead';
+  END IF;
+
+  SELECT e.eligible, e.blockers INTO v_eligible, v_reasons
+    FROM public.practitioner_eligibility(NEW.practitioner_id, v_role) e;
+  IF v_eligible IS NOT TRUE THEN
+    RAISE EXCEPTION 'practitioner not assignable: %', array_to_string(v_reasons, ', ')
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$function$;
 
 commit;
 
