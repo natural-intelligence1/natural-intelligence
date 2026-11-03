@@ -865,21 +865,41 @@ END;
 $function$;
 
 -- 8f. The shared assignable trigger, on case_practitioner_work and
---     client_practitioner_links.
+--     client_practitioner_links. BOTH uses are role-neutral, deliberately.
 --
---     case_practitioner_work carries work_type (case_review, safety_review,
---     protocol_review, escalation_review, follow_up_review, specialist_consult)
---     — none of which is a canonical case-team role. It is genuinely
---     role-neutral: it asks whether the practitioner has any assignable
---     capacity at all.
+--     ── VOCABULARY BOUNDARY — read before "improving" this ─────────────────
 --
---     client_practitioner_links carries its own `role` column, but in a
---     DIFFERENT vocabulary: lead | specialist | reviewer | temporary. Only
---     'lead' has an unambiguous canonical counterpart, and for that one the
---     strict Lead evaluation is used. The other three are NOT silently mapped
---     onto care_team — that would be inventing governance. They fall back to
---     the role-neutral question, which is no weaker than today's behaviour.
---     The vocabulary divergence is recorded for a Founder ruling.
+--     client_practitioner_links.role uses:  lead | specialist | reviewer | temporary
+--     case_team_roles.team_role uses:       lead | care_team | student
+--
+--     These are NOT the same domain vocabulary, and the overlapping word
+--     'lead' does NOT prove the concepts are equivalent. A client-practitioner
+--     link is RELATIONSHIP METADATA — who is connected to whom, and in what
+--     commercial/administrative sense. It is not a grant of clinical case
+--     authority.
+--
+--     So client_practitioner_links.role is NOT authoritative for clinical
+--     case-role eligibility, and must never be used to choose:
+--       · the indemnity floor
+--       · the permitted scope role
+--       · the Category 3 Lead prohibition
+--       · the student rule
+--
+--     Clinical authority is established ONLY through case_team_roles.team_role,
+--     where enforce_case_team_role_rules applies the role-specific canonical
+--     evaluation. A link saying role='lead' confers nothing; the practitioner
+--     must still pass practitioner_eligibility(id,'lead') at the point a real
+--     Lead role is recorded against the case.
+--
+--     case_practitioner_work is role-neutral for a different reason: it
+--     carries work_type (case_review, safety_review, protocol_review,
+--     escalation_review, follow_up_review, specialist_consult), none of which
+--     is a canonical case role either.
+--
+--     Both therefore ask the one honest question this trigger can answer:
+--     "does this practitioner currently satisfy the evidence bar for at least
+--     one case role?" — which is exactly what the compatibility wrapper means.
+--     NEW.role is not inspected at all, by either table.
 create or replace function public.enforce_practitioner_assignable()
  returns trigger
  language plpgsql
@@ -889,22 +909,9 @@ as $function$
 DECLARE
   v_eligible BOOLEAN;
   v_reasons  TEXT[];
-  v_role     TEXT := NULL;
 BEGIN
-  -- Only 'lead' maps unambiguously onto the canonical role set.
-  --
-  -- NEW.role is read through to_jsonb rather than directly: this one function
-  -- is attached to two tables and case_practitioner_work has no `role`
-  -- column at all. PL/pgSQL resolves NEW.role when the expression is first
-  -- executed, not lazily behind the AND, so a direct reference raises
-  -- 'record "new" has no field "role"' on every work-item insert.
-  IF TG_TABLE_NAME = 'client_practitioner_links'
-     AND (to_jsonb(NEW) ->> 'role') = 'lead' THEN
-    v_role := 'lead';
-  END IF;
-
-  SELECT e.eligible, e.blockers INTO v_eligible, v_reasons
-    FROM public.practitioner_eligibility(NEW.practitioner_id, v_role) e;
+  SELECT e.eligible, e.reasons INTO v_eligible, v_reasons
+    FROM public.practitioner_assignment_eligibility(NEW.practitioner_id) e;
   IF v_eligible IS NOT TRUE THEN
     RAISE EXCEPTION 'practitioner not assignable: %', array_to_string(v_reasons, ', ')
       USING ERRCODE = 'check_violation';

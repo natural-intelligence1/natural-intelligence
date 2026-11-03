@@ -62,7 +62,39 @@ it.
 | `0056`, `0057`, `0058` | Already applied. Restored here as historical records only — see below. |
 | `0059_protocol_signing.sql` | Already applied (`20261010062725`). |
 | `0060_lead_class_demotion_guard.sql` | Already applied (`20261011170031`). Its trigger and function are live; re-running is unnecessary and `create or replace` would silently rewrite a live governance control. |
+| `0061_protocol_version_items.sql` | **BLOCKED — must be patched before it is ever applied.** Unapplied, lives only on `feat/protocol-adoption-signing`. It `create or replace`s `enforce_protocol_signature_authority()` and, at line 280, calls the role-neutral `practitioner_assignment_eligibility(auth.uid())`. `0064` replaces that same function with role-aware Lead eligibility, so **applying 0061 after 0064 silently reverts protocol-signing authority to the role-neutral question.** Verified by running 0061's function against a post-0064 database. See the release dependency below. |
 | `0063_practitioner_taxonomy_reconciliation.sql` | **Already applied (`20261027052734`).** Its own header still says "NOT YET APPLIED at the time of writing" — that is rule 2 in action, not a fact. It is re-runnable by design and would be a no-op, but it `create or replace`s three live governance functions and suspends two governance triggers around its translation, so do not run it to "check" anything. Verify instead: the three function hashes are recorded in its header and asserted in `packages/db/src/practitioners/taxonomy0063.db.test.ts`. |
+
+## Release dependency — 0061 must not be applied after 0064
+
+**0061 MUST NOT BE APPLIED AFTER 0064 UNTIL ITS PROTOCOL-SIGNING ELIGIBILITY
+CALL IS RECONCILED TO ROLE-AWARE LEAD ELIGIBILITY.**
+
+`0064` makes eligibility role-aware. Protocol signing is Lead authority — the
+function establishes an active `team_role = 'lead'` before it asks about
+eligibility at all — so after 0064 it asks
+`practitioner_eligibility(auth.uid(), 'lead')`.
+
+`0061` predates that and redefines the same function with the role-neutral
+call. Applying it afterwards reverts the check to "eligible for *any* role",
+which would let a practitioner scoped only to `care_team` sign a Protocol as
+Lead. This is not theoretical: it was reproduced against a post-0064 database.
+
+Two call sites must be patched together, in the same coordinated Protocol
+release:
+
+| File | Site | Change |
+|---|---|---|
+| `supabase/migrations/0061_protocol_version_items.sql` | line 280, inside the function created at line 244 | `practitioner_assignment_eligibility(auth.uid())` → `practitioner_eligibility(auth.uid(), 'lead')` |
+| `packages/db/src/intakeV2/protocolSigning.ts` | `rpcEligibilityResolver` | calls the role-neutral RPC; must pass the Lead role |
+
+Neither was changed when this was found: 0061 is reserved and unapplied, and
+`intakeV2` sits inside the Intake/Protocol review boundary. They belong to the
+Protocol release, not to 0064.
+
+The same caution applies to any other unapplied migration that redefines a
+function `0064` rewires. Before applying anything from a branch written before
+0064, diff its `create or replace function` list against 0064 section 8.
 
 ## Historical records restored 2026-10-10
 

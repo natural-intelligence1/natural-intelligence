@@ -282,22 +282,61 @@ describe('genuinely role-neutral callers stay role-neutral', () => {
       .toMatch(/practitioner not assignable/)
   })
 
-  it('client_practitioner_links role=lead is evaluated strictly as lead', async () => {
-    const p = await mkCategory1(['care_team'])          // not scoped for lead
+  it('every client_practitioner_links role value asks the same neutral question', async () => {
+    // lead | specialist | reviewer | temporary are relationship metadata, not
+    // clinical case roles. None of them selects a floor or a scope role.
+    const p = await mkCategory1(['care_team'])
+    const { clientId } = await mkCase()
+    for (const linkRole of ['lead', 'specialist', 'reviewer', 'temporary']) {
+      await db.exec(`insert into client_practitioner_links (client_id, practitioner_id, role)
+                     values ('${clientId}','${p}','${linkRole}');`)
+    }
+    expect((await rows(`select 1 from client_practitioner_links where client_id='${clientId}'`)).length).toBe(4)
+  })
+
+  it('a practitioner eligible for NO role is refused a link, whatever its role says', async () => {
+    const p = await mkPractitioner('accredited_practitioner')   // no evidence
     const { clientId } = await mkCase()
     expect(await refusal(`insert into client_practitioner_links (client_id, practitioner_id, role)
                           values ('${clientId}','${p}','lead');`))
-      .toMatch(/scope_role_not_permitted/)
+      .toMatch(/practitioner not assignable/)
   })
+})
 
-  it('client_practitioner_links non-lead roles are NOT silently mapped onto care_team', async () => {
-    // 'specialist' belongs to a different vocabulary (lead|specialist|
-    // reviewer|temporary) with no canonical counterpart. It falls back to the
-    // neutral question rather than inventing a mapping.
+// ── The vocabulary boundary, proven ─────────────────────────────────────────
+//
+// client_practitioner_links.role and case_team_roles.team_role are different
+// domain vocabularies. The shared word 'lead' does not make them equivalent.
+// A link cannot grant clinical Lead authority; only case_team_roles can, and
+// only after the canonical role-specific evaluation.
+
+describe('a client-practitioner link cannot confer clinical Lead authority', () => {
+  it('link.role=lead passes the neutral gate, but a real Lead case role is still REJECTED', async () => {
+    // Eligible for care_team only.
     const p = await mkCategory1(['care_team'])
-    const { clientId } = await mkCase()
+    const { caseId, clientId } = await mkCase()
+
+    // 1. The LINK is accepted. Its `role` is relationship metadata, and the
+    //    practitioner does satisfy the evidence bar for at least one role.
     await db.exec(`insert into client_practitioner_links (client_id, practitioner_id, role)
-                   values ('${clientId}','${p}','specialist');`)
-    expect((await rows(`select 1 from client_practitioner_links where client_id='${clientId}'`)).length).toBe(1)
+                   values ('${clientId}','${p}','lead');`)
+    expect((await rows(
+      `select 1 from client_practitioner_links where client_id='${clientId}' and role='lead'`)).length).toBe(1)
+
+    // 2. Clinical Lead authority is a separate question, answered only by
+    //    case_team_roles — and it is refused.
+    const msg = await refusal(
+      `insert into case_team_roles (case_id, practitioner_id, team_role)
+       values ('${caseId}','${p}','lead');`)
+    expect(msg).toMatch(/not assignable as lead/)
+    expect(msg).toMatch(/scope_role_not_permitted/)
+    expect((await rows(`select 1 from case_team_roles where case_id='${caseId}'`)).length).toBe(0)
+
+    // 3. The role they ARE scoped for succeeds, with everything else satisfied.
+    await db.exec(`insert into case_team_roles (case_id, practitioner_id, team_role)
+                   values ('${caseId}','${p}','care_team');`)
+    const held = await rows<{ team_role: string }>(
+      `select team_role from case_team_roles where case_id='${caseId}'`)
+    expect(held).toEqual([{ team_role: 'care_team' }])
   })
 })
