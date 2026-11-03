@@ -46,7 +46,9 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return go(request, '/')
+  // Send them somewhere they can actually sign in. '/' has no sign-in form, so
+  // an unauthenticated practitioner hitting a case link landed on a dead end.
+  if (!user) return go(request, '/auth/signin')
 
   const { data: p } = await supabase
     .from('practitioners')

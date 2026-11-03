@@ -241,6 +241,11 @@ export default async function InboxPage() {
 
   const totalOpen = needsReview.length + inProgress.length
 
+  // Two different empty states, previously conflated. Nothing ever assigned is
+  // not the same as everything assigned being finished, and saying "All
+  // reviews complete" to someone who has never had a case is just wrong.
+  const neverAssigned = allItems.length === 0
+
   return (
     <main style={{ minHeight: '100vh', background: '#FAFAF9', color: '#1A1917' }}>
       <TopBar practitionerName={practitioner?.display_name ?? undefined} />
@@ -255,8 +260,17 @@ export default async function InboxPage() {
           <h1 style={{ fontSize: '24px', fontWeight: 500, margin: '0 0 4px' }}>
             {totalOpen > 0
               ? `${totalOpen} item${totalOpen === 1 ? '' : 's'} need${totalOpen === 1 ? 's' : ''} review`
-              : 'All reviews complete'}
+              : neverAssigned
+                ? 'No cases assigned yet'
+                : 'All reviews complete'}
           </h1>
+          {totalOpen === 0 && (
+            <p style={{ fontSize: '14px', color: '#8A8880', marginTop: '6px' }}>
+              {neverAssigned
+                ? 'When a case is assigned to you, it will appear here.'
+                : 'Nothing needs your review right now.'}
+            </p>
+          )}
         </div>
 
         {/* ── Needs Review ──────────────────────────────────────────────────── */}
@@ -274,11 +288,8 @@ export default async function InboxPage() {
             />
           ))}
         >
-          {needsReview.length === 0 && (
-            <p style={{ fontSize: '13px', color: '#B0AEA8', padding: '12px 0' }}>
-              No assigned work. New cases will appear here when your next review is assigned.
-            </p>
-          )}
+          {/* No section-level empty sentence: the page header above already
+              says which empty state this is, once. */}
         </InboxSection>
 
         {/* ── In Progress ───────────────────────────────────────────────────── */}
@@ -332,12 +343,8 @@ export default async function InboxPage() {
           />
         )}
 
-        {/* All-empty state */}
-        {allItems.length === 0 && (
-          <p style={{ fontSize: '14px', color: '#8A8880', marginTop: '16px' }}>
-            No assigned work. New cases will appear here when your next review is assigned.
-          </p>
-        )}
+        {/* The all-empty message lives in the page header, so it appears once
+            and says which of the two empty states this actually is. */}
       </div>
     </main>
   )
