@@ -211,6 +211,7 @@ export const copy = {
       details:          'Details',
       bookingEssential: 'Booking essential',
       speaker:          'Speaker',
+      speakers:         'Speakers',
     },
     lookAtHeading:    'We’ll look at',
     bookingHeading:   'Booking',

@@ -186,3 +186,54 @@ describe('the real canonical registry (October workshop)', () => {
     expect([...pastStarts].sort((a, b) => b - a)).toEqual(pastStarts)
   })
 })
+
+describe('the real canonical registry (November workshop)', () => {
+  const SLUG = 'winter-health-formula-nov-2026'
+  const entry = communityWorkshops.find((w) => w.slug === SLUG)!
+
+  // Three fixed instants either side of the two boundaries that matter.
+  const bookingDay    = new Date('2026-11-03T09:00:00+00:00') // deadline day, open
+  const afterDeadline = new Date('2026-11-04T08:00:00+00:00') // closed, still upcoming
+  const afterEvent    = new Date('2026-11-04T13:00:00+00:00') // finished
+
+  it('is the next upcoming workshop while bookings are open', () => {
+    const next = getNextWorkshop(bookingDay, communityWorkshops)
+    expect(next?.slug).toBe(SLUG)
+    expect(next?.title).toBe('The Winter Health Formula')
+    expect(isBookable(next!.scheduling, bookingDay)).toBe(true)
+  })
+
+  it('carries the Founder-supplied facts exactly', () => {
+    expect(entry.date).toBe('Wednesday 4 November 2026')
+    expect(entry.time).toBe('10:30am – 12:45pm')
+    expect(entry.venueLines).toEqual(['Ilford Community Centre', '15 Albert Road', 'Ilford IG1 1NG'])
+    expect(entry.audience).toBe('Ladies only')
+    expect(entry.cost).toBe('Free')
+    expect(entry.booking?.url).toBe('https://forms.gle/L6R1AnL1gh2j243P8')
+    expect(entry.speakers).toEqual([
+      { name: 'Shazia Sohail mANP', title: 'Naturopathic Nutritional Therapist & Educator' },
+      { name: 'Saima Khalil mANP', title: 'Student Naturopathic Nutritional Therapist & Educator' },
+    ])
+  })
+
+  it('stays upcoming after the booking deadline but hides the booking CTA', () => {
+    expect(getEventPhase(entry.scheduling!, afterDeadline)).toBe('booking_closed_upcoming')
+    expect(isBookable(entry.scheduling!, afterDeadline)).toBe(false)
+    expect(getUpcomingWorkshops(afterDeadline, communityWorkshops).map((w) => w.slug)).toContain(SLUG)
+  })
+
+  it('moves itself to past once the event has finished — no edit required', () => {
+    expect(getEventPhase(entry.scheduling!, afterEvent)).toBe('past')
+    expect(getUpcomingWorkshops(afterEvent, communityWorkshops).map((w) => w.slug)).not.toContain(SLUG)
+    expect(getPastWorkshops(afterEvent, communityWorkshops).map((w) => w.slug)).toContain(SLUG)
+  })
+
+  it('ships the poster asset it references', () => {
+    expect(entry.poster).toBeDefined()
+    const bytes = readFileSync('public' + entry.poster!.src)
+    expect(bytes.length).toBeGreaterThan(10_000)
+    // WebP magic: "RIFF" .... "WEBP"
+    expect(bytes.subarray(0, 4).toString('latin1')).toBe('RIFF')
+    expect(bytes.subarray(8, 12).toString('latin1')).toBe('WEBP')
+  })
+})

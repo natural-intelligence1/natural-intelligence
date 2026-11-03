@@ -78,6 +78,24 @@ function CommunityWorkshopCard({ w }: { w: CommunityWorkshop }) {
             <p className="text-sm text-text-secondary leading-relaxed mb-5">{w.provisionalNote}</p>
           )}
 
+          {/* Speakers — for events billed by speaker rather than by guest
+              practitioner + topic. Names and titles exactly as supplied. */}
+          {w.speakers && w.speakers.length > 0 && (
+            <div className="mb-5">
+              <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
+                {w.speakers.length > 1 ? copy.workshopDetail.summary.speakers : copy.workshopDetail.summary.speaker}
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {w.speakers.map((s) => (
+                  <div key={s.name} className="rounded-xl border border-border-muted bg-surface-base p-4">
+                    <p className="text-sm font-semibold text-text-primary">{s.name}</p>
+                    <p className="text-xs text-text-muted">{s.title}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Guest practitioners */}
           {w.practitioners.length > 0 && (
             <div className="mb-5">

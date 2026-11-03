@@ -65,6 +65,11 @@ export interface CommunityWorkshop {
   /** One-line excerpt for event index cards. */
   excerpt?: string
   speaker?: { name: string; title: string }
+  /** Two or more named speakers. Set this as well as `speaker` when an event
+   *  has more than one — `speaker` remains the single JSON-LD performer, and
+   *  the public surfaces render this list. Names and titles are Founder-
+   *  supplied and shown exactly as given; never upgrade or abbreviate them. */
+  speakers?: { name: string; title: string }[]
   /** Verbatim Founder-supplied detail-page body copy. */
   detailCopy?: {
     intro: string[]
@@ -247,6 +252,117 @@ export const communityWorkshops: CommunityWorkshop[] = [
     metaDescription:
       'A free morning workshop for ladies in Ilford on understanding stress and building ' +
       'resilience. Wednesday 7 October, 10:30am–12:45pm. Free, booking essential.',
+  },
+  {
+    slug: 'winter-health-formula-nov-2026',
+    title: 'The Winter Health Formula',
+    subtitle: 'Nutrition, lifestyle and supplements for winter immunity and resilience',
+    series: 'Free Ladies’ Health Workshops — Ilford',
+    presentedBy: 'Natural Intelligence',
+    tagline: 'The Signs Are Within You',
+    theme: 'Nutrition • Lifestyle • Supplements • Winter Resilience',
+    audience: 'Ladies only',
+    cost: 'Free',
+    date: 'Wednesday 4 November 2026',
+    time: '10:30am – 12:45pm',
+    venueLines: ['Ilford Community Centre', '15 Albert Road', 'Ilford IG1 1NG'],
+    venueNote: 'opposite the Albert Road Mosque',
+    status: 'open',
+    intro:
+      'As the colder months approach, join us for a practical and informative morning exploring ' +
+      'nutrition, lifestyle and supplements to support immunity and resilience throughout winter.',
+    practitioners: [],
+    // Two speakers, so `speakers` carries both. `speaker` stays set to the
+    // first for the Event JSON-LD performer, which takes a single person.
+    // Titles are Founder-supplied and exact — never upgraded or abbreviated.
+    speaker: {
+      name: 'Shazia Sohail mANP',
+      title: 'Naturopathic Nutritional Therapist & Educator',
+    },
+    speakers: [
+      {
+        name: 'Shazia Sohail mANP',
+        title: 'Naturopathic Nutritional Therapist & Educator',
+      },
+      {
+        name: 'Saima Khalil mANP',
+        title: 'Student Naturopathic Nutritional Therapist & Educator',
+      },
+    ],
+    whatToExpect: [
+      'Expert talks',
+      'Practical guidance',
+      'Time for your questions',
+      'A welcoming space',
+    ],
+    learnAbout: [
+      'Nourish well — key nutrients and foods to support immune health',
+      'Healthy habits — simple lifestyle approaches to support winter wellbeing and resilience',
+      'Support wisely — understanding supplements in the context of winter and immunity, and how to make informed choices',
+      'Stay resilient — practical strategies to help you and your family through the colder months',
+    ],
+    // Founder-supplied scope note. Kept verbatim: it sets the educational
+    // boundary for how supplements are covered, and is the reason this event
+    // is not a "supplement workshop".
+    practitionersNote:
+      'Supplements are a broad subject and will not be treated as a one-off topic. This workshop ' +
+      'will discuss them specifically in the context of winter and immune health, with relevant ' +
+      'supplement education likely to feature in future workshops as appropriate.',
+    booking: {
+      instruction:
+        'Complete the booking form to register. Registered attendees will then be added to the ' +
+        'workshop group.',
+      // Founder-supplied Google Form. Completing the form IS the registration
+      // for this event — there is no second confirmation step on our side.
+      url: 'https://forms.gle/L6R1AnL1gh2j243P8',
+      linkLabel: 'Book your free place',
+      deadline: 'Booking deadline: Tuesday 3 November 2026.',
+    },
+    detailCopy: {
+      intro: [
+        'As the colder months approach, join us for a practical and informative morning exploring ' +
+          'nutrition, lifestyle and supplements to support immunity and resilience throughout winter.',
+        'Supplements are a broad subject and will not be treated as a one-off topic. This workshop ' +
+          'will discuss them specifically in the context of winter and immune health, with relevant ' +
+          'supplement education likely to feature in future workshops as appropriate.',
+      ],
+      lookAt: [
+        'Nourish well — key nutrients and foods to support immune health',
+        'Healthy habits — simple lifestyle approaches to support winter wellbeing and resilience',
+        'Support wisely — understanding supplements in the context of winter and immunity, and how to make informed choices',
+        'Stay resilient — practical strategies to help you and your family through the colder months',
+      ],
+      booking: [
+        'Complete the booking form to register. Registered attendees will then be added to the ' +
+          'workshop group.',
+        'Booking deadline: Tuesday 3 November 2026.',
+      ],
+    },
+    excerpt: 'Nutrition, lifestyle and supplements for winter immunity and resilience.',
+    poster: {
+      // Founder-supplied FINAL artwork ("Winter Health Formula - NI Workshop
+      // Poster FINAL.png", 2560×3840), re-encoded to WebP q88 (~261KB) at
+      // 1024×1536. Same 2:3 ratio as the source, so it is a pure downscale —
+      // nothing cropped, nothing redrawn, no QR regenerated.
+      src: '/images/workshops/winter-health-formula-nov-2026-final.webp',
+      width: 1024,
+      height: 1536,
+      alt: 'The Winter Health Formula — free ladies’ health workshop, Ilford, Wednesday 4 November',
+    },
+    scheduling: {
+      // November is GMT (+00:00): BST ended 25 October 2026.
+      start:           '2026-11-04T10:30:00+00:00',
+      end:             '2026-11-04T12:45:00+00:00',
+      timezone:        'Europe/London',
+      // The Founder-supplied deadline is a DATE, so bookings stay open to the
+      // end of Tuesday 3 November, matching how the October event was written.
+      bookingClosesAt: '2026-11-03T23:59:00+00:00',
+      bookingState:    'open',
+    },
+    metaTitle: 'The Winter Health Formula | Natural Intelligence',
+    metaDescription:
+      'A free morning workshop for ladies in Ilford on nutrition, lifestyle and supplements for ' +
+      'winter immunity and resilience. Wednesday 4 November, 10:30am – 12:45pm. Free, booking essential.',
   },
   {
     // Spelling corrected to "Divine Design" per Founder (2026-09-08).
