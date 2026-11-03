@@ -920,6 +920,41 @@ BEGIN
 END;
 $function$;
 
+-- ── 9. Close the window this migration would otherwise open ────────────────
+--
+-- TEMPORARY FAIL-CLOSED POLICY. 0065 replaces it with the canonical one.
+--
+-- case_events_practitioner_select currently grants read on the strength of a
+-- WORK ITEM alone — no case-team role, no eligibility for the role held, no
+-- practitioner-specific consent. This migration makes student evidence
+-- eligibility real, which means that from the moment 0064 lands a student
+-- could satisfy the role-neutral work-item gate and then read a client's case
+-- events with neither a supervisor check nor consent.
+--
+-- Leaving the stale policy in place for the interval between 0064 and 0065 is
+-- therefore a TRANSIENT GRANT, and the release rule is explicit: a transient
+-- denial is acceptable, a transient grant is not. "Minutes apart" does not
+-- satisfy that rule — the window is defined by what the schema permits, not
+-- by how quickly an operator moves.
+--
+-- So 0064 defines its own safe intermediate state: practitioners read nothing
+-- until 0065 installs the canonical chain. The denial is deliberate.
+--
+-- Untouched, deliberately: case_events_member_select (a client reading their
+-- own case) and case_events_service_all. Client and service access are not
+-- collateral damage of a practitioner-side repair, and no admin policy is
+-- invented here.
+
+drop policy if exists case_events_practitioner_select on public.case_events;
+
+create policy case_events_practitioner_select on public.case_events
+  for select
+  to authenticated
+  using (false);
+
+comment on policy case_events_practitioner_select on public.case_events is
+  'TEMPORARY — installed by 0064, replaced by 0065. Denies all practitioner reads of case events. 0064 retires the stale work-item rule but does not yet have the canonical chain in place; denying for that interval is the safe direction, because leaving the old rule live would be a transient grant. 0065 replaces this with can_access_case_care_profile(case_id). If you are reading this on a live database, 0065 has not been applied and practitioners cannot see case events.';
+
 commit;
 
 -- ── NOT DONE HERE, AND WHY ──────────────────────────────────────────────────

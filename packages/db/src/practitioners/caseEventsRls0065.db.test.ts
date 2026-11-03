@@ -23,7 +23,6 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const M0064 = join(HERE, '../../../../supabase/migrations/0064_practitioner_eligibility_spine.sql')
 const M0065 = join(HERE, '../../../../supabase/migrations/0065_case_events_access_alignment.sql')
 const SCAFFOLD = join(HERE, '__fixtures__/eligibilityScaffold.sql')
-const ADDENDUM = join(HERE, '__fixtures__/caseEventsRlsAddendum.sql')
 
 let db: PGlite
 let VERIFIER: string
@@ -134,7 +133,6 @@ const teamRole = (caseId: string, pid: string, role: string, supervisor?: string
 beforeAll(async () => {
   db = new PGlite()
   await db.exec(readFileSync(SCAFFOLD, 'utf8'))
-  await db.exec(readFileSync(ADDENDUM, 'utf8'))
   await db.exec(readFileSync(M0064, 'utf8'))
   await db.exec(readFileSync(M0065, 'utf8'))
 })
@@ -166,39 +164,44 @@ beforeEach(async () => {
 // ── The defect, and that 0065 actually closes it ───────────────────────────
 
 describe('a work item alone no longer grants sight of case events', () => {
-  it('BEFORE 0065 the stale policy granted read on a work item alone', async () => {
-    // A separate database carrying only the pre-0065 state, to show the
-    // defect is real rather than hypothetical.
-    const old = new PGlite()
-    try {
-      await old.exec(readFileSync(SCAFFOLD, 'utf8'))
-      await old.exec(readFileSync(ADDENDUM, 'utf8'))
-      await old.exec(readFileSync(M0064, 'utf8'))   // 0064 but NOT 0065
+    it('BETWEEN 0064 and 0065 the stale policy is gone and read is DENIED', async () => {
+      // The intermediate state must not carry the old work-item rule. 0064
+      // installs a temporary USING (false) precisely so this window is a
+      // denial rather than a transient grant. The historical grant itself is
+      // proven in caseEventsThreeState.db.test.ts, STATE 1.
+      const old = new PGlite()
+      try {
+        await old.exec(readFileSync(SCAFFOLD, 'utf8'))
+        await old.exec(readFileSync(M0064, 'utf8'))   // 0064 but NOT 0065
 
-      const c = (await old.query<{ id: string }>(
-        `insert into profiles (full_name, role) values ('C','user') returning id`)).rows[0].id
-      const k = (await old.query<{ id: string }>(
-        `insert into client_cases (client_id) values ('${c}') returning id`)).rows[0].id
-      await old.exec(`insert into case_events (case_id, event_type) values ('${k}','practitioner_note')`)
-      const p = (await old.query<{ id: string }>(
-        `insert into practitioners (display_name, status, is_active) values ('P','active',true) returning id`)).rows[0].id
-      // Work item only: NO team role, NO consent, NO link. 0064's assignable
-      // trigger is suspended just for this insert, so the test isolates the
-      // OLD read policy rather than re-testing the write gate.
-      await old.exec(`alter table case_practitioner_work disable trigger trg_enforce_assignable_work;`)
-      await old.exec(`insert into case_practitioner_work (case_id, practitioner_id, work_type, status)
-                      values ('${k}','${p}','case_review','assigned')`)
-      await old.exec(`alter table case_practitioner_work enable trigger trg_enforce_assignable_work;`)
+        const pol = (await old.query<{ q: string }>(`
+          select coalesce(pg_get_expr(polqual, polrelid),'') as q
+            from pg_policy pol join pg_class c on c.oid = pol.polrelid
+           where c.relname='case_events' and pol.polname='case_events_practitioner_select'`)).rows[0].q
+        expect(pol).toBe('false')
+        expect(pol).not.toContain('case_practitioner_work')
 
-      await old.exec(`select set_config('test.auth_uid', '${p}', false);`)
-      await old.exec(`set role authenticated;`)
-      const n = (await old.query<{ n: number }>(`select count(*)::int as n from case_events`)).rows[0].n
-      await old.exec(`reset role;`)
-      expect(n).toBe(1)   // the defect
-    } finally {
-      await old.close()
-    }
-  })
+        const c = (await old.query<{ id: string }>(
+          `insert into profiles (full_name, role) values ('C','user') returning id`)).rows[0].id
+        const k = (await old.query<{ id: string }>(
+          `insert into client_cases (client_id) values ('${c}') returning id`)).rows[0].id
+        await old.exec(`insert into case_events (case_id, event_type) values ('${k}','practitioner_note')`)
+        const p = (await old.query<{ id: string }>(
+          `insert into practitioners (display_name, status, is_active) values ('P','active',true) returning id`)).rows[0].id
+        await old.exec(`alter table case_practitioner_work disable trigger trg_enforce_assignable_work;`)
+        await old.exec(`insert into case_practitioner_work (case_id, practitioner_id, work_type, status)
+                        values ('${k}','${p}','case_review','assigned')`)
+        await old.exec(`alter table case_practitioner_work enable trigger trg_enforce_assignable_work;`)
+
+        await old.exec(`select set_config('test.auth_uid', '${p}', false);`)
+        await old.exec(`set role authenticated;`)
+        const n = (await old.query<{ n: number }>(`select count(*)::int as n from case_events`)).rows[0].n
+        await old.exec(`reset role;`)
+        expect(n).toBe(0)   // fail-closed, not the old grant
+      } finally {
+        await old.close()
+      }
+    })
 
   it('E. AFTER 0065, a work item alone reads NOTHING', async () => {
     const p = await mkQualified(['care_team'])
@@ -381,7 +384,6 @@ describe('the policy holds no duplicated rules', () => {
     const bare = new PGlite()
     try {
       await bare.exec(readFileSync(SCAFFOLD, 'utf8'))
-      await bare.exec(readFileSync(ADDENDUM, 'utf8'))
       let msg = ''
       try { await bare.exec(readFileSync(M0065, 'utf8')) }
       catch (e) { msg = String((e as Error).message ?? e) }
