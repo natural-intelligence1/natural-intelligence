@@ -49,7 +49,26 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
-  const isPublic = PUBLIC_ROUTES.some(
+
+  // Client-shell review route — public ONLY while its own flag is on.
+  //
+  // Same reasoning as /labs/galaxy above, and the same shape: flag-gated,
+  // noindex, reachable without an account so a Preview reviewer or a
+  // screenshot run can see it. The difference is that this one is not a
+  // standing entry in PUBLIC_ROUTES — it is public only when
+  // CLIENT_SHELL_REVIEW_ENABLED is '1', which is unset in Production. With
+  // the flag off the route is BOTH auth-gated here and a 404 in the page, so
+  // it takes two independent mistakes to expose it.
+  //
+  // What it exposes when it is on: fixture content for an invented person,
+  // and My Team's real empty state. No session, no client record, no
+  // database read of anyone's data. It is not an auth bypass for /my, which
+  // keeps its session requirement untouched.
+  const isFlaggedReviewRoute =
+    process.env.CLIENT_SHELL_REVIEW_ENABLED === '1' &&
+    pathname.startsWith('/review/client-shell')
+
+  const isPublic = isFlaggedReviewRoute || PUBLIC_ROUTES.some(
     (r) => pathname === r || pathname.startsWith('/auth/') || pathname.startsWith('/directory/') || pathname.startsWith('/resources/') || pathname.startsWith('/workshops/')
   )
 

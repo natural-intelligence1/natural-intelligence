@@ -112,6 +112,21 @@ export type {
   CockpitCapability, CapabilityDecision, SupervisionSubmission, SubmitResult,
 } from './studentMode'
 
+// Case-taking authority and completion. Distinct from Protocol signing, which
+// lives in intakeV2/protocolSigning.ts — see the note at the top of caseTaking.
+export {
+  CASE_ROLES, CASE_TAKING_STATES, CASE_TAKING_STATE_LABELS,
+  CASE_TAKING_REFUSALS, CASE_TAKING_REFUSAL_MESSAGES,
+  isCaseRole, isEditable, isLead, roleLabel, completionOffer,
+  newCaseTakingRecord, submitToLead, beginLeadReview, markReadyForSignOff,
+  signOff, amendAfterSignOff, applyCompletion,
+} from './caseTaking'
+export type {
+  CaseRole, CaseTakingState, CaseTakingActor, CaseTakingAction, CompletionOffer,
+  CaseTakingRecord, CaseTakingEvent, CaseTakingResult, CaseTakingRefusalCode,
+  TransitionInput,
+} from './caseTaking'
+
 export {
   TIMER_STATES, OVERRUN_REASONS, OVERRUN_REASON_LABELS,
   TIMER_CANNOT_AFFECT_CONTENT, newTimer, startTimer, pauseTimer, resumeTimer,

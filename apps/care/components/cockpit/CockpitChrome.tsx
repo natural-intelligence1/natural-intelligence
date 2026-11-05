@@ -4,15 +4,42 @@
 // Board 1 (MASTER). Fixed zones: 64px header, 42px tabs, 62px footer. The page
 // itself never scrolls; the two panes scroll internally.
 //
-// The timer sits in the HEADER, between vertical dividers, outside both panes.
-// That placement is approved and load-bearing: the timer is operational, and
-// putting it inside the pane where the practitioner is listening to someone
-// would make it part of the consultation.
+// The approved visual language in cockpitTokens.ts is UNCHANGED — same
+// colours, type, zone heights and component states. The visual-design gate is
+// closed and this is not a redesign. What changed is how much is on screen at
+// once, per the Founder's review of 4 Nov 2026.
+//
+// ── WHAT WAS REMOVED, AND WHY ───────────────────────────────────────────────
+//
+// THE SAVE BUTTONS. The header carried "Save" and the footer "Save and
+// pause". Capture now autosaves continuously, so a Save button offers a
+// practitioner a choice they do not have and implies that not pressing it
+// loses work. In their place is one quiet persistence state. Pause remains:
+// pausing the CLOCK when you step out of the room is a real operational act,
+// and is not the same thing as saving.
+//
+// THREE OF THE FOUR TIMERS. The header showed the same information four ways
+// at once — a 26px elapsed figure, "/ 60 min", "42:00 remaining", and a
+// progress track, plus a state dot. One reading is enough to glance at. It
+// now shows elapsed against planned, and the progress track, which is the
+// pairing that answers "how am I doing for time" without arithmetic.
+//
+// ── WHAT THE ROLE PILL NOW SAYS ─────────────────────────────────────────────
+//
+// It used to appear only for a student, reading "Student · supervised
+// consultation" — which made supervision look like a different product. The
+// Founder's ruling is that anyone authorised to take a case operates AS a
+// practitioner, and the difference is authority at sign-off. So the pill
+// always shows, and reads "Practitioner", "Practitioner · Supervised" or
+// "Practitioner · Lead", from roleLabel() in the domain layer. The governance
+// underneath is untouched: a supervised practitioner still cannot sign off
+// and still cannot close a safety review.
 
 import {
   activeSeconds, isOverrunning, overrunSeconds, formatDuration,
   type TimerSession,
 } from '@natural-intelligence/db/cockpit'
+import type { V2SaveState } from '@natural-intelligence/db/intakeV2'
 import { C, F, Z, button, eyebrow } from './cockpitTokens'
 
 export interface SectionTab {
@@ -22,25 +49,75 @@ export interface SectionTab {
   number: number
 }
 
+// ── Persistence state ───────────────────────────────────────────────────────
+//
+// One quiet line in the chrome, not in the consultation. It says WHERE the
+// work is, because that is the part a practitioner needs and the part it
+// would be easiest to mislead them about.
+//
+// 'in_session_only' is the Cockpit's honest state TODAY, and it is not a
+// placeholder for "saving". Capture cannot reach the canonical record while
+// no Question → Concept(+variant) → Field mapping is approved, and there is
+// no practitioner draft store to reach instead — case_contributions is
+// append-only and nothing writes to it yet. So the work lives in this page
+// and is lost on reload, and the line says exactly that rather than
+// implying a save that is not happening.
+//
+// The other states exist so that when a server-side draft IS approved and
+// built, this component already renders it and the indicator becomes a plain
+// "Saved" — earned, because by then it will be true.
+
+export type CockpitSaveState = V2SaveState | 'in_session_only'
+
+function SaveState({ state }: { state: CockpitSaveState }) {
+  const text =
+    state === 'in_session_only' ? 'Held in this session only'
+      : state === 'saving' ? 'Saving…'
+        : state === 'saved' ? 'Saved'
+          : state === 'error' ? 'Not saved — retrying'
+            : ''
+
+  return (
+    <span
+      role="status"
+      style={{
+        fontSize: '12px',
+        color: state === 'error' ? C.oxblood : C.softText,
+        whiteSpace: 'nowrap',
+        minWidth: '150px',
+        textAlign: 'right',
+      }}
+    >
+      {text}
+    </span>
+  )
+}
+
 // ── Header ──────────────────────────────────────────────────────────────────
 
 export function CockpitHeader({
-  clientLine, contextLine, rolePill, timer, now, onPause, onResume, onSave,
+  clientLine, contextLine, rolePill, timer, now, saveState, timerAction, onPause, onResume,
 }: {
   clientLine: string
   contextLine: string
-  /** Student only. Absent for a qualified practitioner. */
-  rolePill?: string
+  /** Always present now: Practitioner · Supervised | Lead, or Practitioner. */
+  rolePill: string
   timer: TimerSession
   now: string
+  saveState: CockpitSaveState
+  /**
+   * Start / finish the consultation — the timer's own lifecycle, so it sits
+   * with the timer rather than in the pilot banner, where it used to be
+   * mixed in with text about mapping approval. Null when there is nothing to
+   * offer.
+   */
+  timerAction: { label: string; onClick: () => void } | null
   onPause: () => void
   onResume: () => void
-  onSave: () => void
 }) {
   const elapsed = activeSeconds(timer, now)
   const over = isOverrunning(timer, now)
   const planned = timer.plannedMinutes * 60
-  const remaining = Math.max(0, planned - elapsed)
   const running = timer.state === 'running'
   const progress = Math.min(1, planned === 0 ? 0 : elapsed / planned)
 
@@ -48,7 +125,7 @@ export function CockpitHeader({
     <header
       style={{
         height: `${Z.header}px`, flexShrink: 0, display: 'flex', alignItems: 'center',
-        gap: '28px', padding: '0 28px', borderBottom: `1px solid ${C.line}`,
+        gap: '24px', padding: '0 28px', borderBottom: `1px solid ${C.line}`,
         background: C.warmWhite,
       }}
     >
@@ -67,19 +144,19 @@ export function CockpitHeader({
         <span style={{ fontSize: '12.5px', color: C.softText }}>{contextLine}</span>
       </div>
 
-      {rolePill && (
-        <span style={{
-          ...eyebrow(C.goldInk, 11.5),
-          border: `1px solid ${C.gold}`, background: C.goldTint,
-          borderRadius: '999px', padding: '6px 14px', whiteSpace: 'nowrap',
-        }}>
-          {rolePill}
-        </span>
-      )}
+      <span style={{
+        ...eyebrow(C.goldInk, 11.5),
+        border: `1px solid ${C.gold}`, background: C.goldTint,
+        borderRadius: '999px', padding: '6px 14px', whiteSpace: 'nowrap',
+      }}>
+        {rolePill}
+      </span>
 
       <span style={{ flex: 1 }} />
 
-      {/* Timer — between dividers, outside both panes. */}
+      <SaveState state={saveState} />
+
+      {/* ONE timer. Elapsed against planned, and a calm track. */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: '12px', padding: '0 20px',
         borderLeft: `1px solid ${C.line}`, borderRight: `1px solid ${C.line}`,
@@ -92,7 +169,6 @@ export function CockpitHeader({
             aria-hidden
             style={{
               width: '8px', height: '8px', borderRadius: '50%',
-              // Running: quiet olive. Overrun: antique gold. Paused: hollow.
               background: running ? (over ? C.gold : C.olive) : 'transparent',
               border: running ? 'none' : `1.5px solid ${C.softText}`,
               display: 'inline-block',
@@ -101,29 +177,21 @@ export function CockpitHeader({
         )}
 
         <span style={{
-          fontFamily: F.display, fontSize: '26px', fontWeight: 600,
+          fontFamily: F.display, fontSize: '22px', fontWeight: 600,
           color: timer.state === 'paused' ? C.softText : C.botanical,
-          fontVariantNumeric: 'tabular-nums',
+          fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
         }}>
           {formatDuration(elapsed)}
+          <span style={{ fontSize: '14px', color: C.softText, fontWeight: 400 }}>
+            {' / '}{timer.plannedMinutes}:00
+          </span>
         </span>
 
-        <span style={{ fontSize: '13px', color: C.softText, lineHeight: 1.35 }}>
-          / {timer.plannedMinutes} min
-          <br />
-          {timer.state === 'paused'
-            ? `Paused${timer.pauseReason ? ` · ${timer.pauseReason}` : ''}`
-            : over
-              ? `Over by ${formatDuration(overrunSeconds(timer, now))}`
-              : `${formatDuration(remaining)} remaining`}
-        </span>
-
-        {/* Calm progress track. No red, no flashing, no sound. */}
         {timer.state !== 'not_started' && timer.state !== 'completed' && (
           <span
             aria-hidden
             style={{
-              width: '120px', height: '3px', borderRadius: '2px',
+              width: '96px', height: '3px', borderRadius: '2px',
               background: C.line, overflow: 'hidden', display: 'inline-block',
             }}
           >
@@ -134,22 +202,35 @@ export function CockpitHeader({
             }} />
           </span>
         )}
+
+        {/* Only states that need words get them: paused, and overrunning. */}
+        {(timer.state === 'paused' || over) && (
+          <span style={{ fontSize: '12px', color: over ? C.goldInk : C.softText, whiteSpace: 'nowrap' }}>
+            {timer.state === 'paused'
+              ? `Paused${timer.pauseReason ? ` · ${timer.pauseReason}` : ''}`
+              : `Over by ${formatDuration(overrunSeconds(timer, now))}`}
+          </span>
+        )}
       </div>
 
-      <div style={{ display: 'flex', gap: '10px' }}>
+      {/* Pausing the clock, not saving work. */}
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
         {timer.state === 'paused' ? (
           <button type="button" onClick={onResume} style={button('primary')}>Resume</button>
         ) : (
+          timer.state === 'running' && (
+            <button type="button" onClick={onPause} style={button('outline')}>Pause</button>
+          )
+        )}
+        {timerAction && (
           <button
             type="button"
-            onClick={onPause}
-            disabled={timer.state !== 'running'}
-            style={{ ...button('outline'), opacity: timer.state === 'running' ? 1 : 0.55 }}
+            onClick={timerAction.onClick}
+            style={timer.state === 'not_started' ? button('primary') : button('outline')}
           >
-            Pause
+            {timerAction.label}
           </button>
         )}
-        <button type="button" onClick={onSave} style={button('outline')}>Save</button>
       </div>
     </header>
   )
@@ -162,7 +243,7 @@ export function SectionTabs({
 }: {
   tabs: SectionTab[]
   current: string
-  /** Drives the red count badge on Safety summary. */
+  /** Drives the count badge on Safety summary. */
   reviewCount: number
   reviewMode: boolean
   onSelect: (id: string) => void
@@ -191,7 +272,6 @@ export function SectionTabs({
               gap: '7px', whiteSpace: 'nowrap',
               color: active ? C.botanical : C.softText,
               fontWeight: active ? 600 : 400,
-              // 2px pine underline marks the current section.
               boxShadow: active ? `inset 0 -2px 0 ${C.pine}` : 'none',
             }}
           >
@@ -253,15 +333,17 @@ function NodeGlyph() {
 // ── Footer ──────────────────────────────────────────────────────────────────
 
 export function CockpitFooter({
-  thisSection, caseWideSafety, primaryLabel, primaryDisabled, onSaveAndPause, onPrimary,
+  thisSection, caseWideSafety, primaryLabel, primaryDisabled, blockedReason, onPrimary,
 }: {
   /** Counts for the CURRENT section only. */
   thisSection: string[]
   /** Case-wide safety. Shown always; never blocks this section. */
   caseWideSafety: string[]
+  /** State-aware: says what will happen, including that a review stays open. */
   primaryLabel: string
   primaryDisabled?: boolean
-  onSaveAndPause: () => void
+  /** Why the primary action is unavailable, where it is. Shown, not hidden. */
+  blockedReason?: string | null
   onPrimary: () => void
 }) {
   return (
@@ -290,7 +372,13 @@ export function CockpitFooter({
 
       <span style={{ flex: 1 }} />
 
-      <button type="button" onClick={onSaveAndPause} style={button('outline')}>Save and pause</button>
+      {/* ONE completion action. No "Save and pause" beside it competing for
+          the eye — there is nothing to save and nothing to cancel. */}
+      {blockedReason && (
+        <span style={{ fontSize: '12.5px', color: C.softText, maxWidth: '320px', lineHeight: 1.4 }}>
+          {blockedReason}
+        </span>
+      )}
       <button
         type="button"
         onClick={onPrimary}

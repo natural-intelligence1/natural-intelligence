@@ -38,7 +38,15 @@ export default function TodayPage() {
             Your practitioner has not signed a plan for you yet. When they do, the things you have
             agreed together will appear here, a day at a time.
           </p>
-          <Link href="/my/health" className="text-sm text-text-brand hover:underline">
+          {/* With no plan, the one useful thing a person can do is tell us
+              their story — so that is the offer, not a list of features. */}
+          <Link
+            href="/my/story"
+            className="inline-flex items-center px-5 py-2.5 rounded-full bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
+          >
+            Tell us your health story
+          </Link>
+          <Link href="/my/health" className="block text-sm text-text-brand hover:underline mt-4">
             See what you have told us so far
           </Link>
         </section>

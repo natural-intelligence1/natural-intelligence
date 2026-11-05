@@ -25,8 +25,13 @@ export default async function MyLayout({ children }: { children: React.ReactNode
     <div className="py-10 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
       <MyNav />
       {children}
+      {/* True on every /my route, including the story preview — where the
+          answers are the reviewer's own, held in their browser, and still not
+          a client record. The earlier wording ("no real health information
+          appears here") would have become false the moment someone typed
+          something true into the preview. */}
       <p className="text-xs text-text-muted mt-12 pt-5 border-t border-border-muted leading-relaxed">
-        Fictional example for review. No real health information appears here.
+        Fictional example for review. Nothing here is a real client record.
       </p>
     </div>
   )

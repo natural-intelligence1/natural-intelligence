@@ -80,7 +80,12 @@ export const CARE_RECORD_FLOWS: readonly CareRecordFlow[] = Object.freeze([
     id: 'client_answer_to_case_record',
     from: 'Client intake answer',
     to: 'Practitioner case record',
-    sourceOfTruth: 'intake_v2_answers, keyed by question_id',
+    // Corrected 5 Nov 2026: this said 'intake_v2_answers', which is not a
+    // table. V2 shares the EXISTING intake_answers table — saveV2Answer()
+    // upserts into it, keyed by (session_id, question_id) — and distinguishes
+    // its sessions by an 'v2:' prefix on intake_sessions.current_section.
+    // A wrong table name in the architecture contract is worse than none.
+    sourceOfTruth: 'intake_answers, keyed by (session_id, question_id)',
     via: 'member',
     status: 'domain_ready_not_wired',
     invariant:

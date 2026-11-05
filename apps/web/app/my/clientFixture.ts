@@ -14,6 +14,7 @@
 // practitioner side uses rather than hard-coded here.
 
 import type { ProtocolVersionRow } from '@natural-intelligence/db/careRecord'
+import type { ClientContext } from '@/lib/my/progressiveNav'
 
 export const CLIENT = {
   firstName: 'Rowan',
@@ -84,4 +85,37 @@ export const MY_HEALTH_SUMMARY = {
   synopsisSections: 11,
   synopsisUpdated: '18 Sep 2026',
   intakeCompleted: '22 Jul 2026',
+}
+
+/** How this person's progress reads back to them. Plain counts and their own
+ *  words — never a score, a grade or a percentage of "compliance". */
+export const MY_PROGRESS = {
+  daysRecorded: 58,
+  planWeek: 9,
+  planWeeksTotal: 12,
+  /** What they chose to track, with the direction they wanted it to move. */
+  tracked: [
+    { name: 'Nights slept through', then: '1 in 7', now: '5 in 7', note: 'Since the daylight walk started.' },
+    { name: 'Morning energy', then: 'Low most days', now: 'Steady most days', note: 'Their words at the last review.' },
+    { name: 'Digestion', then: 'Loose after supplements', now: 'Settled', note: 'After the magnesium timing changed.' },
+  ],
+  /** Review points, past and next. */
+  reviews: [
+    { at: '18 Sep 2026', what: 'Second review. Plan revised to v2.' },
+    { at: '24 Jul 2026', what: 'First plan signed.' },
+  ],
+}
+
+/**
+ * The reveal state for THIS fictional person: story shared, plan signed, days
+ * recorded, no labs uploaded, no workshop booked. Chosen so the preview shows
+ * both halves of progressive disclosure at once — most modules present, two
+ * still waiting with a reason — rather than an all-or-nothing screen.
+ */
+export const CLIENT_CONTEXT: ClientContext = {
+  intakeSubmitted: true,
+  hasSignedPlan: true,
+  hasLabReports: false,
+  hasCheckins: true,
+  hasWorkshopBookings: false,
 }

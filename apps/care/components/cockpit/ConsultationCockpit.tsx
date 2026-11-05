@@ -23,6 +23,29 @@
 // No Question → Concept(+variant) → Field mapping is APPROVED, so capture
 // lives in React state for the pilot. Presentation does not override the
 // mapping gate: a field path appearing on a board is not permission to write.
+//
+// A browser-local draft store was considered and DELIBERATELY NOT BUILT
+// (Founder ruling, 5 Nov 2026). The persistence audit found no server-side
+// draft store for practitioner case-taking: intake_answers belongs to a
+// CLIENT intake session keyed on member_id, case_contributions is append-only
+// with no writer, and there is no table at all for question state, section
+// progress or consultation position. Putting practitioner-captured health
+// content in localStorage to simulate autosave would make a preview
+// convenience into the production persistence mechanism by default. So the
+// chrome shows "Held in this session only", which is the truth, and the
+// persistence design goes to review before anything is written.
+//
+// ── WHAT THE 4 NOV REVIEW CHANGED HERE ──────────────────────────────────────
+//
+//   · Save and "Save and pause" are gone. Autosave is the intended model and
+//     a Save button offers a choice that will not exist.
+//   · The footer carries ONE completion action, worded for the actor's
+//     authority and the case-taking state, from caseTaking.completionOffer().
+//   · "Student mode" is no longer a mode. Everyone authorised to take a case
+//     operates as a practitioner; the pill reads "Practitioner · Supervised"
+//     and the difference is authority at sign-off.
+//   · The pilot banner collapses. Its truth is unchanged and still visible —
+//     it is a summary line that opens, not a paragraph across the screen.
 
 import { useMemo, useState } from 'react'
 import {
@@ -34,15 +57,17 @@ import {
   summariseMappingPack, summarisePilot, ANNEX_1_STATUS,
   annexNodeInventory, unsuppliedSafetyValues,
   pilotQuestions, pilotStreamTitle, PILOT_SECTION_IDS,
-  submitForSupervision, can,
+  can,
   newTimer, startTimer, pauseTimer, resumeTimer, completeTimer,
-  FINISH_SECTION_LABEL, FINISH_SECTION_LABEL_CLEAR,
+  completionOffer, applyCompletion, roleLabel, newCaseTakingRecord,
+  CASE_TAKING_STATE_LABELS, isEditable,
   type CaptureActor, type CaptureState, type PilotSectionId,
-  type OverrunReason, type TimerSession, type SafetyNodeAnswer,
+  type TimerSession, type SafetyNodeAnswer,
   type AnnexAnswer, type WeightLossDetail, type V4ReviewOutcome,
+  type CaseRole, type CaseTakingActor, type CaseTakingRecord,
 } from '@natural-intelligence/db/cockpit'
 import type { V2Provenance } from '@natural-intelligence/db/intakeV2'
-import { C, Z } from './cockpitTokens'
+import { C, F, Z, eyebrow } from './cockpitTokens'
 import { CockpitHeader, SectionTabs, CockpitFooter, type SectionTab } from './CockpitChrome'
 import { GuidePane, type GuideGeneratedItem } from './GuidePane'
 import { CapturePane } from './CapturePane'
@@ -50,10 +75,27 @@ import { NodeDetailsDrawer } from './NodeDetailsDrawer'
 import { FinishConsultation } from './FinishConsultation'
 
 // FICTIONAL EXAMPLE DATA — replaced with real data at runtime.
-const PRACTITIONER: CaptureActor = { id: 'prac-1', displayName: 'Elin Marsh', role: 'practitioner' }
-const STUDENT: CaptureActor = {
-  id: 'stu-1', displayName: 'T. Reyes', role: 'student', supervisorId: 'prac-1',
+//
+// Three actors, one per case role, so the two completion paths the Founder
+// specified can both be seen. In production the case role comes from
+// case_team_roles.team_role for the signed-in practitioner on this case; it
+// is never chosen in the interface.
+const ACTORS: Record<CaseRole, CaseTakingActor> = {
+  lead: {
+    actor: { id: 'prac-lead', displayName: 'Amara Okafor', role: 'practitioner' },
+    caseRole: 'lead',
+  },
+  care_team: {
+    actor: { id: 'prac-1', displayName: 'Elin Marsh', role: 'practitioner' },
+    caseRole: 'care_team',
+  },
+  student: {
+    actor: { id: 'stu-1', displayName: 'T. Reyes', role: 'student', supervisorId: 'prac-lead' },
+    caseRole: 'student',
+  },
 }
+
+const LEAD_NAME = ACTORS.lead.actor.displayName
 const CLIENT_LINE = 'Rosa Penhallow · 47'
 const WORK_REFERENCE = 'NI-W-0217'
 
@@ -62,7 +104,10 @@ const now = () => new Date().toISOString()
 export function ConsultationCockpit({ caseId }: { caseId: string }) {
   const [section, setSection] = useState<PilotSectionId>('digestion')
   const [state, setState] = useState<CaptureState>(() => newCaptureState(caseId))
-  const [asStudent, setAsStudent] = useState(false)
+  // Review-only. In production this is read from case_team_roles, not chosen.
+  const [caseRole, setCaseRole] = useState<CaseRole>('care_team')
+  const [takingRecord, setTakingRecord] = useState<CaseTakingRecord>(() => newCaseTakingRecord(caseId))
+  const [pilotOpen, setPilotOpen] = useState(false)
   const [reviewMode, setReviewMode] = useState(false)
   const [focusQuestionId, setFocus] = useState<string | null>(null)
   const [detailsFor, setDetailsFor] = useState<string | null>(null)
@@ -73,7 +118,9 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
   const [outcomes, setOutcomes] = useState<Record<string, string>>({})
   const [toast, setToast] = useState<string | null>(null)
 
-  const actor = asStudent ? STUDENT : PRACTITIONER
+  const takingActor = ACTORS[caseRole]
+  const actor = takingActor.actor
+  const asStudent = caseRole === 'student'
   const questions = useMemo(() => pilotQuestions(section), [section])
   const clock = now()
 
@@ -170,12 +217,34 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
   }, [focusQuestionId, state.answers, state.branches, section])
 
   // ── Handlers ─────────────────────────────────────────────────────────────
+  //
+  // IMMUTABILITY AFTER SIGN-OFF, enforced here rather than described.
+  //
+  // The Founder's rule: editable until sign-off; after it, that signed
+  // version is immutable and a correction is an amendment creating the next
+  // revision. So every capture path checks isEditable() and refuses with the
+  // reason, instead of silently accepting a keystroke that would alter a
+  // version a practitioner has put their name to.
+  //
+  // The way forward is not hidden: the Lead's completion action in that state
+  // is "Amend — creates a new version", which reopens the record as the next
+  // revision and leaves the signed one untouched.
+  const frozen = !isEditable(takingRecord.state)
+
+  const refuseIfFrozen = (): boolean => {
+    if (!frozen) return false
+    setToast('This version is signed off and read-only. Use Amend to start a new version.')
+    return true
+  }
+
   const onAnswer = (questionId: string, value: unknown, provenance: V2Provenance) => {
+    if (refuseIfFrozen()) return
     if (!can(actor, 'capture_client_answer').allowed) return
     setState((s) => recordAnswer(s, { questionId, value, provenance, at: now(), actor }))
   }
 
   const onNodeAnswer = (ruleId: string, answer: AnnexAnswer) => {
+    if (refuseIfFrozen()) return
     if (!can(actor, 'ask_safety_question').allowed) return
     setNodeAnswers((prev) => ({
       ...prev,
@@ -201,12 +270,14 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
     })
 
   const onRecordOutcome = (ruleId: string, outcome: V4ReviewOutcome, action: string) => {
+    if (refuseIfFrozen()) return
     if (!can(actor, 'close_safety_review').allowed) return
     setOutcomes((prev) => ({ ...prev, [ruleId]: outcome }))
     setToast(`Outcome recorded by ${actor.displayName}${action ? ' with action noted' : ''}. Attributed and dated.`)
   }
 
   const onReconcile = (edgeId: string, choice: 'keep' | 'retire' | 'reopen', reason?: string) => {
+    if (refuseIfFrozen()) return
     setState((s) => {
       if (choice === 'reopen') return reopenBranch(s, edgeId, now(), 'Reopened by the practitioner')
       if (choice === 'retire') {
@@ -229,28 +300,63 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
     })
   }
 
-  const primaryLabel = asStudent
-    ? 'Submit for supervision'
-    : gate.leavesReviewOpen ? FINISH_SECTION_LABEL : `Review and ${FINISH_SECTION_LABEL_CLEAR.toLowerCase()}`
+  // ── The ONE completion action ─────────────────────────────────────────────
+  //
+  // Who may complete, and with what words, is decided in the domain layer by
+  // completionOffer(caseRole, state, openReviews) — so the footer cannot
+  // disagree with the authority rules, and the wording cannot claim
+  // completeness while a safety review is open.
+  //
+  // Autosave is NOT sign-off. Capture being up to date says nothing about
+  // whether a practitioner has adopted it, which is why finishing the
+  // section and signing off are separate acts with separate labels.
+  const capturedCount = Object.keys(state.answers).length
+  const offer = completionOffer(takingActor, takingRecord.state, openReviews)
 
   const onPrimary = () => {
-    if (asStudent) {
-      const r = submitForSupervision({
-        actor, caseId, section, at: now(),
-        draftAnswerCount: drafts.length, openSafetyItemCount: sStatus.openSafetyInThisSection,
-      })
-      setToast(r.ok
-        ? `Sent to ${PRACTITIONER.displayName}: ${r.submission.draftAnswerCount} draft(s), ${r.submission.openSafetyItemCount} open safety item(s). Nothing was closed.`
-        : `Not sent — ${r.reason.replace(/_/g, ' ')}.`)
+    const result = applyCompletion(offer.action, {
+      record: takingRecord,
+      actor: takingActor,
+      at: now(),
+      capturedAnswers: capturedCount,
+      openSafetyReviews: openReviews,
+    })
+
+    if (!result.ok) {
+      setToast(result.message)
       return
     }
-    const after = finishSection(state, section, safetyItems)
-    setState(after.state)
-    setToast(after.finished
-      ? (after.gate.leavesReviewOpen
-          ? 'Section finished. Open reviews remain open and stay visible case-wide.'
-          : 'Section finished.')
-      : `Not finished — ${after.gate.blockers[0]}`)
+
+    setTakingRecord(result.record)
+
+    // Finishing the SECTION is a separate, existing act from case-taking
+    // completion, and it keeps its own gate. Running it here means a
+    // hand-over does not quietly leave the section looking unfinished.
+    if (offer.action === 'submit_to_lead' || offer.action === 'mark_ready_for_sign_off') {
+      const after = finishSection(state, section, safetyItems)
+      setState(after.state)
+    }
+
+    const openNote = offer.leavesReviewOpen
+      ? ' Open reviews remain open and stay visible case-wide.'
+      : ''
+
+    switch (offer.action) {
+      case 'submit_to_lead':
+        setToast(`Submitted to ${LEAD_NAME}. Nothing was closed; you can still add to the record.${openNote}`)
+        break
+      case 'mark_ready_for_sign_off':
+        setToast(`Ready for your sign-off.${openNote}`)
+        break
+      case 'sign_off':
+        setToast(`Signed off by ${takingActor.actor.displayName}. This version is now read-only; a correction creates a new one.`)
+        break
+      case 'amend':
+        setToast(`Amendment started — revision ${result.record.revision}. The signed version it supersedes is unchanged.`)
+        break
+      default:
+        break
+    }
   }
 
   const tabs: SectionTab[] = PILOT_SECTION_IDS.map((id, i) => ({
@@ -267,15 +373,28 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
     }}>
       <CockpitHeader
         clientLine={CLIENT_LINE}
-        contextLine={asStudent
-          ? `Synthetic case · Student ${STUDENT.displayName} · Supervisor ${PRACTITIONER.displayName}`
-          : `Synthetic case · Initial consultation · Practitioner: ${PRACTITIONER.displayName} (fictional)`}
-        rolePill={asStudent ? 'Student · supervised consultation' : undefined}
+        contextLine={[
+          'Synthetic case',
+          actor.displayName,
+          asStudent ? `supervised by ${LEAD_NAME}` : null,
+          CASE_TAKING_STATE_LABELS[takingRecord.state],
+          takingRecord.revision > 1 ? `revision ${takingRecord.revision}` : null,
+        ].filter(Boolean).join(' · ')}
+        rolePill={roleLabel(takingActor)}
         timer={timer}
         now={clock}
+        /* The honest state: no mapping is approved and there is no
+           practitioner draft store, so capture lives in this page. */
+        saveState="in_session_only"
+        timerAction={
+          timer.state === 'not_started'
+            ? { label: 'Start consultation', onClick: () => setTimer((t) => startTimer(t, now())) }
+            : timer.state === 'completed'
+              ? { label: 'View time log', onClick: () => setFinishing(true) }
+              : { label: 'Finish consultation', onClick: () => setFinishing(true) }
+        }
         onPause={() => setTimer((t) => pauseTimer(t, now()))}
         onResume={() => setTimer((t) => resumeTimer(t, now()))}
-        onSave={() => setToast('Capture saved. Nothing is lost.')}
       />
 
       <SectionTabs
@@ -287,26 +406,97 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
         onToggleReviewMode={() => { setReviewMode((v) => !v); setDrawerOpen((v) => !v) }}
       />
 
-      {/* Pilot banner — what is real and what is not, before anything else. */}
+      {/* ── Pilot banner, collapsed by default ───────────────────────────────
+          The Founder needs this truth visible and it is NOT being removed or
+          softened: nothing reaches the canonical record while the mappings
+          are unapproved. What changed is that it was a paragraph spanning the
+          screen above the consultation. It is now one line that opens, and
+          the headline clause — nothing is saved — is in the summary, so the
+          warning is never behind a click. */}
       <div style={{
         flexShrink: 0, background: C.goldTint, borderBottom: `1px solid ${C.gold}`,
-        padding: '8px 28px', fontSize: '12px', color: C.goldInk, lineHeight: 1.5,
+        padding: '6px 28px', fontSize: '12px', color: C.goldInk, lineHeight: 1.5,
       }}>
-        <strong style={{ fontWeight: 600 }}>Pilot · nothing is saved.&nbsp;</strong>
-        {mapping.approved} of {mapping.total} Question → Concept + variant → Field mappings are
-        approved, so no answer reaches the canonical record. Safety wording is loaded from{' '}
-        {ANNEX_1_STATUS.source} ({ANNEX_1_STATUS.validationStatus}). Fictional case; no real client data.
-        <button type="button" onClick={() => setAsStudent((v) => !v)} style={{
-          all: 'unset', cursor: 'pointer', marginLeft: '14px', textDecoration: 'underline',
-        }}>
-          {asStudent ? 'Switch to practitioner' : 'Switch to student mode'}
+        <button
+          type="button"
+          onClick={() => setPilotOpen((v) => !v)}
+          aria-expanded={pilotOpen}
+          style={{
+            all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
+            gap: '7px', color: C.goldInk, font: `400 12px ${F.ui}`,
+          }}
+        >
+          <span aria-hidden style={{
+            display: 'inline-block', transform: pilotOpen ? 'rotate(90deg)' : 'none',
+            transition: 'transform .15s', fontSize: '9px',
+          }}>▶</span>
+          <strong style={{ fontWeight: 600 }}>Pilot · nothing is saved.</strong>
+          <span>
+            {mapping.approved} of {mapping.total} mappings approved · fictional case · no real client data
+          </span>
+          <span style={{ textDecoration: 'underline' }}>{pilotOpen ? 'Less' : 'Why'}</span>
         </button>
-        <button type="button" onClick={() => (timer.state === 'not_started' ? setTimer((t) => startTimer(t, now())) : setFinishing(true))} style={{
-          all: 'unset', cursor: 'pointer', marginLeft: '12px', textDecoration: 'underline', fontWeight: 600,
-        }}>
-          {timer.state === 'not_started' ? 'Start consultation' : timer.state === 'completed' ? 'View time log' : 'Finish consultation'}
-        </button>
+
+        {pilotOpen && (
+          <div style={{ marginTop: '7px', paddingTop: '7px', borderTop: `1px solid ${C.gold}`, maxWidth: '980px' }}>
+            <p style={{ margin: '0 0 7px' }}>
+              {mapping.approved} of {mapping.total} Question → Concept + variant → Field mappings are
+              approved, so no answer reaches the canonical record. There is also no practitioner
+              draft store: capture is held in this page and is lost on reload. Safety wording is
+              loaded from {ANNEX_1_STATUS.source} ({ANNEX_1_STATUS.validationStatus}).
+            </p>
+
+            {/* REVIEW SCAFFOLDING, not a product control. In production the
+                case role is read from case_team_roles for the signed-in
+                practitioner; nobody picks it. It lives inside the pilot
+                details precisely so it cannot read as a product mode. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
+              <span style={{ ...eyebrow(C.goldInk, 11), marginRight: '2px' }}>Review as</span>
+              {(['lead', 'care_team', 'student'] as CaseRole[]).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => { setCaseRole(r); setTakingRecord(newCaseTakingRecord(caseId)) }}
+                  aria-pressed={caseRole === r}
+                  style={{
+                    all: 'unset', cursor: 'pointer', font: `500 11.5px ${F.ui}`,
+                    border: `1px solid ${caseRole === r ? C.goldInk : C.gold}`,
+                    background: caseRole === r ? C.warmWhite : 'transparent',
+                    color: C.goldInk, borderRadius: '999px', padding: '3px 10px',
+                  }}
+                >
+                  {roleLabel(ACTORS[r])}
+                </button>
+              ))}
+              <span style={{ fontSize: '11px', opacity: 0.85 }}>
+                Switching resets the case-taking state so each completion path can be seen from the start.
+              </span>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Signed off — read-only, said once and plainly. Not an error state:
+          this is what sign-off is for, and the way on is in the footer. */}
+      {frozen && (
+        <div
+          role="status"
+          style={{
+            flexShrink: 0, background: C.sage, borderBottom: `1px solid ${C.pine}`,
+            padding: '7px 28px', fontSize: '12.5px', color: C.pine,
+            display: 'flex', alignItems: 'center', gap: '8px',
+          }}
+        >
+          <strong style={{ fontWeight: 600 }}>
+            Signed off{takingRecord.signedOffBy ? ` by ${actor.displayName}` : ''}
+            {takingRecord.revision > 1 ? ` · revision ${takingRecord.revision}` : ''}.
+          </strong>
+          <span>
+            This version is read-only. A correction is an amendment creating the next version —
+            nothing here is overwritten.
+          </span>
+        </div>
+      )}
 
       <div style={{
         flex: 1, display: 'grid',
@@ -341,7 +531,9 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
           safetyNodes={sectionNodes}
           reviewMode={reviewMode}
           focusQuestionId={activeQuestionId}
-          attributionNote={asStudent ? `All entries attributed to ${STUDENT.displayName} (student)` : null}
+          attributionNote={asStudent
+            ? `All entries attributed to ${actor.displayName}, supervised by ${LEAD_NAME}`
+            : null}
           edgeFor={edgeFor}
           onFocus={setFocus}
           onAnswer={onAnswer}
@@ -381,12 +573,9 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
           ...(caseWide.unaskedSafetyElsewhere.length > 0
             ? [`${caseWide.unaskedSafetyElsewhere.length} red-flag question not yet asked elsewhere`] : []),
         ]}
-        primaryLabel={primaryLabel}
-        primaryDisabled={!asStudent && !gate.canFinish}
-        onSaveAndPause={() => {
-          setTimer((t) => pauseTimer(t, now(), 'saved and paused'))
-          setToast('Saved and paused. Capture is kept; nothing is lost.')
-        }}
+        primaryLabel={offer.label}
+        primaryDisabled={offer.action === 'none'}
+        blockedReason={offer.blockedReason}
         onPrimary={onPrimary}
       />
 
@@ -395,7 +584,7 @@ export function ConsultationCockpit({ caseId }: { caseId: string }) {
         <FinishConsultation
           timer={timer}
           now={clock}
-          practitionerName={PRACTITIONER.displayName}
+          practitionerName={actor.displayName}
           workReference={WORK_REFERENCE}
           caseId={caseId}
           onBack={() => setFinishing(false)}

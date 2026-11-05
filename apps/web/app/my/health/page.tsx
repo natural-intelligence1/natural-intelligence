@@ -8,19 +8,16 @@
 // and says so rather than rendering a plausible-looking stand-in.
 
 import Link from 'next/link'
-import { CLIENT, MY_HEALTH_SUMMARY, MY_UPDATES } from '../clientFixture'
-
-/** The existing client tools, grouped under My Health rather than competing
- *  with it in a thirteen-item sidebar. Each links to the live route. */
-const EXISTING_TOOLS = [
-  { href: '/dashboard/story', label: 'My body\'s story', note: 'What you have told us, in your words' },
-  { href: '/dashboard/biohub', label: 'BioHub', note: 'Your test results and documents' },
-  { href: '/dashboard/rootfinder', label: 'RootFinder', note: 'Exploring what might be driving things' },
-  { href: '/dashboard/trajectory', label: 'Trajectory', note: 'How things have moved over time' },
-  { href: '/dashboard/lifetracker', label: 'LifeTracker', note: 'Day-to-day patterns' },
-]
+import { availableModules } from '@/lib/my/progressiveNav'
+import { CLIENT, CLIENT_CONTEXT, MY_HEALTH_SUMMARY, MY_UPDATES } from '../clientFixture'
 
 export default function MyHealthPage() {
+  // The records and tools that are open to THIS person, decided by
+  // lib/my/progressiveNav.ts. Replaces the fixed five-item list that used to
+  // sit here: a tool nobody can use yet is noise, not a feature.
+  const tools = availableModules(CLIENT_CONTEXT)
+    .filter((m) => !m.alwaysAvailable && m.id !== 'workshops')
+
   return (
     <>
       <header className="mb-8">
@@ -31,6 +28,26 @@ export default function MyHealthPage() {
           practitioner you meet.
         </p>
       </header>
+
+      {/* THE INTAKE'S PLACE IN THE SHELL.
+          Intake is not a separate product with its own front door — it is how
+          My Health gets filled in. So it lives here, as one entry, and it is
+          the same entry whether you are starting it or adding to it. */}
+      <section aria-labelledby="your-story" className="mb-10">
+        <h2 id="your-story" className="sr-only">Your health story</h2>
+        <Link
+          href="/my/story"
+          className="block border border-border-default rounded-xl p-5 bg-surface-raised hover:border-border-strong transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-default"
+        >
+          <span className="block font-display text-xl text-text-primary mb-1">Your health story</span>
+          <span className="block text-sm text-text-secondary leading-relaxed">
+            One thing at a time, saved as you go. Stop whenever you like and pick up where you left off.
+          </span>
+          <span className="block text-xs text-text-muted mt-2">
+            Started {MY_HEALTH_SUMMARY.intakeCompleted} · add to it any time
+          </span>
+        </Link>
+      </section>
 
       {/* What they came with */}
       <section aria-labelledby="concerns" className="mb-10">
@@ -82,22 +99,25 @@ export default function MyHealthPage() {
         </div>
       </section>
 
-      {/* Existing tools, grouped rather than listed flat */}
+      {/* Your records and tools — only the ones open to you */}
       <section aria-labelledby="tools">
         <h2 id="tools" className="font-display text-xl text-text-primary mb-3">Your records and tools</h2>
         <ul className="grid sm:grid-cols-2 gap-2">
-          {EXISTING_TOOLS.map((t) => (
-            <li key={t.href}>
+          {tools.map((t) => (
+            <li key={t.id}>
               <Link
                 href={t.href}
-                className="block border border-border-default rounded-lg p-4 bg-surface-raised hover:border-border-strong transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-default"
+                className="block h-full border border-border-default rounded-lg p-4 bg-surface-raised hover:border-border-strong transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-default"
               >
                 <span className="block text-sm text-text-primary">{t.label}</span>
-                <span className="block text-xs text-text-muted mt-0.5">{t.note}</span>
+                <span className="block text-xs text-text-muted mt-0.5 leading-relaxed">{t.blurb}</span>
               </Link>
             </li>
           ))}
         </ul>
+        <p className="text-xs text-text-muted mt-3">
+          <Link href="/my/more" className="hover:underline">See everything else</Link>
+        </p>
       </section>
     </>
   )

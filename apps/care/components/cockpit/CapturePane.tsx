@@ -28,8 +28,10 @@ import {
 import type { V2Provenance } from '@natural-intelligence/db/intakeV2'
 import {
   C, F, card, cardActive, cardSafety, button, eyebrow,
-  PROVENANCE_CHIP, PROVENANCE_LEGEND, statePill,
+  PROVENANCE_CHIP, statePill,
 } from './cockpitTokens'
+import { HistoryDisclosure } from './HistoryDisclosure'
+import { QuestionActions } from './QuestionActions'
 
 const PROVENANCE_LABEL: Record<string, string> = {
   client_reported: 'Client reported',
@@ -85,17 +87,22 @@ export function CapturePane(props: CapturePaneProps) {
         gap: '10px', overflowY: 'auto', minHeight: 0, background: C.cream,
       }}
     >
+      {/* THE LEGEND IS GONE FROM HERE.
+          Seven provenance chips sat permanently across the top of the
+          consultation, which made provenance read as a global interaction
+          mode — as if the practitioner were choosing which kind of truth to
+          be in rather than talking to someone. The chips themselves are
+          unchanged and still appear where they mean something: on the value
+          they describe, and inside History. The legend moved into the
+          existing Node details · review mode drawer, which is where someone
+          asking "what do these mean?" already goes. */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
         <h1 style={{ fontFamily: F.display, fontSize: '30px', fontWeight: 600, margin: 0, color: C.botanical }}>
           {sectionTitle}
         </h1>
-        {props.attributionNote
-          ? <span style={{ fontSize: '13px', color: C.softText }}>{props.attributionNote}</span>
-          : (
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-              {PROVENANCE_LEGEND.map((p) => <Chip key={p.key} kind={p.key}>{p.label}</Chip>)}
-            </div>
-          )}
+        {props.attributionNote && (
+          <span style={{ fontSize: '13px', color: C.softText }}>{props.attributionNote}</span>
+        )}
       </div>
 
       {/* Board 4: what a student may and may not do, before they capture. */}
@@ -203,9 +210,6 @@ function QuestionCard({ q, index, props }: { q: V2QuestionDef; index: number; pr
       </span>
       <span style={{ fontSize: '14.5px', color: C.botanical, fontWeight: 500 }}>{q.label}</span>
       <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {displayValue
-          ? <span style={{ fontSize: '13px', fontWeight: 600, color: C.botanical }}>{displayValue}</span>
-          : <Chip kind="not_asked" />}
         {reviewMode && (
           <button type="button" onClick={(e) => { e.stopPropagation(); props.onNodeDetails(q.id) }}
             style={{ ...button('mini'), minHeight: '28px', padding: '3px 9px', fontSize: '11.5px' }}>
@@ -214,42 +218,52 @@ function QuestionCard({ q, index, props }: { q: V2QuestionDef; index: number; pr
         )}
       </span>
 
-      {/* Sub-row: provenance chain, or the "not asked is never No" sentence. */}
+      {/* THE CURRENT WORKING VALUE, and almost nothing else.
+          This row used to carry a chip, an arrow, a full attribution line and
+          a draft badge on every question, whether or not the practitioner was
+          working on it. What a practitioner needs mid-consultation is the
+          answer as it stands. Provenance moved to History, with two
+          exceptions that stay because hiding them would change meaning:
+          "Not asked", which is never No; and a student draft, which a
+          supervisor must not have to open a drawer to discover. */}
       <span style={{
-        gridColumn: '2/4', fontSize: '12.5px', color: C.softText,
-        display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap',
+        gridColumn: '2/4', display: 'flex', gap: '8px', alignItems: 'baseline', flexWrap: 'wrap',
       }}>
-        {captured && captured.provenance !== 'not_asked' ? (
+        {displayValue ? (
           <>
-            <Chip kind={captured.history.length > 0 ? 'corrected' : captured.provenance} />
-            {captured.provenance === 'practitioner_verified' && <span style={{ color: C.softText }}>→</span>}
-            <span>{attributionLine(captured.actor, captured.at)}</span>
-            {captured.draft && <Chip kind="student_draft">Student draft · requires supervisor review</Chip>}
+            <span style={{ fontSize: '11.5px', color: C.softText, whiteSpace: 'nowrap' }}>Current answer</span>
+            <span style={{ fontSize: '15px', fontWeight: 600, color: C.botanical, lineHeight: 1.4 }}>
+              {displayValue}
+            </span>
+            {captured?.draft && <Chip kind="student_draft">Draft · requires supervisor review</Chip>}
           </>
         ) : (
-          <span>Not answered at intake. Not asked is never treated as No.</span>
+          <span style={{ fontSize: '12.5px', color: C.softText, display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <Chip kind="not_asked" />
+            Not answered at intake. Not asked is never treated as No.
+          </span>
         )}
       </span>
 
+      {/* One quiet control, only where there is something behind it. */}
+      {captured && captured.history.length > 0 && (
+        <span style={{ gridColumn: '2/4' }}>
+          <HistoryDisclosure
+            current={{
+              value: captured.value,
+              provenance: captured.provenance,
+              at: captured.at,
+              actor: captured.actor,
+            }}
+            history={captured.history.map((h) => ({
+              value: h.value, provenance: h.provenance, at: h.at,
+            }))}
+          />
+        </span>
+      )}
+
       {active && (
         <div style={{ gridColumn: '2/4', display: 'flex', flexDirection: 'column', gap: '9px', marginTop: '2px' }}>
-          {/* An earlier answer, kept whole with its own provenance. */}
-          {captured && captured.history.length > 0 && (
-            <div style={{ background: C.cream, borderRadius: '10px', padding: '9px 12px', fontSize: '14px', lineHeight: 1.5 }}>
-              {captured.history.map((h, i) => (
-                <div key={i} style={{ marginBottom: '4px' }}>
-                  <span style={{ textDecoration: 'line-through', color: C.softText }}>
-                    {asList(h.value).join(', ') || '—'}
-                  </span>
-                  <span style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px', color: C.softText, marginTop: '4px', flexWrap: 'wrap' }}>
-                    <Chip kind={h.provenance} />
-                    {new Date(h.at).toLocaleString('en-GB')} · original kept
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
           <span style={{ fontSize: '12.5px', fontWeight: 600, color: C.pine }}>Structured answer</span>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {(q.options ?? []).map((option: string) => {
@@ -276,34 +290,24 @@ function QuestionCard({ q, index, props }: { q: V2QuestionDef; index: number; pr
             })}
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            {mayVerify ? (
-              <button type="button" onClick={(e) => { e.stopPropagation(); captured && props.onAnswer(q.id, captured.value, 'practitioner_verified') }}
-                style={button('miniPrimary')}>Verify</button>
-            ) : (
-              <button type="button" disabled style={button('disabled')}>Verify — supervisor only</button>
-            )}
-            <button type="button" disabled={!mayVerify}
-              onClick={(e) => { e.stopPropagation(); captured && props.onAnswer(q.id, captured.value, 'corrected') }}
-              style={mayVerify ? button('mini') : button('disabled')}>Amend</button>
-            <button type="button" disabled={!mayCapture}
-              onClick={(e) => { e.stopPropagation(); captured && props.onAnswer(q.id, captured.value, 'observed') }}
-              style={button('mini')}>
-              {actor.role === 'student' ? 'Add observation (draft)' : 'Add observation'}
-            </button>
-            <button type="button" disabled={!mayCapture}
-              onClick={(e) => { e.stopPropagation(); captured && props.onAnswer(q.id, captured.value, 'unconfirmed') }}
-              style={button('mini')}>Mark unconfirmed</button>
-            <button type="button" disabled={!mayCapture}
-              onClick={(e) => { e.stopPropagation(); props.onAnswer(q.id, null, 'not_asked') }}
-              style={button('mini')}>Not asked</button>
-            <button type="button" disabled={!mayCapture}
-              onClick={(e) => { e.stopPropagation(); props.onAnswer(q.id, null, 'declined') }}
-              style={button('mini')}>Declined</button>
-            <span style={{ fontSize: '12px', color: C.softText }}>
-              Every action is attributed and dated; earlier values stay in history.
-            </span>
-          </div>
+          {/* Three common actions, four exceptions under More. Nothing was
+              removed — see QuestionActions.tsx, including why the first
+              button still says Verify. */}
+          <QuestionActions
+            mayVerify={mayVerify}
+            mayCapture={mayCapture}
+            asDraft={can(actor, 'add_attributed_observation_draft').asDraft === true}
+            hasValue={captured !== undefined && captured.provenance !== 'not_asked'}
+            verifyBlockedReason={can(actor, 'verify_qualified_matter').reason ?? ''}
+            hasHistory={(captured?.history.length ?? 0) > 0}
+            onVerify={() => captured && props.onAnswer(q.id, captured.value, 'practitioner_verified')}
+            onAmend={() => captured && props.onAnswer(q.id, captured.value, 'corrected')}
+            onObserve={() => captured && props.onAnswer(q.id, captured.value, 'observed')}
+            onUnconfirmed={() => captured && props.onAnswer(q.id, captured.value, 'unconfirmed')}
+            onNotAsked={() => props.onAnswer(q.id, null, 'not_asked')}
+            onDeclined={() => props.onAnswer(q.id, null, 'declined')}
+            onViewHistory={() => props.onNodeDetails(q.id)}
+          />
 
           {captured?.canonicalWriteBlocked && (
             <span style={{ fontSize: '11.5px', color: C.softText }}>
