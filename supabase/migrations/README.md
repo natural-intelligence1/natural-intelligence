@@ -63,6 +63,30 @@ it.
 | `0059_protocol_signing.sql` | Already applied (`20261010062725`). |
 | `0060_lead_class_demotion_guard.sql` | Already applied (`20261011170031`). Its trigger and function are live; re-running is unnecessary and `create or replace` would silently rewrite a live governance control. |
 | `0063_practitioner_taxonomy_reconciliation.sql` | **Already applied (`20261027052734`).** Its own header still says "NOT YET APPLIED at the time of writing" — that is rule 2 in action, not a fact. It is re-runnable by design and would be a no-op, but it `create or replace`s three live governance functions and suspends two governance triggers around its translation, so do not run it to "check" anything. Verify instead: the three function hashes are recorded in its header and asserted in `packages/db/src/practitioners/taxonomy0063.db.test.ts`. |
+| `0066_case_taking_persistence.sql` | **Written 6 Nov 2026 and NOT applied** — Orchestrator approval was to write it, not to apply it. It is also **not re-runnable**: `CREATE TABLE` without `IF NOT EXISTS`, and `ALTER TABLE case_contributions ADD COLUMN` without it either, so a second run fails. It `create or replace`s one live governance function (`block_contribution_rewrite`), widening it by three frozen columns. Behaviour is proven ahead of any apply by 91 tests in `packages/db/src/intakeV2/caseTaking0066.db.test.ts`, which execute this exact file against PGlite. |
+
+## Choosing a filename for a new migration
+
+**Do not take the highest number in this folder and add one.** The numeric
+namespace is not contiguous and this folder is not the authority:
+
+| Number | File here? | On `main`? | Applied? |
+|---|---|---|---|
+| `0055` | yes | — | **no**, never applied |
+| `0061` | **no** | no | no — written, sitting on `feat/protocol-adoption-signing` |
+| `0062` | yes | **no** | no |
+| `0064`, `0065` | **no** (branch-dependent) | yes | **yes** |
+| `0066` | yes | not yet | no |
+
+So on a branch cut before main's reconcile commit, the files appear to stop
+at `0063` while the database has `0065` applied. Taking "0064" there would
+collide with an applied migration on `main`. `0059` already exists under two
+different filenames in two different refs, which is the collision this check
+avoids.
+
+Before naming a new file, check all three: every ref
+(`git log --all --diff-filter=A --name-only -- 'supabase/migrations/00NN*'`),
+`main`, and the live migration history.
 
 ## Historical records restored 2026-10-10
 

@@ -10,7 +10,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
-  CONSENT_TEXT_VERSION, resolveConsentText, type ConsentPurpose,
+  CONSENT_TEXT_VERSION, resolveConsentText, isConsentGrantStillCurrent,
+  type ConsentPurpose,
 } from './purposes'
 import {
   SIGNUP_CONSENT_METADATA_KEY, SIGNUP_CONSENT_PERSISTED_KEY,
@@ -194,7 +195,7 @@ export async function getFoundationalConsentState(
 ): Promise<FoundationalConsentState> {
   const { data, error } = await (client as AnyClient)
     .from('consent_records')
-    .select('consent_type, consented, withdrawn_at, consented_at')
+    .select('consent_type, consented, withdrawn_at, consented_at, consent_version')
     .eq('profile_id', memberId)
     .in('consent_type', FOUNDATIONAL_CONSENTS)
     .order('consented_at', { ascending: false })
@@ -205,13 +206,20 @@ export async function getFoundationalConsentState(
 
   const rows = (data ?? []) as {
     consent_type: string; consented: boolean; withdrawn_at: string | null
+    consent_version: string | null
   }[]
 
   const missing = FOUNDATIONAL_CONSENTS.filter((purpose) => {
     // Newest row for the purpose decides — a withdrawal after a grant means
     // not consented, and a re-grant after a withdrawal means consented.
     const latest = rows.find((r) => r.consent_type === purpose)
-    return !latest || latest.consented !== true || latest.withdrawn_at !== null
+    if (!latest || latest.consented !== true || latest.withdrawn_at !== null) return true
+
+    // The grant must also still be CURRENT. Two ways it is not: the version
+    // cannot be resolved to the wording actually shown, or a later version was
+    // published with requires_reaffirmation. A plain version bump is NOT one
+    // of them — an archived grant stays valid when NI merely rewords.
+    return !isConsentGrantStillCurrent(latest.consent_version)
   })
 
   return { satisfied: missing.length === 0, missing, unreadable: false }

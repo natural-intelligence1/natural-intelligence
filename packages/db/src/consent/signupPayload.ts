@@ -82,26 +82,35 @@ export type SignupConsentVerification =
     }
 
 // ─── Key derivation ───────────────────────────────────────────────────────────
-// Prefers an explicit SIGNUP_CONSENT_SECRET. Falls back to deriving a key from
-// SUPABASE_SERVICE_ROLE_KEY, which is already required for the app to run — so
-// the fix needs no new environment variable and no deploy coordination.
+// A DEDICATED SECRET, and only that: SIGNUP_CONSENT_SECRET.
 //
-// There is deliberately NO hardcoded development default. If neither secret is
-// present the payload is not produced at all, and the member is asked to
-// re-affirm on first authenticated entry. Silence is never treated as consent.
+// An earlier draft fell back to deriving the key from
+// SUPABASE_SERVICE_ROLE_KEY so the fix would need no new environment
+// variable. That was rejected on Orchestrator review (Mission 20) for
+// cryptographic purpose separation and to limit blast radius: a key used for
+// one purpose should not silently underwrite a second, and rotating database
+// credentials should not invalidate consent evidence — nor the reverse. The
+// fallback is gone, and nothing here reads SUPABASE_SERVICE_ROLE_KEY.
+//
+// There is deliberately NO hardcoded development default and NO fallback to
+// any other privileged credential. If the secret is absent the payload is not
+// produced at all, and the member is asked to re-affirm on first
+// authenticated entry. FAIL CLOSED — silence is never treated as consent.
 //
 // Key rotation is safe: payloads signed with the old key fail verification,
 // which routes those members to the same re-affirmation gate.
+//
+// Required configuration is documented in
+// docs/planning/signup-consent-architecture.md.
+export const SIGNUP_CONSENT_SECRET_ENV = 'SIGNUP_CONSENT_SECRET'
+
+/** Shortest accepted secret. Below this the secret is treated as absent. */
+export const SIGNUP_CONSENT_SECRET_MIN_LENGTH = 32
+
 function signingKey(): Buffer | null {
-  const explicit = process.env.SIGNUP_CONSENT_SECRET
-  if (explicit && explicit.length >= 16) {
-    return createHmac('sha256', explicit).update(HMAC_DOMAIN).digest()
-  }
-  const derived = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (derived && derived.length >= 16) {
-    return createHmac('sha256', derived).update(HMAC_DOMAIN).digest()
-  }
-  return null
+  const secret = process.env[SIGNUP_CONSENT_SECRET_ENV]
+  if (!secret || secret.length < SIGNUP_CONSENT_SECRET_MIN_LENGTH) return null
+  return createHmac('sha256', secret).update(HMAC_DOMAIN).digest()
 }
 
 /** True when this server is able to sign and verify payloads at all. */

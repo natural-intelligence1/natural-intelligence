@@ -198,3 +198,117 @@ export function canonicaliseConsentVersion(version: string): string | null {
   const keys = (Object.keys(texts) as ConsentPurpose[]).slice().sort()
   return JSON.stringify(keys.map((k) => [k, texts[k] ?? null]))
 }
+
+// ─── Version policy ──────────────────────────────────────────────────────────
+// Orchestrator decision, Mission 20:
+//
+//   "a previously valid archived consent does NOT automatically become invalid
+//    merely because NI publishes revised wording. Do not force re-affirmation
+//    on every version bump. Future catalogue design should support an explicit
+//    policy such as requires_reaffirmation: true | false. Fresh consent is
+//    required only when NI/legal/regulatory policy says the change requires
+//    it."
+//
+// So this is a per-version declaration, not an engine. The only question it
+// answers is: does publishing THIS version invalidate grants recorded at
+// EARLIER versions? Both versions released so far answer no, which is why
+// today's behaviour is unchanged by adding this.
+//
+// DELIBERATELY SEPARATE from CONSENT_TEXT_ARCHIVE. The archive's canonical
+// form feeds a pinned digest test, so folding policy into it would make the
+// digests move whenever policy was annotated — and the digests exist to prove
+// that released wording never moves.
+
+/**
+ * Release order, oldest first. A version must appear BOTH here and in
+ * CONSENT_TEXT_ARCHIVE; a unit test enforces that the two never diverge.
+ */
+export const CONSENT_VERSION_ORDER = ['s3-draft-1', 's3-draft-2'] as const
+
+export interface ConsentVersionPolicy {
+  /**
+   * True when publishing this version requires holders of EARLIER versions to
+   * consent again. Set this only on legal/regulatory advice: a clarification
+   * does not invalidate a grant, a material change to what is being agreed
+   * to does.
+   */
+  requires_reaffirmation: boolean
+  /** Why it is set the way it is — this is audit evidence, not a comment. */
+  rationale: string
+}
+
+export const CONSENT_VERSION_POLICY: Readonly<
+  Record<string, Readonly<ConsentVersionPolicy>>
+> = Object.freeze({
+  's3-draft-1': Object.freeze({
+    requires_reaffirmation: false,
+    rationale: 'First granular wording. Nothing precedes it, so nothing to invalidate.',
+  }),
+  's3-draft-2': Object.freeze({
+    requires_reaffirmation: false,
+    rationale:
+      'PA/legal Screen 1 amendments: pathway separation, withdrawal scope, ' +
+      'pseudonymous-not-anonymous, reasonably-identifiable research wording, ' +
+      'retention rule. Assessed as clarifying and narrowing what NI claims, ' +
+      'not as widening what the member agreed to, so s3-draft-1 grants stand. ' +
+      'Confirm with legal before relying on this for real-client use.',
+  }),
+})
+
+export function resolveConsentVersionPolicy(
+  version: string,
+): Readonly<ConsentVersionPolicy> | null {
+  return Object.prototype.hasOwnProperty.call(CONSENT_VERSION_POLICY, version)
+    ? CONSENT_VERSION_POLICY[version]
+    : null
+}
+
+/**
+ * Is a consent grant recorded at `grantedVersion` still current?
+ *
+ * Two ways to answer no:
+ *
+ *   1. UNRESOLVABLE VERSION — null, or a label not in the archive. There is
+ *      then no way to establish what the member was actually shown, so this
+ *      FAILS CLOSED and the member is asked again. This is not hypothetical:
+ *      the two April 2026 foundational rows in the live database carry
+ *      consent_version = NULL **and** consent_text = NULL, so nothing records
+ *      what was on screen. Treating that as proof of consent would be the
+ *      exact failure the archive was built to prevent. Those rows are left
+ *      untouched — re-affirmation appends, it does not rewrite.
+ *
+ *   2. A LATER VERSION DEMANDS IT — some version published after this one
+ *      carries requires_reaffirmation. A plain version bump does not.
+ */
+export interface ConsentCatalogue {
+  order: readonly string[]
+  policy: Readonly<Record<string, Readonly<ConsentVersionPolicy>>>
+  isArchived: (version: string) => boolean
+}
+
+/** The live catalogue. The `catalogue` parameter exists so the rule itself is
+ *  testable against hypothetical future releases without mutating it. */
+export const LIVE_CONSENT_CATALOGUE: ConsentCatalogue = {
+  order: CONSENT_VERSION_ORDER,
+  policy: CONSENT_VERSION_POLICY,
+  isArchived: isKnownConsentVersion,
+}
+
+export function isConsentGrantStillCurrent(
+  grantedVersion: string | null | undefined,
+  catalogue: ConsentCatalogue = LIVE_CONSENT_CATALOGUE,
+): boolean {
+  if (!grantedVersion) return false
+  if (!catalogue.isArchived(grantedVersion)) return false
+
+  const grantedAt = catalogue.order.indexOf(grantedVersion)
+  // Archived but absent from the release order: unorderable, so it cannot be
+  // shown to be current. Fail closed rather than guess.
+  if (grantedAt < 0) return false
+
+  return !catalogue.order
+    .slice(grantedAt + 1)
+    .some((later) =>
+      Object.prototype.hasOwnProperty.call(catalogue.policy, later) &&
+      catalogue.policy[later].requires_reaffirmation === true)
+}

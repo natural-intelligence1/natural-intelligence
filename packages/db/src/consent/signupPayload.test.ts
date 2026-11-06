@@ -8,12 +8,13 @@
 import { beforeEach, afterEach, describe, it, expect } from 'vitest'
 import {
   SIGNUP_CONSENT_PAYLOAD_VERSION,
+  SIGNUP_CONSENT_SECRET_ENV, SIGNUP_CONSENT_SECRET_MIN_LENGTH,
   buildSignupConsentPayload, canSignSignupConsent, normaliseEmail,
   verifySignupConsentPayload,
 } from './signupPayload'
 import { CONSENT_TEXT_VERSION } from './purposes'
 
-const SECRET = 'test-signing-secret-at-least-16-chars'
+const SECRET = 'test-signing-secret-at-least-32-characters-long'
 const EMAIL  = 'member@example.com'
 
 let savedSecret: string | undefined
@@ -72,12 +73,45 @@ describe('buildSignupConsentPayload', () => {
     expect(buildSignupConsentPayload({ email: EMAIL, purposes: ['platform_terms'] })).toBeNull()
   })
 
-  it('derives a key from the service role key when no explicit secret is set', () => {
+  // ── Purpose separation (Orchestrator decision, Mission 20) ───────────────
+  // An earlier draft derived the key from SUPABASE_SERVICE_ROLE_KEY so the fix
+  // would need no new environment variable. That was rejected: one key must
+  // not silently underwrite a second purpose, and rotating database
+  // credentials must not invalidate consent evidence. These tests keep the
+  // rejected design from creeping back.
+
+  it('NEVER derives a key from SUPABASE_SERVICE_ROLE_KEY', () => {
     delete process.env.SIGNUP_CONSENT_SECRET
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key-at-least-16-chars'
+    process.env.SUPABASE_SERVICE_ROLE_KEY =
+      'a-service-role-key-that-is-definitely-long-enough-to-be-a-key'
+    expect(canSignSignupConsent()).toBe(false)
+    expect(buildSignupConsentPayload({ email: EMAIL, purposes: ['platform_terms'] })).toBeNull()
+  })
+
+  it('fails closed in production shape: no secret means no payload, not a weak one', () => {
+    delete process.env.SIGNUP_CONSENT_SECRET
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'another-long-privileged-credential-value-here'
+    const p = buildSignupConsentPayload({ email: EMAIL, purposes: ['platform_terms'] })
+    expect(p).toBeNull()
+    // The member is not silently recorded as having consented; the
+    // re-affirmation gate asks them instead.
+  })
+
+  it('treats a too-short secret as absent rather than using it', () => {
+    process.env.SIGNUP_CONSENT_SECRET = 'too-short'
+    expect(canSignSignupConsent()).toBe(false)
+    expect(buildSignupConsentPayload({ email: EMAIL, purposes: ['platform_terms'] })).toBeNull()
+  })
+
+  it('requires at least SIGNUP_CONSENT_SECRET_MIN_LENGTH characters', () => {
+    process.env.SIGNUP_CONSENT_SECRET = 'x'.repeat(SIGNUP_CONSENT_SECRET_MIN_LENGTH - 1)
+    expect(canSignSignupConsent()).toBe(false)
+    process.env.SIGNUP_CONSENT_SECRET = 'x'.repeat(SIGNUP_CONSENT_SECRET_MIN_LENGTH)
     expect(canSignSignupConsent()).toBe(true)
-    const p = build()
-    expect(verifySignupConsentPayload(p, { email: EMAIL }).ok).toBe(true)
+  })
+
+  it('names the environment variable it requires, for deploy documentation', () => {
+    expect(SIGNUP_CONSENT_SECRET_ENV).toBe('SIGNUP_CONSENT_SECRET')
   })
 })
 
@@ -128,7 +162,7 @@ describe('verifySignupConsentPayload', () => {
 
   it('rejects a payload signed with a different key', () => {
     const p = build()
-    process.env.SIGNUP_CONSENT_SECRET = 'a-completely-different-secret-key'
+    process.env.SIGNUP_CONSENT_SECRET = 'a-completely-different-secret-key-also-32-plus'
     expect(verifySignupConsentPayload(p, { email: EMAIL })).toEqual({
       ok: false, reason: 'bad_signature',
     })

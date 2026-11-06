@@ -21,20 +21,28 @@ export {
 } from './practitionerAccess'
 export type { PractitionerScopedConsent, PractitionerAccessConsent } from './practitionerAccess'
 
-// Mission 19 — signup consent carried on the user record (cross-device) and
-// the authenticated-entry backstop.
+// Version policy — pure, browser-safe.
 export {
-  SIGNUP_CONSENT_PAYLOAD_VERSION, SIGNUP_CONSENT_METADATA_KEY,
-  SIGNUP_CONSENT_PERSISTED_KEY, canSignSignupConsent, normaliseEmail,
-  buildSignupConsentPayload, verifySignupConsentPayload,
-} from './signupPayload'
-export type { SignupConsentPayload, SignupConsentVerification } from './signupPayload'
-export {
-  FOUNDATIONAL_CONSENTS, SIGNUP_CONSENT_SOURCE, REAFFIRMATION_CONSENT_SOURCE,
-  persistSignupConsentFromMetadata, markSignupConsentConsumed,
-  getFoundationalConsentState, ensureFoundationalConsents,
-  recordFoundationalReaffirmation,
-} from './foundational'
-export type {
-  FoundationalConsentState, PersistSignupConsentResult, PersistSignupConsentStatus,
-} from './foundational'
+  CONSENT_VERSION_ORDER, CONSENT_VERSION_POLICY, LIVE_CONSENT_CATALOGUE,
+  resolveConsentVersionPolicy, isConsentGrantStillCurrent,
+} from './purposes'
+export type { ConsentVersionPolicy, ConsentCatalogue } from './purposes'
+
+// ── NOT EXPORTED HERE: signupPayload and foundational ────────────────────────
+// They live behind '@natural-intelligence/db/consent/server' instead.
+//
+// THIS BARREL IS REACHED FROM A CLIENT COMPONENT. IntakeConsentGate.tsx
+// imports CONSENT_TEXTS and the intake consent lists from it, precisely to
+// avoid the db ROOT barrel (which pulls in next/headers). signupPayload.ts
+// imports node:crypto, and foundational.ts imports signupPayload, so
+// re-exporting either from here put node:crypto into a browser bundle and
+// broke `next build` with:
+//
+//   UnhandledSchemeError: Reading from "node:crypto" is not handled by plugins
+//   Import trace: node:crypto → consent/signupPayload.ts → consent/index.ts
+//                 → app/dashboard/intake/IntakeConsentGate.tsx
+//
+// A file header saying "NODE RUNTIME ONLY" cannot enforce that. The module
+// boundary can. Server callers use the root barrel or the /consent/server
+// subpath; a client component importing either will fail loudly, which is the
+// intended behaviour.

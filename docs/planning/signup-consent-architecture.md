@@ -23,6 +23,78 @@ Raised 5 Nov 2026, re-confirmed against the live database and live code 6 Nov 20
 plus `consentGate.test.ts` (6) and `consentCopyDrift.test.ts` (2) in the web app.
 Full suites green: **879 db** / **117 web**. Both packages type-check clean.
 
+---
+
+## Mission 20 corrections (6 Nov 2026)
+
+Three changes after Orchestrator review. Suites after them: **1088 db** /
+**117 web**, both type-checks clean, `next build` **compiles successfully**.
+
+### 1. A dedicated HMAC secret — the service-role derivation is gone
+
+**`SIGNUP_CONSENT_SECRET` only.** The fallback that derived the key from
+`SUPABASE_SERVICE_ROLE_KEY` was rejected for cryptographic purpose separation
+and to limit blast radius: one key must not silently underwrite a second
+purpose, and rotating database credentials must not invalidate consent
+evidence, nor the reverse.
+
+- Minimum length 32 characters; shorter is treated as absent.
+- No development default, no fallback to any other privileged credential.
+- Absent secret ⇒ **FAIL CLOSED**: no payload is created, and the member meets
+  the re-affirmation gate after authenticating. Signup itself still succeeds.
+- A unit test asserts `SUPABASE_SERVICE_ROLE_KEY` is never used, so the
+  rejected design cannot return.
+
+Required configuration, rotation behaviour and Preview-environment notes:
+`docs/operations/environment-configuration.md`.
+
+### 2. A version policy: `requires_reaffirmation`
+
+`CONSENT_VERSION_ORDER` + `CONSENT_VERSION_POLICY` in `purposes.ts`, with
+`isConsentGrantStillCurrent(version)`. Not a policy engine — a per-version
+declaration answering one question: does publishing this version invalidate
+grants at earlier versions?
+
+Both released versions declare `false` with a recorded rationale, so **today's
+behaviour is unchanged**: an `s3-draft-1` grant stays valid even though
+`s3-draft-2` exists. A reword does not force re-affirmation; only a version
+explicitly marked on legal/regulatory advice does. The rule is kept separate
+from `CONSENT_TEXT_ARCHIVE` so annotating policy can never move the pinned
+digests that prove released wording has not changed.
+
+**One behaviour change, flagged deliberately.** A grant whose version cannot
+be resolved now fails closed. This is not hypothetical: the two live April
+2026 foundational rows carry `consent_version = NULL` **and**
+`consent_text = NULL`, so nothing records what that member was shown.
+Treating that as proof of consent would be the exact failure the archive
+exists to prevent. Consequence: that one account meets the re-affirmation gate
+on authenticated entry. Its rows are **not** modified or deleted, Privacy and
+Data Rights stay reachable, and no historical acceptance is fabricated.
+
+### 3. A module boundary the comment could not enforce
+
+`next build` failed on the Mission 19 commit:
+
+```
+UnhandledSchemeError: Reading from "node:crypto" is not handled by plugins
+Import trace: node:crypto → consent/signupPayload.ts → consent/index.ts
+              → app/dashboard/intake/IntakeConsentGate.tsx
+```
+
+`signupPayload.ts` imports `node:crypto` and was re-exported from
+`consent/index.ts`, which the **client** component `IntakeConsentGate.tsx`
+imports for the consent wording. Neither `tsc --noEmit` nor the dev server
+caught it — types resolve fine and dev compiles lazily per route.
+
+Fixed structurally rather than by comment: `signupPayload` and `foundational`
+now live behind `@natural-intelligence/db/consent/server`, re-exported from the
+root barrel (already server-only, since it re-exports `next/headers`). The
+client-reachable `./consent` barrel keeps only browser-safe exports. A new
+suite, `clientBundleBoundary.test.ts` (25 tests), walks the real import graph
+from every db subpath a client component imports and fails on any reachable
+Node built-in or server-only Next API — and proves the walker works by
+detecting the module that caused the outage.
+
 ### Finding while building the archive: `s3-draft-1` was unresolvable
 
 Building the catalogue exposed something the brief did not anticipate. Five
@@ -166,6 +238,10 @@ they hold a session, so the payload is signed:
 ```
 sig = HMAC-SHA256(secret, canonicalJSON({ sub, platform_terms, data_processing, version, decided_at }))
 ```
+
+The `secret` is **`SIGNUP_CONSENT_SECRET` and nothing else** — see Mission 20
+correction 1 above. The earlier draft's fallback to `SUPABASE_SERVICE_ROLE_KEY`
+was rejected and removed.
 
 The callback recomputes and compares before persisting. A user cannot forge a
 decision they did not make, and cannot back-date one.

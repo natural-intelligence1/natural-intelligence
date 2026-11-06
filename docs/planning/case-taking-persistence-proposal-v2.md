@@ -1,5 +1,40 @@
 # Case-taking persistence — REVISED proposal (V2)
 
+> **APPROVED by the Orchestrator, 6 November 2026, and written as
+> `supabase/migrations/0066_case_taking_persistence.sql`.**
+>
+> **The migration is NOT applied.** It is written and tested only. The live
+> catalogue is unchanged; ask the database, never this file.
+>
+> Four amendments were made on approval, and the sections below have NOT been
+> rewritten to match — read them together with this list:
+>
+> 1. **`consultation_kind` is `initial | follow_up | review`.** `reopened` was
+>    removed: reopening is lifecycle state, not the clinical type of a
+>    consultation, and conflating them makes "why was this held" unanswerable.
+>    §2 and the §6 proof table still mention `reopened`; the migration does
+>    not, and a test refuses it.
+> 2. **Lead-start is enforced.** An ACTIVE LEAD may start a consultation or
+>    open an amendment version; other authorised case-team practitioners
+>    contribute to an existing one. Enforced in
+>    `enforce_case_taking_authority()` on INSERT, together with
+>    "you may only record yourself as having started it". §3's table said
+>    "any practitioner with case access" for Open — that is now Lead-only. No
+>    delegated consultation-creation architecture was invented.
+> 3. **`case_contributions.session_id` is KEPT.** §10 flagged it as the one
+>    optional column; the Orchestrator decided the denormalisation is worth it
+>    so that "everything that changed in this consultation version" is a
+>    single indexed read.
+> 4. **No separate `case_consultations` table yet.** Confirmed: identity stays
+>    on the session as `(case_id, consultation_seq)`, and promotes to its own
+>    table later without reshaping the model if consultations need their own
+>    scheduled time, attendees, location, appointment state or billing object.
+>
+> Verified by **91 tests** in `packages/db/src/intakeV2/caseTaking0066.db.test.ts`,
+> which run the real migration file against a real Postgres (PGlite, in
+> process — no Docker, no network, no Supabase project, Production untouched)
+> with RLS genuinely enforced under `set role authenticated`.
+
 **Status: PROPOSAL. Migration 0066 NOT written. No schema applied.**
 Mission 19, 6 November 2026. Supersedes
 [`case-taking-persistence-proposal.md`](./case-taking-persistence-proposal.md).

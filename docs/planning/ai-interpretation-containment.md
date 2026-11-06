@@ -1,7 +1,53 @@
 # AI interpretation containment — exact path and the smallest fail-closed guard
 
-**Status: PROPOSAL. No code changed. No flag changed.**
-Mission 19, 6 November 2026.
+**Status: IMPLEMENTED on `ux/calm-client-and-cockpit`. Not merged, not deployed.**
+Proposed Mission 19, approved and built Mission 20, both 6 November 2026.
+
+Neither intake flag was changed. No existing synopsis, trace or historical
+record was deleted or rewritten. No Intake clinical question was altered.
+
+## What was built
+
+| | |
+|---|---|
+| `packages/db/src/ai/interpretationFlag.ts` | `isAiInterpretationEnabled()` — exact-string `=== 'true'`, default-off |
+| `packages/db/src/ai/generationGuard.ts` | `claimGeneration()` — in-flight claim + 60s recency check |
+| `apps/web/app/dashboard/synopsis/actions.ts` | three gates at the head of `generateHealthSynopsis`, `claim.release()` in `finally` |
+| `apps/web/app/dashboard/story/actions.ts` | the same three gates in `generateBodyStory` |
+| `apps/web/app/dashboard/_components/InterpretationHeldState.tsx` | the honest held state — no polling, no retry control |
+| `apps/web/app/dashboard/synopsis/page.tsx`, `story/page.tsx` | held branch before the generating state; regenerate control hidden while held |
+| `apps/web/app/dashboard/intake/actions.ts` | stale comment corrected (comment only) |
+
+67 tests across three suites: flag semantics, the concurrency guard, and a
+structural suite that reads the application source and fails if any
+generation path stops being gated — including a pipeline added later.
+
+Environment configuration: `docs/operations/environment-configuration.md`.
+**No variable needs setting to activate the hold**; the flag is default-off.
+
+### The three gates, in order
+
+```ts
+// 1. global hold — before any client exists, so a held call reads and writes nothing
+if (!isAiInterpretationEnabled()) return { status: 'held' }
+
+const adminClient = createAdminClient()
+
+// 2. the member's own restriction / withdrawal — moved here from completeIntake
+if (await isProcessingBlocked(adminClient, memberId, 'ai_assisted_processing'))
+  return { status: 'restricted' }
+
+// 3. duplicate / burst generation
+const claim = await claimGeneration(adminClient, memberId, '<output>')
+if (!claim.allowed) return { status: 'throttled' }
+```
+
+Each refusal is a distinct status, logged as its own event, and never dressed
+up as a generation failure.
+
+---
+
+## Original analysis (Mission 19), unchanged below
 
 Founder position being implemented: raw Intake **collection stays ON**; automatic
 AI health-synopsis / interpretation generation for new real intakes goes on
@@ -207,11 +253,24 @@ Per-member and consent-driven, not a global hold; currently inert (0
 
 ---
 
-## 4. Two live defects found on this path
+## 4. Two live defects found on this path — BOTH NOW FIXED
 
-Both are independent of containment. Neither is being fixed in this mission.
+Both were approved for repair in the same containment change (Mission 20).
 
-**4.1 The member's own AI-processing restriction is bypassable.**
+**4.1 The member's own AI-processing restriction was bypassable.** — **FIXED.**
+`isProcessingBlocked(…, 'ai_assisted_processing')` now runs inside both
+generators, so manual "Regenerate" / "Try again" and automatic completion obey
+the same restriction. The check is retained in `completeIntake` as well,
+because it additionally suppresses the assignment bridge, which the generators
+know nothing about. The structural suite asserts the restriction check precedes
+the Anthropic call in both generators.
+
+**4.2 No concurrency guard or rate limit.** — **FIXED**, with the precise
+mechanism recorded in §6 below.
+
+### The original finding, for the record
+
+**4.1 (as found) The member's own AI-processing restriction is bypassable.**
 `isProcessingBlocked(…, 'ai_assisted_processing')` is checked in
 `completeIntake` but **not inside the generators**, so the page's "Regenerate
 now" button generates regardless of whether the member has withdrawn
@@ -234,11 +293,61 @@ ruling, since collection is no longer default-off.
 
 ---
 
-## 5. Founder action required
+## 5. Founder decisions — all taken
 
-Nothing here is applied. To proceed:
+1. `AI_INTERPRETATION_ENABLED` flag and in-generator assert — **approved, built.**
+2. Held-state copy — **approved**, wording from the Orchestrator: *"Your
+   information has been saved. This summary is not currently being
+   generated."* Built as `InterpretationHeldState`, with a third line
+   confirming nothing is lost.
+3. Defect 4.1 — **approved, fixed in the same change.**
+4. No environment variable needs setting to activate the hold.
 
-1. Approve the `AI_INTERPRETATION_ENABLED` flag and the two-line assert in each generator.
-2. Approve the honest held-state copy in §2.2 (or supply preferred wording).
-3. Decide on defect 4.1 — recommended to fix in the same change.
-4. Note that **no environment variable needs setting to activate the hold**: the flag is default-off, so merging the guard holds generation everywhere, including Preview. Re-enabling later is an explicit `AI_INTERPRETATION_ENABLED=true` plus a redeploy.
+---
+
+## 6. The concurrency guard — the precise mechanism
+
+Two layers, because neither alone is sufficient.
+
+**Layer 1 — in-flight claim (in-process).** A module-level `Map` keyed
+`<memberId>:<output>`, claimed **synchronously before the first `await`**. The
+event loop is single-threaded, so a second concurrent call in the same
+instance sees the claim and is refused. Entries carry a 5-minute TTL
+(`IN_FLIGHT_TTL_MS`, matching the generating UI's own timeout) and are purged
+on read, so a frozen or crashed invocation cannot lock a member out — which
+matters because the intake path is fire-and-forget and Vercel may freeze it
+mid-generation. `claim.release()` runs in a `finally`, so a failed generation
+never blocks the retry.
+
+**Layer 2 — recency check (shared database).** The timestamp of the member's
+most recent output of that type; a second generation inside
+`GENERATION_COOLDOWN_MS` (60 seconds) is refused. This is the cross-instance
+layer: the map is per-instance and empty after a cold start, but every
+instance reads the same database. `ai_summaries` is read by
+`(member_id, summary_type)`; body story is read via the member's active case
+to `reasoning_traces (case_id, trace_type='intake_analysis')` — **read-only,
+deliberately not `getOrCreateClientCase`, so the guard can never create a
+case**.
+
+**Why 60 seconds.** The observed burst spanned 44 seconds end to end, so the
+window must exceed it; a test asserts `> 44_000`. It is also capped at two
+minutes by test, so it stays a cooldown rather than a lockout.
+
+**A legitimate later regeneration is never discarded.** A member returning
+minutes later regenerates normally. A refusal returns
+`{status: 'throttled'}` with `retryAfterMs` and its own log event. A future
+timestamp (clock skew between instances) is tolerated rather than treated as a
+permanent refusal.
+
+**A guard read failure refuses rather than generating blind**, releasing the
+claim first so the next attempt is free to try immediately. The cost of
+refusing is a control that works again; the cost of proceeding blind is
+another Opus call and another row.
+
+**Honest residual gap.** Two genuinely simultaneous requests landing on two
+different warm instances, both before either has written a row, are not
+prevented — layer 1 is per-instance and layer 2 has nothing to see yet.
+Closing that needs a database claim (a Postgres advisory lock or a
+generation-runs table), which is schema work and outside the approved scope.
+The observed failure was sequential clicks seconds apart, which both layers
+catch.
