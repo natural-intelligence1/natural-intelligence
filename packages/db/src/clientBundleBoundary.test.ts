@@ -32,6 +32,7 @@ const SRC = dirname(fileURLToPath(import.meta.url))
 const CLIENT_REACHABLE_ENTRIES = [
   'client.ts',
   'consent/index.ts',
+  'cockpit/index.ts',
   'intake/index.ts',
   'intakeV2/index.ts',
   'personalisation/index.ts',

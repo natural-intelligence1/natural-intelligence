@@ -78,6 +78,37 @@ it.
 | `0064_practitioner_eligibility_spine.sql` | **Already applied (`20261103202418`).** Its own header still says "NOT YET APPLIED at the time of writing" — rule 2 in action, not a fact. It creates four evidence tables, the canonical `practitioner_eligibility(uuid, text)`, the compatibility wrapper, and rewires six callers. Re-running would `create or replace` six live governance functions. Verify instead: the eight function hashes are asserted in `packages/db/src/practitioners/eligibility0064.db.test.ts` and `eligibilityRoles0064.db.test.ts`. |
 | `0065_case_events_access_alignment.sql` | **Already applied (`20261103202530`).** Replaces the practitioner `case_events` SELECT policy with `can_access_case_care_profile(case_id)`. It refuses to run without 0064, so re-running is harmless but pointless. Verify via `packages/db/src/practitioners/caseEventsRls0065.db.test.ts` and `caseEventsThreeState.db.test.ts`. |
 | `0063_practitioner_taxonomy_reconciliation.sql` | **Already applied (`20261027052734`).** Its own header still says "NOT YET APPLIED at the time of writing" — that is rule 2 in action, not a fact. It is re-runnable by design and would be a no-op, but it `create or replace`s three live governance functions and suspends two governance triggers around its translation, so do not run it to "check" anything. Verify instead: the three function hashes are recorded in its header and asserted in `packages/db/src/practitioners/taxonomy0063.db.test.ts`. |
+| `0066_case_taking_persistence.sql` | **Written 6 Nov 2026 and NOT applied** — Orchestrator approval was to write it, not to apply it. It is also **not re-runnable**: `CREATE TABLE` without `IF NOT EXISTS`, and `ALTER TABLE case_contributions ADD COLUMN` without it either, so a second run fails. It `create or replace`s one live governance function (`block_contribution_rewrite`), widening it by three frozen columns. Behaviour is proven ahead of any apply by 93 tests in `packages/db/src/intakeV2/caseTaking0066.db.test.ts`, which execute this exact file against PGlite. |
+
+## Choosing a filename for a new migration
+
+**Do not take the highest number in this folder and add one.** The numeric
+namespace is not contiguous and this folder is not the authority:
+
+| Number | File here? | On `main`? | Applied? |
+|---|---|---|---|
+| `0055` | yes | yes | **no**, never applied — deferred |
+| `0061` | **no** | **no** | no — written, sitting on `feat/protocol-adoption-signing` |
+| `0062` | **no** (branch only) | **no** | no — written on `feat/care-path-foundations` |
+| `0064`, `0065` | yes | yes | **yes — live** |
+| `0066` | yes | yes | see the live history — applied 7 Nov 2026 |
+
+**This table is a worked example of a trap, not a static fact.** It was true in
+this shape on 7 November 2026; it goes stale the moment anything is applied or
+a branch diverges. Always check all three sources yourself.
+
+The trap in its own words: `ux/calm-client-and-cockpit` was cut from `main`
+*before* the commit that reconciled the live `0064` and `0065` into it, so
+that branch's folder appeared to stop at `0063` while the database already had
+`0065` applied. Taking "0064" there would have collided with an applied
+migration. (`0059` already exists under two different filenames in two
+different refs — the same mistake, already made once.) That branch has since
+been reconciled by merging `main`, which is why `0064` and `0065` now read
+"yes" above.
+
+Before naming a new file, check all three: every ref
+(`git log --all --diff-filter=A --name-only -- 'supabase/migrations/00NN*'`),
+`main`, and the live migration history.
 
 ## Release dependency — 0061 must not be applied after 0064
 
@@ -258,3 +289,50 @@ policies, constraints or function behaviour needs both.
 applied** (confirmed: `functional_ranges.range_type` and `source_label` are
 both absent live). It is deferred by founder ruling and is not a dependency of
 any current release. Do not apply it as part of unrelated work.
+
+## Reserved identifiers — unapplied migrations on other branches
+
+**`ls` in this folder does not tell you which identifier is free.** NI keeps
+unapplied migrations on feature branches, so a number can be taken by a file
+that is not on your branch and not in the live history either.
+
+| Id | File | Where it lives | Status |
+|---|---|---|---|
+| `0061` | `0061_protocol_version_items.sql` | `feat/protocol-adoption-signing` only | Written, **not applied**. Reserved. |
+| `0062` | `0062_case_events_client_authorship.sql` | `feat/care-path-foundations` | Written and tested, **not applied**. |
+
+`0062` took the next free number rather than `0061` for exactly this reason:
+on `feat/care-path-foundations` the folder ends at `0060`, which makes `0061`
+look free when it is not. Two migrations sharing an identifier — one of them
+touching protocol signing — is the kind of collision that is cheap to avoid
+now and expensive to untangle later.
+
+`0061` and `0062` are independent and may be applied in either order.
+
+**Before writing a new migration**, check every branch, not just yours:
+
+```bash
+for b in $(git branch -a --format='%(refname:short)'); do
+  git ls-tree --name-only "$b" supabase/migrations/ 2>/dev/null
+done | sort -u | tail -15
+```
+
+### `0062_case_events_client_authorship.sql`
+
+Additive change to `case_events` that lets a client record their own dated
+update: a narrow INSERT policy (`follow_up_answer` only, own case only, self
+attributed only), first-class actor attribution (`actor_user_id`,
+`actor_capacity`), `occurred_at` separate from `created_at`, and structural
+append-only enforcement for every role including `service_role`.
+
+Every column is nullable with no default and every new CHECK passes for a NULL
+capacity, so the existing rows and the existing `complete_practitioner_work`
+writer are unaffected and **no backfill is required**.
+
+Behaviour is covered by 30 PGlite tests in
+`packages/db/src/careRecord/caseEvents.db.test.ts`, which execute this file
+verbatim against a real Postgres — including RLS, which the `0061` suite could
+not exercise. Those tests found two defects in earlier drafts of this file: an
+unconditional append-only guard that refused its own `ON DELETE SET NULL`, and
+an actor-coherence CHECK that would have blocked erasing a person. Both are
+fixed and both have a test.
