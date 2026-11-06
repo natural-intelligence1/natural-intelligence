@@ -3,8 +3,10 @@ import { redirect }                 from 'next/navigation'
 import type { Metadata }            from 'next'
 import { createAdminClient, createServerSupabaseClient } from '@natural-intelligence/db'
 import { getClientStory }           from '@natural-intelligence/db/crt'
+import { isAiInterpretationEnabled } from '@natural-intelligence/db/ai'
 import { generateBodyStory }        from './actions'
 import { GeneratingState }          from '../_components/GeneratingState'
+import { InterpretationHeldState }  from '../_components/InterpretationHeldState'
 
 export const metadata: Metadata = {
   title: "My Body’s Story",
@@ -154,8 +156,31 @@ export default async function StoryPage() {
   // ── Intake done — try to load the story ───────────────────────────────────
   const story = await getClientStory(adminClient, user.id)
 
-  // ── Generating / failed state ─────────────────────────────────────────────
+  // Containment (Mission 20). Used twice: the empty state must not claim to
+  // be building a story, and the ready state must not offer a Regenerate
+  // button the guard would refuse. An existing story stays fully readable.
+  const interpretationEnabled = isAiInterpretationEnabled()
+
+  // ── No story yet ──────────────────────────────────────────────────────────
   if (!story) {
+    // Held: nothing is being built, so the page must not say it is.
+    if (!interpretationEnabled) {
+      return (
+        <div className="max-w-[720px] mx-auto px-4 py-12">
+          <FadeStyles />
+          <div className="story-section mb-10">
+            <p className="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3">My Body&apos;s Story</p>
+            <h1 className="text-3xl font-medium text-text-primary leading-tight">
+              Your health story
+            </h1>
+          </div>
+          <div className="story-section">
+            <InterpretationHeldState subject="Your health story" />
+          </div>
+        </div>
+      )
+    }
+
     async function regenerate() {
       'use server'
       await generateBodyStory(user!.id)
@@ -279,14 +304,16 @@ export default async function StoryPage() {
         >
           See your plan →
         </Link>
-        <form action={regenerateStory}>
-          <button
-            type="submit"
-            className="px-5 py-3 rounded-lg border border-border-default text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors"
-          >
-            Regenerate story
-          </button>
-        </form>
+        {interpretationEnabled && (
+          <form action={regenerateStory}>
+            <button
+              type="submit"
+              className="px-5 py-3 rounded-lg border border-border-default text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors"
+            >
+              Regenerate story
+            </button>
+          </form>
+        )}
       </div>
 
       <p className="mt-6 text-xs text-text-muted leading-relaxed">
