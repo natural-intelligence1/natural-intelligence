@@ -135,9 +135,18 @@ export async function completeIntake(consentData: {
   // Sprint 3 — restriction enforcement (purpose-aware, review amendment 1):
   // AI processing is blocked when the member has a GLOBAL restriction
   // (restriction / erasure / blanket withdrawal) OR has specifically withdrawn
-  // ai_assisted_processing consent. (Pre-migration the check returns false,
-  // acceptable only because both intake kill-switches are additionally
-  // default-off — see rights/requests.ts.)
+  // ai_assisted_processing consent.
+  //
+  // This check is NO LONGER the only one. As of Mission 20 each generator
+  // performs it itself, because the two page-level regenerate controls call
+  // the generators directly and so bypassed everything in this function. The
+  // check is kept here as well because it additionally suppresses the
+  // assignment bridge below, which the generators know nothing about.
+  //
+  // (The former note here claimed the check returns false "pre-migration" and
+  // that this was acceptable because both intake kill-switches were
+  // default-off. Both clauses are obsolete: client_rights_requests exists
+  // (0051 is applied), and the 13 September ruling opened collection.)
   const restricted = await isProcessingBlocked(createAdminClient(), user.id, 'ai_assisted_processing')
   if (restricted) {
     console.log(JSON.stringify({ event: 'intake.processing.blocked_by_restriction', member_id: user.id }))

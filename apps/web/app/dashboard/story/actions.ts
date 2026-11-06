@@ -2,7 +2,10 @@
 
 import Anthropic                                         from '@anthropic-ai/sdk'
 import { revalidatePath }                                from 'next/cache'
-import { createAdminClient }                             from '@natural-intelligence/db'
+import { createAdminClient, isProcessingBlocked }        from '@natural-intelligence/db'
+import {
+  isAiInterpretationEnabled, claimGeneration,
+}                                                       from '@natural-intelligence/db/ai'
 import { getOrCreateClientCase, createReasoningTrace }  from '@natural-intelligence/db/crt'
 import type { TraceEntry }                              from '@natural-intelligence/db/crt'
 import {
@@ -25,6 +28,12 @@ import {
 //
 // Safe to call multiple times — idempotent at the client_case level.
 // Calling again will create a new trace (revision history preserved).
+//
+// THIS FUNCTION IS THE CONTAINMENT BOUNDARY (Mission 20), for the same reason
+// as generateHealthSynopsis: three entry points (intake completion plus two
+// page-level controls) all funnel through it, and only this one is common to
+// all three. Holding it also stops the only Intake-derived path that creates
+// a client_cases row, since getOrCreateClientCase is called below.
 
 export async function generateBodyStory(
   memberId:        string,
@@ -32,10 +41,38 @@ export async function generateBodyStory(
   // If not passed, fetched inside via getPersonalisationForGeneration.
   personalisation?: PersonalisationForGeneration,
 ): Promise<{
-  status: 'success' | 'insufficient_data' | 'error'
+  status: 'success' | 'insufficient_data' | 'error' | 'held' | 'restricted' | 'throttled'
 }> {
+  // ── Gate 1: AI interpretation hold (global, default-off) ─────────────────
+  // Before any client is created: a held call provably reads nothing, writes
+  // nothing, and creates no case.
+  if (!isAiInterpretationEnabled()) {
+    console.log(JSON.stringify({ event: 'body_story.held', user_id: memberId }))
+    return { status: 'held' }
+  }
+
   const adminClient = createAdminClient()
   const startMs = Date.now()
+
+  // ── Gate 2: the member's own restriction / withdrawal ────────────────────
+  // Moved here from completeIntake so the page's regenerate control cannot
+  // bypass a withdrawal of ai_assisted_processing consent.
+  if (await isProcessingBlocked(adminClient, memberId, 'ai_assisted_processing')) {
+    console.log(JSON.stringify({
+      event: 'body_story.blocked_by_restriction', user_id: memberId,
+    }))
+    return { status: 'restricted' }
+  }
+
+  // ── Gate 3: duplicate / burst generation ─────────────────────────────────
+  const claim = await claimGeneration(adminClient, memberId, 'body_story')
+  if (!claim.allowed) {
+    console.log(JSON.stringify({
+      event: 'body_story.throttled', user_id: memberId,
+      reason: claim.reason, retry_after_ms: claim.retryAfterMs,
+    }))
+    return { status: 'throttled' }
+  }
 
   try {
     // ── 1. Load intake answers + personalisation ─────────────────────────────
@@ -254,6 +291,10 @@ export async function generateBodyStory(
     console.log(JSON.stringify({ event: 'body_story.failure', user_id: memberId, error_code: errorCode, duration_ms: Date.now() - startMs }))
     console.error('[generateBodyStory] error:', err)
     return { status: 'error' }
+  } finally {
+    // Releases the in-flight claim on every exit, success or failure, so a
+    // failed generation does not block the member's retry.
+    claim.release()
   }
 }
 

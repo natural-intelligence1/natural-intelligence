@@ -1,7 +1,8 @@
 'use server'
 
 import Anthropic from '@anthropic-ai/sdk'
-import { createAdminClient } from '@natural-intelligence/db'
+import { createAdminClient, isProcessingBlocked } from '@natural-intelligence/db'
+import { isAiInterpretationEnabled, claimGeneration } from '@natural-intelligence/db/ai'
 import { revalidatePath } from 'next/cache'
 import {
   getPersonalisationForGeneration,
@@ -39,13 +40,50 @@ interface Profile {
 
 // ─── generateHealthSynopsis ───────────────────────────────────────────────────
 // Called from completeIntake (fire-and-forget) or directly from the synopsis
-// page (regenerate). Uses admin client for ai_summaries writes.
+// page (regenerate — two separate controls). Uses admin client for
+// ai_summaries writes, which means RLS does not apply: every control that
+// matters has to be enforced in this function.
+//
+// THIS FUNCTION IS THE CONTAINMENT BOUNDARY (Mission 20). All three entry
+// points funnel through it, which is why the three gates below live here and
+// not at the call sites. A gate in completeIntake alone would leave both
+// page-level regenerate controls able to generate.
 export async function generateHealthSynopsis(memberId: string): Promise<{
-  status: 'success' | 'insufficient_data' | 'error'
+  status: 'success' | 'insufficient_data' | 'error' | 'held' | 'restricted' | 'throttled'
   summaryId?: string
 }> {
+  // ── Gate 1: AI interpretation hold (global, default-off) ─────────────────
+  // Asserted before any client is created, so a held call provably reads
+  // nothing and writes nothing. Raw Intake collection is unaffected.
+  if (!isAiInterpretationEnabled()) {
+    console.log(JSON.stringify({ event: 'health_synopsis.held', user_id: memberId }))
+    return { status: 'held' }
+  }
+
   const adminClient = createAdminClient()
   const startMs = Date.now()
+
+  // ── Gate 2: the member's own restriction / withdrawal ────────────────────
+  // Moved here from completeIntake. Previously the page's "Regenerate now"
+  // button generated regardless of an active processing restriction or a
+  // withdrawal of ai_assisted_processing consent, because it never passed
+  // through completeIntake. A user-facing button must not bypass this.
+  if (await isProcessingBlocked(adminClient, memberId, 'ai_assisted_processing')) {
+    console.log(JSON.stringify({
+      event: 'health_synopsis.blocked_by_restriction', user_id: memberId,
+    }))
+    return { status: 'restricted' }
+  }
+
+  // ── Gate 3: duplicate / burst generation ─────────────────────────────────
+  const claim = await claimGeneration(adminClient, memberId, 'health_synopsis')
+  if (!claim.allowed) {
+    console.log(JSON.stringify({
+      event: 'health_synopsis.throttled', user_id: memberId,
+      reason: claim.reason, retry_after_ms: claim.retryAfterMs,
+    }))
+    return { status: 'throttled' }
+  }
 
   try {
     const [
@@ -243,6 +281,10 @@ Format: use plain paragraphs. You may use short bullet lists (starting with -) f
     console.log(JSON.stringify({ event: 'health_synopsis.failure', user_id: memberId, error_code: errorCode, duration_ms: Date.now() - startMs }))
     console.error('[generateHealthSynopsis] error:', err)
     return { status: 'error' }
+  } finally {
+    // Releases the in-flight claim on every exit, success or failure, so a
+    // failed generation does not block the member's retry.
+    claim.release()
   }
 }
 

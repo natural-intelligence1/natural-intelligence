@@ -2,8 +2,10 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { createAdminClient, createServerSupabaseClient } from '@natural-intelligence/db'
+import { isAiInterpretationEnabled } from '@natural-intelligence/db/ai'
 import { generateHealthSynopsis, rateSynopsis } from './actions'
 import { GeneratingState } from '../_components/GeneratingState'
+import { InterpretationHeldState } from '../_components/InterpretationHeldState'
 
 export const metadata: Metadata = {
   title: 'My health synopsis',
@@ -147,6 +149,12 @@ export default async function SynopsisPage() {
   const hasIntake       = intake !== null
   const intakeComplete  = Boolean(intake?.is_complete)
   const hasSynopsis     = synopsis !== null
+
+  // Containment (Mission 20). Read once and used in two places: the empty
+  // state must not claim to be generating, and the ready state must not offer
+  // a Regenerate button that the guard would silently refuse. An existing
+  // synopsis stays fully readable either way — the hold is on NEW generation.
+  const interpretationEnabled = isAiInterpretationEnabled()
   const hasBiomarkers   = (biomarkers?.length ?? 0) > 0
   const hasRootfinder   = (rootfinder?.length ?? 0) > 0
   const sectionsComplete = intake?.completed_sections ?? 0
@@ -211,8 +219,22 @@ export default async function SynopsisPage() {
     )
   }
 
-  // ── State C: Intake complete but no synopsis yet (generating) ─────────────
+  // ── State C: Intake complete but no synopsis yet ──────────────────────────
   if (!hasSynopsis) {
+    // Held: nothing is generating, so do not claim it is. GeneratingState
+    // would poll for five minutes and then imply a failure — both untrue.
+    if (!interpretationEnabled) {
+      return (
+        <div className="max-w-2xl mx-auto">
+          <div className="mb-8">
+            <p className="text-xs font-semibold text-text-brand uppercase tracking-wider mb-1">My synopsis</p>
+            <h1 className="text-2xl font-bold text-text-primary">Your health synopsis</h1>
+          </div>
+          <InterpretationHeldState subject="Your health synopsis" />
+        </div>
+      )
+    }
+
     async function regenerate() {
       'use server'
       await generateHealthSynopsis(user!.id)
@@ -321,14 +343,16 @@ export default async function SynopsisPage() {
 
       {/* Actions */}
       <div className="flex flex-wrap items-center gap-3">
-        <form action={regenerateSynopsis}>
-          <button
-            type="submit"
-            className="px-4 py-2.5 rounded-lg border border-border-default text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors"
-          >
-            ↻ Regenerate synopsis
-          </button>
-        </form>
+        {interpretationEnabled && (
+          <form action={regenerateSynopsis}>
+            <button
+              type="submit"
+              className="px-4 py-2.5 rounded-lg border border-border-default text-sm font-medium text-text-secondary hover:bg-surface-muted transition-colors"
+            >
+              ↻ Regenerate synopsis
+            </button>
+          </form>
+        )}
         <Link
           href="/directory"
           className="px-4 py-2.5 rounded-lg bg-brand-default hover:bg-brand-hover text-text-inverted text-sm font-medium transition-colors"
