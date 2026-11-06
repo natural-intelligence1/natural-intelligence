@@ -118,6 +118,9 @@ export default function WorkshopDetailPage({ params }: WorkshopPageProps) {
 
   const scheduling = event.scheduling!
   const now = new Date()
+  // One or many: `speakers` wins when present, otherwise the single `speaker`.
+  const speakers = event.speakers ?? (event.speaker ? [event.speaker] : [])
+
   const phase = getEventPhase(scheduling, now)
   const bookable = isBookable(scheduling, now)
   const isFull = scheduling.bookingState === 'full' && phase === 'booking_open'
@@ -212,14 +215,18 @@ export default function WorkshopDetailPage({ params }: WorkshopPageProps) {
                 <span className="block">{t.summary.bookingEssential}</span>
               </dd>
             </div>
-            {event.speaker && (
+            {speakers.length > 0 && (
               <div>
                 <dt className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">
-                  {t.summary.speaker}
+                  {speakers.length > 1 ? t.summary.speakers : t.summary.speaker}
                 </dt>
-                <dd className="text-text-secondary">
-                  <span className="block font-medium text-text-primary">{event.speaker.name}</span>
-                  <span className="block">{event.speaker.title}</span>
+                <dd className="text-text-secondary space-y-2">
+                  {speakers.map((s) => (
+                    <div key={s.name}>
+                      <span className="block font-medium text-text-primary">{s.name}</span>
+                      <span className="block">{s.title}</span>
+                    </div>
+                  ))}
                 </dd>
               </div>
             )}
@@ -248,7 +255,8 @@ export default function WorkshopDetailPage({ params }: WorkshopPageProps) {
             </section>
           )}
 
-          {/* ── Booking (phase-aware; WhatsApp link is the entire mechanism) ── */}
+          {/* ── Booking (phase-aware; the external booking link is the entire
+              mechanism — a WhatsApp group or a form, per the event) ── */}
           <section aria-labelledby="booking" className="my-8">
             <h2 id="booking" className="text-lg font-semibold text-text-primary mb-3">
               {t.bookingHeading}

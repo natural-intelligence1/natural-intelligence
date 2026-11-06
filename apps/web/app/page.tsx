@@ -74,6 +74,9 @@ export default async function HomePage() {
         ? copy.workshopDetail.status.fullyBooked   // manually full, still upcoming
         : copy.workshopDetail.status.bookingClosed // closed, event still to come
       : null
+  // Drives the "Booking essential" pill and the direct booking CTA below, so
+  // both disappear on their own once bookings close — no edit on the day.
+  const workshopBookable = nextWorkshop ? isBookable(nextWorkshop.scheduling, now) : false
   const workshopStart = nextWorkshop ? new Date(nextWorkshop.scheduling.start) : null
   const workshopDay = workshopStart?.toLocaleDateString('en-GB', { day: 'numeric', timeZone: 'Europe/London' })
   const workshopMonth = workshopStart?.toLocaleDateString('en-GB', { month: 'short', timeZone: 'Europe/London' })
@@ -341,6 +344,11 @@ export default async function HomePage() {
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-subtle text-text-brand">
                         {nextWorkshop.audience}
                       </span>
+                      {workshopBookable && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-subtle text-text-brand">
+                          {copy.workshopDetail.summary.bookingEssential}
+                        </span>
+                      )}
                       {workshopStatus && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-text-secondary border border-border-muted">
                           {workshopStatus}
@@ -348,12 +356,26 @@ export default async function HomePage() {
                       )}
                     </div>
 
-                    <Link
-                      href={`/workshops/${nextWorkshop.slug}`}
-                      className="inline-flex items-center justify-center min-h-[44px] mt-4 px-5 py-2.5 rounded-lg border border-border-default bg-surface-base text-sm font-medium text-text-brand hover:bg-surface-muted transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-default"
-                    >
-                      {copy.home.upcomingWorkshops.viewWorkshop} →
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-2 mt-4">
+                      {/* Direct booking, so the homepage can convert without a
+                          second hop. Present only while bookings are open. */}
+                      {workshopBookable && nextWorkshop.booking && (
+                        <a
+                          href={nextWorkshop.booking.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 rounded-lg bg-brand-default text-text-inverted text-sm font-medium hover:bg-brand-hover transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-default"
+                        >
+                          {nextWorkshop.booking.linkLabel}
+                        </a>
+                      )}
+                      <Link
+                        href={`/workshops/${nextWorkshop.slug}`}
+                        className="inline-flex items-center justify-center min-h-[44px] px-5 py-2.5 rounded-lg border border-border-default bg-surface-base text-sm font-medium text-text-brand hover:bg-surface-muted transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-default"
+                      >
+                        {copy.home.upcomingWorkshops.viewWorkshop} →
+                      </Link>
+                    </div>
                   </div>
 
                   {/* Poster thumbnail — deliberately small; the homepage is a

@@ -18,16 +18,28 @@ was written from the file in good faith.
    ascending order up to `0043`. From `0053` onward the actual applied
    sequence was:
 
-   `0053 → 0054 → 0051 → 0056 → 0052 → 0057 → 0058 → 0059 → 0060 → 0063`
+   `0053 → 0054 → 0051 → 0056 → 0052 → 0057 → 0058 → 0059 → 0060 → 0063 → 0064 → 0065`
 
-   `0051` landed after `0053/0054`; `0052` after `0056`; `0063` landed while
-   `0061` and `0062` were still unapplied. The latest applied migration is
-   `0063` (`20261027052734`). `0055` has never been applied, and neither have
-   `0061` or `0062` — both are written and sitting on feature branches, and
-   either may still be applied after `0063` without difficulty. Nothing in the
-   apply mechanism reads this folder or compares numeric prefixes: the recorded
-   `version` is the apply timestamp and the file's number survives only in the
-   free-text `name`.
+   `0051` landed after `0053/0054`; `0052` after `0056`; `0063`, `0064` and
+   `0065` all landed while `0061` and `0062` were still unapplied. The latest
+   applied migration is `0065` (`20261103202530`). `0055` has never been
+   applied. `0062` has not been applied. **`0061` has not been applied and is
+   BLOCKED — see the release dependency below.** Nothing in the apply mechanism
+   reads this folder or compares numeric prefixes: the recorded `version` is
+   the apply timestamp and the file's number survives only in the free-text
+   `name`.
+
+   Current applied state, as a table, because this is now the thing people get
+   wrong:
+
+   | Migration | State | Production record |
+   |---|---|---|
+   | `0063_practitioner_taxonomy_reconciliation` | APPLIED / CLOSED | `20261027052734` |
+   | `0064_practitioner_eligibility_spine` | **APPLIED / LIVE** | `20261103202418` |
+   | `0065_case_events_access_alignment` | **APPLIED / LIVE** | `20261103202530` |
+   | `0061_protocol_version_items` | **UNAPPLIED / BLOCKED** | — |
+   | `0062_case_events_client_authorship` | UNAPPLIED | — |
+   | `0055_functional_ranges_source_metadata` | never applied | — |
    This list goes stale the moment anything is applied — it is a worked
    illustration, not a substitute for querying the history.
 2. **A file header cannot tell you whether a migration is applied.** Status
@@ -62,8 +74,11 @@ it.
 | `0056`, `0057`, `0058` | Already applied. Restored here as historical records only — see below. |
 | `0059_protocol_signing.sql` | Already applied (`20261010062725`). |
 | `0060_lead_class_demotion_guard.sql` | Already applied (`20261011170031`). Its trigger and function are live; re-running is unnecessary and `create or replace` would silently rewrite a live governance control. |
+| `0061_protocol_version_items.sql` | **BLOCKED — must be patched before it is ever applied.** Unapplied, lives only on `feat/protocol-adoption-signing`. It `create or replace`s `enforce_protocol_signature_authority()` and, at line 280, calls the role-neutral `practitioner_assignment_eligibility(auth.uid())`. `0064` **is now live** and replaced that same function with role-aware Lead eligibility, so **applying 0061 today would silently revert protocol-signing authority to the role-neutral question.** Verified by running 0061's function against a post-0064 database. See the release dependency below. |
+| `0064_practitioner_eligibility_spine.sql` | **Already applied (`20261103202418`).** Its own header still says "NOT YET APPLIED at the time of writing" — rule 2 in action, not a fact. It creates four evidence tables, the canonical `practitioner_eligibility(uuid, text)`, the compatibility wrapper, and rewires six callers. Re-running would `create or replace` six live governance functions. Verify instead: the eight function hashes are asserted in `packages/db/src/practitioners/eligibility0064.db.test.ts` and `eligibilityRoles0064.db.test.ts`. |
+| `0065_case_events_access_alignment.sql` | **Already applied (`20261103202530`).** Replaces the practitioner `case_events` SELECT policy with `can_access_case_care_profile(case_id)`. It refuses to run without 0064, so re-running is harmless but pointless. Verify via `packages/db/src/practitioners/caseEventsRls0065.db.test.ts` and `caseEventsThreeState.db.test.ts`. |
 | `0063_practitioner_taxonomy_reconciliation.sql` | **Already applied (`20261027052734`).** Its own header still says "NOT YET APPLIED at the time of writing" — that is rule 2 in action, not a fact. It is re-runnable by design and would be a no-op, but it `create or replace`s three live governance functions and suspends two governance triggers around its translation, so do not run it to "check" anything. Verify instead: the three function hashes are recorded in its header and asserted in `packages/db/src/practitioners/taxonomy0063.db.test.ts`. |
-| `0066_case_taking_persistence.sql` | **Written 6 Nov 2026 and NOT applied** — Orchestrator approval was to write it, not to apply it. It is also **not re-runnable**: `CREATE TABLE` without `IF NOT EXISTS`, and `ALTER TABLE case_contributions ADD COLUMN` without it either, so a second run fails. It `create or replace`s one live governance function (`block_contribution_rewrite`), widening it by three frozen columns. Behaviour is proven ahead of any apply by 91 tests in `packages/db/src/intakeV2/caseTaking0066.db.test.ts`, which execute this exact file against PGlite. |
+| `0066_case_taking_persistence.sql` | **Written 6 Nov 2026 and NOT applied** — Orchestrator approval was to write it, not to apply it. It is also **not re-runnable**: `CREATE TABLE` without `IF NOT EXISTS`, and `ALTER TABLE case_contributions ADD COLUMN` without it either, so a second run fails. It `create or replace`s one live governance function (`block_contribution_rewrite`), widening it by three frozen columns. Behaviour is proven ahead of any apply by 93 tests in `packages/db/src/intakeV2/caseTaking0066.db.test.ts`, which execute this exact file against PGlite. |
 
 ## Choosing a filename for a new migration
 
@@ -72,21 +87,62 @@ namespace is not contiguous and this folder is not the authority:
 
 | Number | File here? | On `main`? | Applied? |
 |---|---|---|---|
-| `0055` | yes | — | **no**, never applied |
-| `0061` | **no** | no | no — written, sitting on `feat/protocol-adoption-signing` |
+| `0055` | yes | yes | **no**, never applied — deferred |
+| `0061` | **no** | **no** | no — written, sitting on `feat/protocol-adoption-signing` |
 | `0062` | yes | **no** | no |
-| `0064`, `0065` | **no** (branch-dependent) | yes | **yes** |
+| `0064`, `0065` | yes | yes | **yes — live** |
 | `0066` | yes | not yet | no |
 
-So on a branch cut before main's reconcile commit, the files appear to stop
-at `0063` while the database has `0065` applied. Taking "0064" there would
-collide with an applied migration on `main`. `0059` already exists under two
-different filenames in two different refs, which is the collision this check
-avoids.
+**This table is a worked example of a trap, not a static fact.** It was true in
+this shape on 7 November 2026; it goes stale the moment anything is applied or
+a branch diverges. Always check all three sources yourself.
+
+The trap in its own words: `ux/calm-client-and-cockpit` was cut from `main`
+*before* the commit that reconciled the live `0064` and `0065` into it, so
+that branch's folder appeared to stop at `0063` while the database already had
+`0065` applied. Taking "0064" there would have collided with an applied
+migration. (`0059` already exists under two different filenames in two
+different refs — the same mistake, already made once.) That branch has since
+been reconciled by merging `main`, which is why `0064` and `0065` now read
+"yes" above.
 
 Before naming a new file, check all three: every ref
 (`git log --all --diff-filter=A --name-only -- 'supabase/migrations/00NN*'`),
 `main`, and the live migration history.
+
+## Release dependency — 0061 must not be applied after 0064
+
+**0061 MUST NOT BE APPLIED AFTER 0064 UNTIL ITS PROTOCOL-SIGNING ELIGIBILITY
+CALL IS RECONCILED TO ROLE-AWARE LEAD ELIGIBILITY.**
+
+**This is live, not hypothetical. 0064 was applied to Production on 3 Nov 2026
+(`20261103202418`), so the hazard below is active right now.**
+
+`0064` made eligibility role-aware. Protocol signing is Lead authority — the
+function establishes an active `team_role = 'lead'` before it asks about
+eligibility at all — so it now asks
+`practitioner_eligibility(auth.uid(), 'lead')`.
+
+`0061` predates that and redefines the same function with the role-neutral
+call. Applying it today reverts the check to "eligible for *any* role", which
+would let a practitioner scoped only to `care_team` sign a Protocol as Lead.
+This is not theoretical: it was reproduced against a post-0064 database.
+
+Two call sites must be patched together, in the same coordinated Protocol
+release:
+
+| File | Site | Change |
+|---|---|---|
+| `supabase/migrations/0061_protocol_version_items.sql` | line 280, inside the function created at line 244 | `practitioner_assignment_eligibility(auth.uid())` → `practitioner_eligibility(auth.uid(), 'lead')` |
+| `packages/db/src/intakeV2/protocolSigning.ts` | `rpcEligibilityResolver` | calls the role-neutral RPC; must pass the Lead role |
+
+Neither was changed when this was found: 0061 is reserved and unapplied, and
+`intakeV2` sits inside the Intake/Protocol review boundary. They belong to the
+Protocol release, not to 0064.
+
+The same caution applies to any other unapplied migration that redefines a
+function `0064` rewires. Before applying anything from a branch written before
+0064, diff its `create or replace function` list against 0064 section 8.
 
 ## Historical records restored 2026-10-10
 
