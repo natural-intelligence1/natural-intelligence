@@ -155,7 +155,7 @@ describe('4. an ineligible Lead CANNOT sign', () => {
   it('asks the eligibility authority specifically about the lead role', async () => {
     const asked: [string, string][] = []
     const client = {
-      from: () => ({}),
+      from: () => unusedQuery(),
       rpc: async (fn: string, args: Record<string, unknown>) => {
         asked.push([fn, String(args.p_case_role)])
         return { data: [{ eligible: true, blockers: [] }], error: null }
@@ -295,7 +295,10 @@ describe('9. a service-role path WITHOUT authorisation cannot sign through the A
       update: (patch: Record<string, unknown>) => { writes.push(patch); return chain },
       eq: () => chain,
       is: () => chain,
-      select: async () => ({ data: updateRows, error: null }),
+      select: () => chain,
+      limit: async () => ({ data: updateRows, error: null }),
+      then: (r: (v: { data: unknown; error: unknown }) => unknown) =>
+        Promise.resolve({ data: updateRows, error: null }).then(r),
     }
     return {
       writes,
@@ -362,7 +365,10 @@ describe('9. a service-role path WITHOUT authorisation cannot sign through the A
       update: () => chain,
       eq: (col: string) => { calls.push(`eq:${col}`); return chain },
       is: (col: string) => { calls.push(`is:${col}`); return chain },
-      select: async () => ({ data: [{ id: SESSION }], error: null }),
+      select: () => chain,
+      limit: async () => ({ data: [{ id: SESSION }], error: null }),
+      then: (r: (v: { data: unknown; error: unknown }) => unknown) =>
+        Promise.resolve({ data: [{ id: SESSION }], error: null }).then(r),
     }
     const client = {
       from: () => chain,
@@ -378,7 +384,10 @@ describe('9. a service-role path WITHOUT authorisation cannot sign through the A
       update: () => chain,
       eq: (col: string) => { calls.push(`eq:${col}`); return chain },
       is: (col: string) => { calls.push(`is:${col}`); return chain },
-      select: async () => ({ data: [{ id: SESSION }], error: null }),
+      select: () => chain,
+      limit: async () => ({ data: [{ id: SESSION }], error: null }),
+      then: (r: (v: { data: unknown; error: unknown }) => unknown) =>
+        Promise.resolve({ data: [{ id: SESSION }], error: null }).then(r),
     }
     const client = {
       from: () => chain,
@@ -395,6 +404,8 @@ describe('9. a service-role path WITHOUT authorisation cannot sign through the A
       select: () => chain, eq: () => chain, is: () => chain,
       limit: async () => ({ data: [{ team_role: 'lead' }], error: null }),
       update: () => chain,
+      then: (r: (v: { data: unknown; error: unknown }) => unknown) =>
+        Promise.resolve({ data: [], error: null }).then(r),
     }
     const client = {
       from: (t: string) => { seen.push(t); return chain },
@@ -419,6 +430,9 @@ describe('the role resolver reads case_team_roles and nothing else', () => {
       eq: (col: string) => { seen.filters.push(col); return chain },
       is: (col: string) => { seen.filters.push(`is:${col}`); return chain },
       limit: async () => ({ data: rows, error }),
+      update: () => chain,
+      then: (r: (v: { data: unknown; error: unknown }) => unknown) =>
+        Promise.resolve({ data: rows, error }).then(r),
     }
     return {
       seen,
@@ -465,7 +479,7 @@ describe('the role resolver reads case_team_roles and nothing else', () => {
 
 describe('the eligibility resolver fails closed', () => {
   const client = (data: unknown, error: unknown = null) => ({
-    from: () => ({}),
+    from: () => unusedQuery(),
     rpc: async () => ({ data, error }),
   })
 
@@ -541,3 +555,14 @@ describe('the boundary with Protocol signing is kept', () => {
   })
 })
 
+
+/**
+ * A SignOffQuery stand-in for tests that exercise only the RPC side.
+ *
+ * Every method throws: these tests assert the eligibility resolver's
+ * behaviour, and `from` must never be reached. A silent no-op stub would hide
+ * an accidental table read; this one fails loudly.
+ */
+function unusedQuery(): never {
+  throw new Error('from() must not be called in this test')
+}

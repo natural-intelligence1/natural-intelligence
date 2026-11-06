@@ -50,6 +50,7 @@
 
 import type { CaseTakingActorRole as CaptureActorRole } from './caseTakingActor'
 import type { CaseRole, CaseTakingState } from './caseTaking'
+import type { Database } from '../types'
 
 export const CASE_TAKING_SIGNOFF_GUARD_VERSION = 'case-taking-signoff-guard.v1'
 
@@ -273,16 +274,39 @@ export async function assertCaseTakingSignOffAuthorised(
 /**
  * The client surface these resolvers need.
  *
- * `from` is loosely typed on purpose: the generated Database types in
- * packages/db/src/types.ts are produced from the LIVE catalogue, and 0066 is
- * not applied, so `case_taking_sessions` does not exist in them yet. Typing
- * this strictly today would mean either inventing types that contradict the
- * catalogue or blocking the guard on an apply the architect has withheld.
- * Regenerate types after 0066 is applied and tighten this then.
+ * Narrow by design rather than `SupabaseClient<Database>`: this module is
+ * reached from the cockpit barrel, which a client component may import, and
+ * the guard is a decision function that should be callable with a stub in
+ * tests. It asks for exactly the two operations it performs.
+ *
+ * `case_taking_sessions` and `case_taking_answers` now exist in the generated
+ * Database types (regenerated from the live catalogue after 0066 was applied
+ * on 7 November 2026), so `Tables` below is real: a typo in a table name is a
+ * compile error, not a runtime surprise. The earlier `from: (t: string) => any`
+ * placeholder — which existed only because the tables were not yet in the
+ * catalogue — is gone.
  */
+
+/** Table names this module is permitted to touch. */
+export type SignOffTable = Extract<
+  keyof Database['public']['Tables'],
+  'case_taking_sessions' | 'case_team_roles'
+>
+
+/** The chainable surface actually used: filters, then a returning select. */
+export interface SignOffQuery {
+  select: (cols: string) => SignOffQuery
+  update: (patch: Record<string, unknown>) => SignOffQuery
+  eq: (col: string, val: unknown) => SignOffQuery
+  is: (col: string, val: null) => SignOffQuery
+  limit: (n: number) => Promise<{ data: unknown; error: unknown }>
+  then: (
+    resolve: (value: { data: unknown; error: unknown }) => unknown,
+  ) => unknown
+}
+
 export interface SignOffClient {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  from: (table: string) => any
+  from: (table: SignOffTable) => SignOffQuery
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>
 }
 
@@ -381,8 +405,7 @@ export async function signOffCaseTakingSession(
 
   const { attribution } = decision
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query: any = client.from('case_taking_sessions')
+  let query: SignOffQuery = client.from('case_taking_sessions')
     .update({
       state: 'signed_off',
       signed_off_by: attribution.signedOffBy,

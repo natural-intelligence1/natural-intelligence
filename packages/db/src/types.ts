@@ -488,9 +488,12 @@ export type Database = {
           client_confirmed: boolean
           content: string
           created_at: string
+          entry_id: string | null
           id: string
           kind: string
           profession: string | null
+          question_id: string | null
+          session_id: string | null
           source: string
           supervisor_verified_at: string | null
           supervisor_verified_by: string | null
@@ -502,9 +505,12 @@ export type Database = {
           client_confirmed?: boolean
           content: string
           created_at?: string
+          entry_id?: string | null
           id?: string
           kind: string
           profession?: string | null
+          question_id?: string | null
+          session_id?: string | null
           source?: string
           supervisor_verified_at?: string | null
           supervisor_verified_by?: string | null
@@ -516,9 +522,12 @@ export type Database = {
           client_confirmed?: boolean
           content?: string
           created_at?: string
+          entry_id?: string | null
           id?: string
           kind?: string
           profession?: string | null
+          question_id?: string | null
+          session_id?: string | null
           source?: string
           supervisor_verified_at?: string | null
           supervisor_verified_by?: string | null
@@ -558,6 +567,13 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "practitioner_case_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_contributions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "case_taking_sessions"
             referencedColumns: ["id"]
           },
           {
@@ -736,6 +752,230 @@ export type Database = {
             columns: ["practitioner_id"]
             isOneToOne: false
             referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_taking_answers: {
+        Row: {
+          annex_rule_id: string | null
+          asked_at: string | null
+          created_at: string
+          entry_id: string
+          entry_kind: string
+          id: string
+          provenance: string | null
+          question_id: string | null
+          revision: number
+          section_id: string | null
+          session_id: string
+          updated_at: string
+          updated_by: string
+          value: Json | null
+        }
+        Insert: {
+          annex_rule_id?: string | null
+          asked_at?: string | null
+          created_at?: string
+          entry_id?: string
+          entry_kind: string
+          id?: string
+          provenance?: string | null
+          question_id?: string | null
+          revision?: number
+          section_id?: string | null
+          session_id: string
+          updated_at?: string
+          updated_by: string
+          value?: Json | null
+        }
+        Update: {
+          annex_rule_id?: string | null
+          asked_at?: string | null
+          created_at?: string
+          entry_id?: string
+          entry_kind?: string
+          id?: string
+          provenance?: string | null
+          question_id?: string | null
+          revision?: number
+          section_id?: string | null
+          session_id?: string
+          updated_at?: string
+          updated_by?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_taking_answers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "case_taking_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_answers_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_answers_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_taking_sessions: {
+        Row: {
+          case_id: string
+          consultation_kind: string
+          consultation_seq: number
+          created_at: string
+          current_position: string | null
+          id: string
+          ready_at: string | null
+          review_started_at: string | null
+          review_started_by: string | null
+          revision: number
+          signed_off_at: string | null
+          signed_off_by: string | null
+          started_by: string
+          state: string
+          submitted_at: string | null
+          submitted_by: string | null
+          supersedes: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          case_id: string
+          consultation_kind: string
+          consultation_seq: number
+          created_at?: string
+          current_position?: string | null
+          id?: string
+          ready_at?: string | null
+          review_started_at?: string | null
+          review_started_by?: string | null
+          revision?: number
+          signed_off_at?: string | null
+          signed_off_by?: string | null
+          started_by: string
+          state?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          supersedes?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          case_id?: string
+          consultation_kind?: string
+          consultation_seq?: number
+          created_at?: string
+          current_position?: string | null
+          id?: string
+          ready_at?: string | null
+          review_started_at?: string | null
+          review_started_by?: string | null
+          revision?: number
+          signed_off_at?: string | null
+          signed_off_by?: string | null
+          started_by?: string
+          state?: string
+          submitted_at?: string | null
+          submitted_by?: string | null
+          supersedes?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_taking_sessions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "case_taking_sessions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_sessions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_sessions_review_started_by_fkey"
+            columns: ["review_started_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_sessions_review_started_by_fkey"
+            columns: ["review_started_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_sessions_signed_off_by_fkey"
+            columns: ["signed_off_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_sessions_signed_off_by_fkey"
+            columns: ["signed_off_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_sessions_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_sessions_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_sessions_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_sessions_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_taking_sessions_supersedes_fkey"
+            columns: ["supersedes"]
+            isOneToOne: false
+            referencedRelation: "case_taking_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -1441,6 +1681,48 @@ export type Database = {
           zone_4_max?: number | null
           zone_4_min?: number | null
           zone_5_max?: number | null
+        }
+        Relationships: []
+      }
+      indemnity_requirements: {
+        Row: {
+          created_at: string
+          currency: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          minimum_cover: number
+          note: string | null
+          requirement_source: string
+          source_key: string
+          source_reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          minimum_cover: number
+          note?: string | null
+          requirement_source: string
+          source_key: string
+          source_reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          minimum_cover?: number
+          note?: string | null
+          requirement_source?: string
+          source_key?: string
+          source_reference?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2669,6 +2951,196 @@ export type Database = {
           },
         ]
       }
+      practitioner_credentials: {
+        Row: {
+          created_at: string
+          credential_type: string
+          evidence_reference: string | null
+          expires_at: string | null
+          id: string
+          is_test_data: boolean
+          issued_at: string | null
+          issuing_body: string
+          issuing_body_key: string
+          jurisdiction: string | null
+          notes: string | null
+          practitioner_id: string
+          reference_number: string | null
+          registration_url: string | null
+          revoked_at: string | null
+          standing_status: string
+          superseded_at: string | null
+          updated_at: string
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          credential_type: string
+          evidence_reference?: string | null
+          expires_at?: string | null
+          id?: string
+          is_test_data?: boolean
+          issued_at?: string | null
+          issuing_body: string
+          issuing_body_key: string
+          jurisdiction?: string | null
+          notes?: string | null
+          practitioner_id: string
+          reference_number?: string | null
+          registration_url?: string | null
+          revoked_at?: string | null
+          standing_status?: string
+          superseded_at?: string | null
+          updated_at?: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          credential_type?: string
+          evidence_reference?: string | null
+          expires_at?: string | null
+          id?: string
+          is_test_data?: boolean
+          issued_at?: string | null
+          issuing_body?: string
+          issuing_body_key?: string
+          jurisdiction?: string | null
+          notes?: string | null
+          practitioner_id?: string
+          reference_number?: string | null
+          registration_url?: string | null
+          revoked_at?: string | null
+          standing_status?: string
+          superseded_at?: string | null
+          updated_at?: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practitioner_credentials_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_credentials_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_credentials_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_credentials_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practitioner_indemnity: {
+        Row: {
+          cover_amount: number
+          created_at: string
+          currency: string
+          evidence_reference: string | null
+          expiry_date: string
+          id: string
+          insurer: string
+          is_test_data: boolean
+          policy_number: string | null
+          policy_start_date: string | null
+          practitioner_id: string
+          revoked_at: string | null
+          superseded_at: string | null
+          updated_at: string
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          cover_amount: number
+          created_at?: string
+          currency?: string
+          evidence_reference?: string | null
+          expiry_date: string
+          id?: string
+          insurer: string
+          is_test_data?: boolean
+          policy_number?: string | null
+          policy_start_date?: string | null
+          practitioner_id: string
+          revoked_at?: string | null
+          superseded_at?: string | null
+          updated_at?: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          cover_amount?: number
+          created_at?: string
+          currency?: string
+          evidence_reference?: string | null
+          expiry_date?: string
+          id?: string
+          insurer?: string
+          is_test_data?: boolean
+          policy_number?: string | null
+          policy_start_date?: string | null
+          practitioner_id?: string
+          revoked_at?: string | null
+          superseded_at?: string | null
+          updated_at?: string
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practitioner_indemnity_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_indemnity_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_indemnity_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_indemnity_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       practitioner_review_packs: {
         Row: {
           case_id: string
@@ -2714,6 +3186,77 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "practitioner_case_index"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practitioner_scope: {
+        Row: {
+          approval_date: string | null
+          approved_scope: string
+          approver: string | null
+          created_at: string
+          id: string
+          is_test_data: boolean
+          permitted_roles: string[]
+          practitioner_id: string
+          status: string
+          superseded_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          approval_date?: string | null
+          approved_scope: string
+          approver?: string | null
+          created_at?: string
+          id?: string
+          is_test_data?: boolean
+          permitted_roles?: string[]
+          practitioner_id: string
+          status?: string
+          superseded_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approval_date?: string | null
+          approved_scope?: string
+          approver?: string | null
+          created_at?: string
+          id?: string
+          is_test_data?: boolean
+          permitted_roles?: string[]
+          practitioner_id?: string
+          status?: string
+          superseded_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practitioner_scope_approver_fkey"
+            columns: ["approver"]
+            isOneToOne: false
+            referencedRelation: "practitioner_client_identity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_scope_approver_fkey"
+            columns: ["approver"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_scope_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practitioner_scope_practitioner_id_fkey"
+            columns: ["practitioner_id"]
+            isOneToOne: false
+            referencedRelation: "practitioners_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -4061,6 +4604,23 @@ export type Database = {
         Returns: {
           eligible: boolean
           reasons: string[]
+        }[]
+      }
+      practitioner_eligibility: {
+        Args: { p_case_role?: string; p_practitioner_id: string }
+        Returns: {
+          actual_cover: number
+          agreement_state: string
+          blockers: string[]
+          category: string
+          credential_state: string
+          eligible: boolean
+          eligible_roles: string[]
+          evaluated_at: string
+          evaluated_role: string
+          indemnity_expiry: string
+          required_cover: number
+          scope_state: string
         }[]
       }
       practitioner_has_current_acceptance: {

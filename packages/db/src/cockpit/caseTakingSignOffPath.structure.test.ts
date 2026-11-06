@@ -23,6 +23,21 @@ const STATE_MACHINE = join(HERE, 'caseTaking.ts')
 /** The one module permitted to write the signature columns. */
 const CANONICAL_PATH = 'packages/db/src/cockpit/caseTakingSignOff.ts'
 
+/**
+ * Files that may MENTION the signature columns without being a write path,
+ * each with the reason. Kept deliberately short — every entry is a hole in
+ * the guarantee above, so it has to earn its place.
+ *
+ * types.ts is GENERATED from the live catalogue by
+ * `supabase gen types typescript`. It declares case_taking_sessions, its
+ * columns and the Row/Insert/Update shapes, which is exactly what makes the
+ * canonical path type-safe. It contains type declarations only — no
+ * executable statement, no client, no query — so it cannot write anything.
+ * Hand-editing it is a separate error that the type-check and the catalogue
+ * comparison would both catch.
+ */
+const DOCUMENTED_NON_WRITERS = ['packages/db/src/types.ts']
+
 /** Source roots to sweep. Tests and fixtures are excluded deliberately: a
  *  test asserting a refusal legitimately mentions the columns. */
 const ROOTS = ['apps', 'packages']
@@ -71,6 +86,7 @@ describe('only one module writes the signature columns', () => {
     // object property in an update, or as a filter on one.
     const offenders = sourceFiles()
       .filter((f) => rel(f) !== CANONICAL_PATH)
+      .filter((f) => !DOCUMENTED_NON_WRITERS.includes(rel(f)))
       .filter((f) => /signed_off_(at|by)/.test(codeOf(f)))
       .map(rel)
     expect(offenders).toEqual([])
@@ -79,6 +95,7 @@ describe('only one module writes the signature columns', () => {
   it('no source file outside the canonical path updates case_taking_sessions', () => {
     const offenders = sourceFiles()
       .filter((f) => rel(f) !== CANONICAL_PATH)
+      .filter((f) => !DOCUMENTED_NON_WRITERS.includes(rel(f)))
       .filter((f) => /case_taking_sessions/.test(codeOf(f)))
       .map(rel)
     expect(offenders).toEqual([])
@@ -192,4 +209,29 @@ describe('the guard is reachable from the package surface', () => {
     expect(codeOf(GUARD)).not.toMatch(/from\s+['"](node:|fs|crypto|path)['"]/)
     expect(codeOf(GUARD)).not.toMatch(/next\/(headers|cache|server)/)
   })
+})
+
+describe('the documented exemption is genuinely not a write path', () => {
+  // An exemption list is only safe if each entry is checked, not trusted.
+  for (const rel of DOCUMENTED_NON_WRITERS) {
+    it(`${rel} declares types and executes nothing`, () => {
+      const src = codeOf(join(REPO, rel))
+      expect(src).not.toMatch(/\.update\(/)
+      expect(src).not.toMatch(/\.insert\(/)
+      expect(src).not.toMatch(/\.upsert\(/)
+      expect(src).not.toMatch(/\.from\(/)
+      expect(src).not.toMatch(/\.rpc\(/)
+      // No functions at all.
+      expect(src).not.toMatch(/^\s*(export\s+)?(async\s+)?function\s/m)
+
+      // The generator emits exactly one runtime value — `Constants`, holding
+      // Postgres enum string literals. Asserted rather than assumed, and
+      // checked not to mention a signature column or a case-taking table.
+      const consts = [...src.matchAll(/^export const (\w+)/gm)].map((m) => m[1])
+      expect(consts).toEqual(['Constants'])
+      const constBlock = src.slice(src.indexOf('export const Constants'))
+      expect(constBlock).not.toMatch(/signed_off/)
+      expect(constBlock).not.toMatch(/case_taking/)
+    })
+  }
 })
