@@ -21,7 +21,23 @@ const PUBLIC_ROUTES = [
 ]
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+  const { pathname } = request.nextUrl
+
+  // Forward the resolved pathname to server components.
+  //
+  // App-router layouts do not receive the pathname, and the foundational-
+  // consent gate in the dashboard layout needs it for two reasons: to let the
+  // Privacy and Data Rights routes stay reachable while a member is otherwise
+  // gated, and to avoid redirecting the gate to itself. Rebuilt on each call
+  // so it picks up any session cookies written during getUser().
+  function nextWithPathname() {
+    const headers = new Headers(request.headers)
+    headers.set('x-ni-pathname', pathname)
+    headers.set('x-ni-search', request.nextUrl.search)
+    return NextResponse.next({ request: { headers } })
+  }
+
+  let supabaseResponse = nextWithPathname()
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,7 +51,7 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          supabaseResponse = NextResponse.next({ request })
+          supabaseResponse = nextWithPathname()
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -47,8 +63,6 @@ export async function middleware(request: NextRequest) {
   // IMPORTANT: always use getUser() not getSession() — getSession() is not
   // authenticated on the server and can be spoofed.
   const { data: { user } } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
 
   // Client-shell review route — public ONLY while its own flag is on.
   //

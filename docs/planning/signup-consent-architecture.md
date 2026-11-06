@@ -1,7 +1,59 @@
 # Signup consent — confirmed defect and architecture recommendation
 
-**Status: PROPOSAL. Nothing here is implemented.**
+**Status: IMPLEMENTED 6 Nov 2026** (Mission 19, architecture approved by the
+Founder). Not merged to `main` and not deployed to Production.
 Raised 5 Nov 2026, re-confirmed against the live database and live code 6 Nov 2026.
+
+### What was built
+
+| File | Change |
+|---|---|
+| `packages/db/src/consent/purposes.ts` | Texts moved into a frozen `CONSENT_TEXT_ARCHIVE` keyed by version; `resolveConsentText(version, purpose)` **fails closed** (returns null) on an unarchived version. `CONSENT_TEXTS` kept as the current-version alias so no caller changed |
+| `packages/db/src/consent/signupPayload.ts` | **New.** HMAC-SHA256 signed payload: `pv`, `sub_email`, `purposes`, `version`, `decided_at`, `nonce`, `sig` |
+| `packages/db/src/consent/foundational.ts` | **New.** `persistSignupConsentFromMetadata`, `getFoundationalConsentState`, `ensureFoundationalConsents`, `recordFoundationalReaffirmation`, `markSignupConsentConsumed` |
+| `apps/web/app/actions/auth-signup.ts` | Doomed anon INSERT **removed**; signed payload attached to `signUp` metadata; misleading "sign in to try again" message gone |
+| `apps/web/app/auth/callback/route.ts` | Persists after `exchangeCodeForSession`; surfaces Supabase's own `error_description`; calm non-technical failure message |
+| `apps/web/app/login/page.tsx` | Forwards the whole query string instead of dropping it |
+| `apps/web/middleware.ts` | Sets `x-ni-pathname` / `x-ni-search` so the layout can exempt Privacy and Data Rights |
+| `apps/web/app/dashboard/layout.tsx` | Calls `ensureFoundationalConsents`; renders the gate for non-exempt routes |
+| `apps/web/app/dashboard/_components/ConsentReaffirmationGate.tsx` + `consent-gate-actions.ts` | **New.** The re-affirmation gate |
+| `apps/web/lib/consentGate.ts` | **New.** `isConsentGateExempt()` — the "Privacy stays reachable" rule, unit-tested |
+
+**Tests:** 36 new unit tests (`signupPayload.test.ts` 20, `consentArchive.test.ts` 16),
+plus `consentGate.test.ts` (6) and `consentCopyDrift.test.ts` (2) in the web app.
+Full suites green: **879 db** / **117 web**. Both packages type-check clean.
+
+### Finding while building the archive: `s3-draft-1` was unresolvable
+
+Building the catalogue exposed something the brief did not anticipate. Five
+live `consent_records` rows reference version **`s3-draft-1`** (13 September
+2026, the September member's granular intake consents). That version existed
+**nowhere in code** — `CONSENT_TEXTS` only ever held the current wording — so
+`version = 's3-draft-1'` could not be resolved at all. The exact text was
+retrievable only because the `consent_text` column stores it verbatim per row.
+
+It has been recovered into the archive from those rows and verified
+**byte-for-byte against the database** (md5 and length per purpose, asserted in
+`consentArchive.test.ts`), so the recovery cannot drift from the evidence.
+
+Three of the five were materially reworded in `s3-draft-2`, which is the case
+for the archive in one line:
+
+| Purpose | `s3-draft-1` | `s3-draft-2` |
+|---|---|---|
+| `anonymised_research` | "Anonymised means I **cannot be identified** from it." | "anonymised so that I am **not reasonably identifiable**" |
+| `retention_beyond_episode` | "I may withdraw this at any time." | adds the legal/professional/complaints/insurance retention caveat |
+| `deidentified_synopsis_sharing` | short form | adds self-serve vs practitioner-led pathway separation, and pseudonymous-not-anonymous |
+
+Had the resolver fallen back to current wording, those five rows would have
+silently claimed the member accepted the *weaker* anonymisation promise and the
+*longer* retention caveat. They did not. `platform_terms` and
+`data_processing` were not versioned at `s3-draft-1`, so they resolve to null
+there rather than borrowing today's text.
+
+**Deliberately NOT done:** no anon INSERT policy, no service-role consent
+write, no change to email confirmation, no DB constraint added (see §3.5), no
+historical acceptance fabricated for existing accounts.
 
 ---
 
@@ -155,17 +207,55 @@ explicit: `SELECT` the member's own `signup_form` rows first (permitted by
 wrapped so that a double-click, a refreshed callback URL or a retried request
 yields one row per purpose, not two.
 
-**Optional hardening** — one partial unique index would make this a database
-guarantee rather than an application convention:
+### The exact uniqueness key — NO DB CONSTRAINT ADDED
+
+As implemented, the replay guard is an **application-level pre-check**, not a
+constraint. The key it uses:
+
+```
+(profile_id, consent_type, consent_version)  WHERE source = 'signup_form'
+```
+
+`source` is inside the key deliberately. A signup payload records **one
+historical decision**; if a row for that triple already exists *from signup*,
+the decision is on file and must not be written again — including when the
+member has since withdrawn it, because replaying a stale payload would
+silently re-grant something they revoked. A later genuine re-consent to the
+same version arrives through the gate under `source='reaffirmation'` and is
+therefore free to append.
+
+Proof it permits all three required behaviours:
+
+| Must permit | Why it does |
+|---|---|
+| **Future consent versions** | `consent_version` is in the key, so a `s4-final` grant coexists with the member's `s3-draft-2` grant. A version bump appends; it never collides |
+| **Withdrawal / re-consent history** | Withdrawal sets `withdrawn_at` on the existing row — an UPDATE, not an insert, so it cannot collide. Re-consent is written with `source='reaffirmation'`, which the `WHERE` excludes entirely. Rows are never deleted, so the full sequence grant → withdrawal → re-grant survives |
+| **Separate consent purposes** | `consent_type` is in the key, so `platform_terms` and `data_processing` are independent, as are the five granular intake purposes |
+
+**Canonical dimensions deliberately excluded**, and the condition on that:
+`consent_records` also carries `organisation_context` and
+`context_practitioner_id`. Both are **NULL in every live row** (0 rows with
+either set), and foundational consents are NI-wide rather than
+practitioner-scoped — `platform_terms` is not granted *to* a practitioner. So
+the key omits them. **If NI ever records a foundational consent per
+organisation, this key must gain `organisation_context` first**, or two
+organisations' grants would wrongly collide.
+
+Practitioner-scoped consents are a separate matter and are already kept out of
+`ConsentPurpose` for exactly this reason — see `practitionerAccess.ts`.
+
+**If the Founder later wants this as a database guarantee:**
 
 ```sql
-CREATE UNIQUE INDEX consent_records_one_signup_grant_idx
-  ON public.consent_records (profile_id, consent_type)
+CREATE UNIQUE INDEX consent_records_signup_grant_idx
+  ON public.consent_records (profile_id, consent_type, consent_version)
   WHERE source = 'signup_form';
 ```
 
-That is a schema change and is therefore *not* part of the recommendation; the
-app-level fix is complete without it. Offered because it costs one line.
+Safe to build today: there are **zero** `source='signup_form'` rows in the live
+table, and the 10 `intake_start` rows plus 2 legacy NULL-source rows are all
+excluded by the `WHERE`. Not applied — the Founder is deciding the constraint
+separately, and the app-level guard is complete without it.
 
 ### 3.6 Callback never occurs
 

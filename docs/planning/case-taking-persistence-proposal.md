@@ -1,5 +1,11 @@
 # Case-taking persistence — audit and proposal
 
+> **SUPERSEDED by [case-taking-persistence-proposal-v2.md](./case-taking-persistence-proposal-v2.md) (6 Nov 2026).**
+> Kept as the record of what was reviewed. The key proposed here —
+> `UNIQUE (case_id, practitioner_id) WHERE signed_off_at IS NULL` — was NOT
+> APPROVED: a case-taking record is a shared case artefact, so the Lead must
+> not acquire a second practitioner-owned session. See V2 for the revision.
+
 **Status: PROPOSAL. Nothing here is implemented. No migration has been written.**
 
 Raised 5 Nov 2026 under the Founder's mid-sprint architecture correction.
