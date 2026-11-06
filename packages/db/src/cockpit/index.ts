@@ -127,6 +127,27 @@ export type {
   TransitionInput,
 } from './caseTaking'
 
+// THE canonical authority guard and the single write path for case-taking
+// sign-off. caseTaking.ts above is the in-memory state machine and persists
+// nothing; anything that actually signs a stored session goes through here,
+// because the 0066 database trigger cannot gate a service-role caller.
+export {
+  CASE_TAKING_SIGNOFF_GUARD_VERSION, SIGNABLE_CASE_TAKING_STATES,
+  SIGNING_CASE_ROLE, CASE_TAKING_SIGNOFF_REFUSALS,
+  CASE_TAKING_SIGNOFF_REFUSAL_MESSAGES,
+  authoriseCaseTakingSignOff, assertCaseTakingSignOffAuthorised,
+  CaseTakingSignOffRefused, signOffCaseTakingSession,
+  caseTeamRoleResolver, leadEligibilityResolver,
+} from './caseTakingSignOff'
+export type {
+  CaseTakingSignOffRefusalCode, CaseTakingSignOffRefusal,
+  CaseTakingSignOffRequest, CaseTakingSignOffDeps, CaseTakingSignOffAttribution,
+  CaseTakingSignOffAuthorisation, CaseTakingSignOffOutcome,
+  CaseTakingSessionUnderSignature, LeadEligibilityVerdict,
+  ActiveCaseRoleResolver, LeadEligibilityResolver,
+  SignOffClient, SignOffWriteClient,
+} from './caseTakingSignOff'
+
 export {
   TIMER_STATES, OVERRUN_REASONS, OVERRUN_REASON_LABELS,
   TIMER_CANNOT_AFFECT_CONTENT, newTimer, startTimer, pauseTimer, resumeTimer,

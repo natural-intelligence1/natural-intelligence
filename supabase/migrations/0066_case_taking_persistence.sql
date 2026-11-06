@@ -64,7 +64,10 @@ CREATE TABLE public.case_taking_sessions (
   started_by         uuid NOT NULL REFERENCES public.practitioners(id),
 
   -- Workflow state. These five values are already defined and unit-tested as
-  -- CASE_TAKING_STATES in packages/db/src/intakeV2/caseTaking.ts.
+  -- CASE_TAKING_STATES in packages/db/src/cockpit/caseTaking.ts, which also
+  -- holds the transition rules. Application authority for the transition to
+  -- 'signed_off' is packages/db/src/cockpit/caseTakingSignOff.ts — required
+  -- because the trigger below cannot gate a service-role caller.
   state              text NOT NULL DEFAULT 'in_progress'
                        CHECK (state IN ('in_progress','submitted_to_lead',
                                         'lead_review','ready_for_sign_off','signed_off')),
@@ -281,8 +284,12 @@ CREATE POLICY case_taking_answers_access ON public.case_taking_answers
 -- SERVICE-ROLE NOTE. Like the Protocol trigger, this returns early when
 -- auth.uid() IS NULL, because RLS and triggers are end-user controls and a
 -- service-role caller has no uid. That gap is deliberate and is covered in
--- application code by authoriseCaseTakingSignOff(); being server-side must
--- never on its own be sufficient to sign.
+-- application code by authoriseCaseTakingSignOff()
+-- (packages/db/src/cockpit/caseTakingSignOff.ts), which is WRITTEN AND TESTED
+-- as of 7 Nov 2026 and must be in place before this migration is applied:
+-- being server-side must never on its own be sufficient to sign. The single
+-- supported write path is signOffCaseTakingSession() in the same module, and
+-- a structural test fails if a second path to these columns ever appears.
 CREATE OR REPLACE FUNCTION public.enforce_case_taking_authority()
 RETURNS trigger
 LANGUAGE plpgsql

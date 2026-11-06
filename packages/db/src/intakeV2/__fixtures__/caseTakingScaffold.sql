@@ -61,6 +61,10 @@ create table client_cases (
 );
 
 -- Live shape: time-bounded role assignment. ended_at IS NULL means active.
+-- Both CHECK constraints are copied from the live catalogue, so a test cannot
+-- rely on a team_role the real table would refuse. The live domain is exactly
+-- 'lead' | 'care_team' | 'student' — the same vocabulary as CASE_ROLES in
+-- packages/db/src/cockpit/caseTaking.ts.
 create table case_team_roles (
   id              uuid primary key default gen_random_uuid(),
   case_id         uuid not null references client_cases(id) on delete cascade,
@@ -70,7 +74,11 @@ create table case_team_roles (
   assigned_by     uuid not null,
   started_at      timestamptz not null default now(),
   ended_at        timestamptz,
-  end_reason      text
+  end_reason      text,
+  constraint case_team_roles_team_role_check
+    check (team_role = any (array['lead','care_team','student'])),
+  constraint case_team_student_requires_supervisor
+    check (team_role <> 'student' or supervisor_id is not null)
 );
 
 create table client_practitioner_links (

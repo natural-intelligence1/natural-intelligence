@@ -140,12 +140,12 @@ beforeEach(async () => {
 
     insert into case_team_roles (case_id, practitioner_id, team_role, assigned_by) values
       ('${CASE_A}', '${LEAD}',  'lead',      '${LEAD}'),
-      ('${CASE_A}', '${ASSOC}', 'associate', '${LEAD}');
+      ('${CASE_A}', '${ASSOC}', 'care_team', '${LEAD}');
     insert into case_team_roles (case_id, practitioner_id, team_role, supervisor_id, assigned_by)
       values ('${CASE_A}', '${STUDENT}', 'student', '${LEAD}', '${LEAD}');
 
     insert into test_eligibility (practitioner_id, case_role, eligible) values
-      ('${LEAD}', 'lead', true), ('${ASSOC}', 'associate', true),
+      ('${LEAD}', 'lead', true), ('${ASSOC}', 'care_team', true),
       ('${STUDENT}', 'student', true);
   `)
 })
@@ -326,7 +326,7 @@ describe('sign-off authority', () => {
   })
 
   it('the eligibility check itself refuses when RLS is not the gate', async () => {
-    // Isolates the trigger from RLS: grant case access via the associate
+    // Isolates the trigger from RLS: grant case access via the care_team
     // role, keep an active lead role, but fail 'lead' eligibility. Access
     // passes, so the statement reaches the trigger — which must refuse.
     const session = await startSession()
@@ -958,13 +958,40 @@ describe('RLS: student / supervised access', () => {
     expect(await rows(`select id from case_taking_answers`)).toHaveLength(1)
   })
 
-  it('a student with NO supervisor is denied', async () => {
+  it('a student with NO supervisor is structurally impossible, not merely denied', async () => {
+    // The access function checks supervisor_id IS NULL, but the live
+    // catalogue makes that state unreachable: case_team_student_requires_
+    // supervisor refuses it. So the real defence is the constraint, and the
+    // null branch in the access function is belt and braces. Asserting the
+    // constraint is the honest test; the earlier version of this test only
+    // passed because the scaffold was missing it.
+    await asOwner()
+    expect(await refusal(`update case_team_roles set supervisor_id = null
+                           where practitioner_id = '${STUDENT}'`))
+      .toMatch(/case_team_student_requires_supervisor/i)
+    expect(await refusal(`
+      insert into case_team_roles (case_id, practitioner_id, team_role, assigned_by)
+      values ('${CASE_A}', '${OUTSIDER}', 'student', '${LEAD}')`))
+      .toMatch(/case_team_student_requires_supervisor/i)
+  })
+
+  it('a student supervised by someone with no active role on the case is denied', async () => {
+    // The reachable failure: the supervisor exists but holds no active
+    // non-student role here, so supervision is nominal.
     const session = await startSession()
     await asOwner()
-    await db.exec(`update case_team_roles set supervisor_id = null
+    await db.exec(`update case_team_roles set supervisor_id = '${OUTSIDER}'
                     where practitioner_id = '${STUDENT}'`)
     await as(STUDENT)
     expect(await rows(`select id from case_taking_sessions where id='${session}'`)).toHaveLength(0)
+  })
+
+  it('refuses a team_role outside the live domain', async () => {
+    await asOwner()
+    expect(await refusal(`
+      insert into case_team_roles (case_id, practitioner_id, team_role, assigned_by)
+      values ('${CASE_A}', '${OUTSIDER}', 'associate', '${LEAD}')`))
+      .toMatch(/case_team_roles_team_role_check/i)
   })
 
   it('a student whose supervisor has left the case is denied', async () => {

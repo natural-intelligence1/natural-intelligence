@@ -41,10 +41,25 @@
 //
 // ── NOTHING HERE PERSISTS ───────────────────────────────────────────────────
 //
-// This is the state machine and the authority rules, unit-tested. Storing a
-// case-taking state needs a table that does not exist, and creating one needs
-// Founder approval, so the Cockpit holds the state in the session exactly as
-// it holds captured answers. The proposal is in the mission report.
+// This is the state machine and the authority rules, unit-tested. The Cockpit
+// holds the state in the session exactly as it holds captured answers.
+//
+// ── IF YOU ARE ABOUT TO PERSIST THIS, READ caseTakingSignOff.ts FIRST ───────
+//
+// signOff() below sets signedOffBy / signedOffAt on an IN-MEMORY record. It
+// checks the actor is the Lead on the case and is signing as themselves, but
+// it does NOT check practitioner_eligibility — nothing here touches a
+// database, so there is nothing for it to protect.
+//
+// The moment a case-taking record is actually stored, that changes. Migration
+// 0066 adds the table, and the ONLY supported way to set signed_off_at /
+// signed_off_by on a stored session is signOffCaseTakingSession() in
+// ./caseTakingSignOff, which runs the full authority guard first. The database
+// trigger cannot stand in for it: like the live Protocol trigger, it waves
+// through a caller with no auth.uid(), which is every service-role path.
+//
+// So: do not add a database write to this file. A structural test
+// (caseTakingSignOffPath.structure.test.ts) fails if you do.
 
 import type { CaptureActor } from './capture'
 
