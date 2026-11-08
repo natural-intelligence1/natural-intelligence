@@ -1915,6 +1915,7 @@ export type Database = {
           best_self_recovery_goal: string | null
           best_self_sleep: string | null
           biggest_barrier: string | null
+          case_id: string | null
           completed_sections: number | null
           concern_duration: string | null
           consent_given_at: string | null
@@ -1966,6 +1967,7 @@ export type Database = {
           best_self_recovery_goal?: string | null
           best_self_sleep?: string | null
           biggest_barrier?: string | null
+          case_id?: string | null
           completed_sections?: number | null
           concern_duration?: string | null
           consent_given_at?: string | null
@@ -2017,6 +2019,7 @@ export type Database = {
           best_self_recovery_goal?: string | null
           best_self_sleep?: string | null
           biggest_barrier?: string | null
+          case_id?: string | null
           completed_sections?: number | null
           concern_duration?: string | null
           consent_given_at?: string | null
@@ -2061,6 +2064,27 @@ export type Database = {
           working_with_practitioners?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "intake_responses_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "care_team_health_profile"
+            referencedColumns: ["case_id"]
+          },
+          {
+            foreignKeyName: "intake_responses_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "client_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_responses_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "practitioner_case_index"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "intake_responses_member_id_fkey"
             columns: ["member_id"]

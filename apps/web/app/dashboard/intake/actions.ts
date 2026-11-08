@@ -8,6 +8,7 @@ import {
 } from '@natural-intelligence/db'
 import { routeIntakeAssignment }      from '@natural-intelligence/db/practitioners'
 import { assertIntakeCollectionEnabled } from '@natural-intelligence/db/intake'
+import { linkIntakeCompletionToCase } from '@natural-intelligence/db/crt'
 import { generateHealthSynopsis }    from '../synopsis/actions'
 import { generateBodyStory }         from '../story/actions'
 
@@ -147,11 +148,44 @@ export async function completeIntake(consentData: {
   // that this was acceptable because both intake kill-switches were
   // default-off. Both clauses are obsolete: client_rights_requests exists
   // (0051 is applied), and the 13 September ruling opened collection.)
+  // ─── MANDATORY: establish case identity ────────────────────────────────────
+  //
+  // This is the one operation on this path that is NOT fire-and-forget, and
+  // it deliberately runs before everything optional below.
+  //
+  // Case identity used to be a side effect of generateBodyStory(). When the
+  // AI hold switched that generator off, case creation went with it —
+  // silently, because the caller's .catch() swallowed the result. Completed
+  // Intakes then produced no case at all, which is how one real member
+  // finished an Intake in September and still has none.
+  //
+  // It also runs BEFORE the restriction check below. A member who has
+  // withdrawn AI-processing consent has still completed an Intake and still
+  // needs a case; a restriction must suppress interpretation, not identity.
+  //
+  // No try/catch. If identity cannot be established the error reaches the
+  // caller and completion reports failure, because telling someone their
+  // Intake is complete when nothing can be traced to it is a lie with
+  // clinical consequences.
+  const spine = await linkIntakeCompletionToCase(createAdminClient(), user.id)
+  console.log(JSON.stringify({
+    event: 'intake.case.resolved',
+    member_id: user.id,
+    case_id: spine.caseId,
+    outcome: spine.outcome,
+    case_status: spine.caseStatus,
+    already_linked: spine.alreadyLinked,
+  }))
+
   const restricted = await isProcessingBlocked(createAdminClient(), user.id, 'ai_assisted_processing')
   if (restricted) {
     console.log(JSON.stringify({ event: 'intake.processing.blocked_by_restriction', member_id: user.id }))
     return
   }
+
+  // ─── OPTIONAL from here down ───────────────────────────────────────────────
+  // Every call below may fail, be held or be disabled. None of them can
+  // invalidate the completion or the case identity established above.
 
   // Fire-and-forget: synopsis page shows generating state with meta refresh
   generateHealthSynopsis(user.id).catch((err) => {
