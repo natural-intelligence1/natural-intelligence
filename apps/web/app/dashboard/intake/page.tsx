@@ -12,6 +12,16 @@ export const metadata: Metadata = {
   description: 'Complete your health intake to receive a personalised health synopsis.',
 }
 
+// Next patches global fetch and caches GET responses in its Data Cache, and
+// supabase-js reads through that fetch. This page seeds the whole form from
+// intake_responses — including `completed_sections`, which decides the step
+// the client resumes at — so a cached read would drop someone at the wrong
+// question, or show a completed Intake as still in progress. Observed on the
+// admin review surface, which rendered a stale row for minutes after it
+// changed; fixed there the same way.
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+
 // Containment patch: shown instead of the live form while intake collection is
 // disabled (INTAKE_COLLECTION_ENABLED !== "true"). No health-data fields render,
 // which also removes the client-side intake_answers write path.

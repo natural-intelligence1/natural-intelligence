@@ -38,6 +38,17 @@ export interface UseIntakeAnswersResult {
   hydrationError: string | null
   /** Highest section number found in DB rows; 0 when no prior answers. */
   resumeSection:  number
+  /**
+   * Question ids the client has actually interacted with — seeded on resume
+   * from the answers already stored, then added to on every save.
+   *
+   * The legacy `intake_responses` projection needs this to tell "reached and
+   * left blank" from "never asked". FormState cannot: it initialises every
+   * string field to '', so an untouched question looks identical to a
+   * deliberately empty one. A persisted answer row is the only evidence the
+   * client was ever shown the question.
+   */
+  reachedQuestions: ReadonlySet<string>
   /** C5.5 — save status for UI indicator */
   saveStatus:     SaveStatus
   /** C5.5 — retry the last failed save */
@@ -60,6 +71,8 @@ export function useIntakeAnswers({
   const [isHydrating,    setIsHydrating]    = useState(true)
   const [hydrationError, setHydrationError] = useState<string | null>(null)
   const [resumeSection,  setResumeSection]  = useState(0)
+  // Questions the client has actually been shown and interacted with.
+  const [reachedQuestions, setReachedQuestions] = useState<ReadonlySet<string>>(() => new Set())
 
   // C5.5 — save status
   const [saveStatus,     setSaveStatus]     = useState<SaveStatus>('idle')
@@ -148,6 +161,14 @@ export function useIntakeAnswers({
         }
 
         setForm(prev => ({ ...prev, ...patch }))
+        // A stored answer row is proof the client reached that question, even
+        // if its value is empty. Seeding this here means a resumed session
+        // does not re-record earlier blanks as "never asked".
+        setReachedQuestions(prev => {
+          const next = new Set(prev)
+          for (const row of data) next.add(String(row.question_id))
+          return next
+        })
         setResumeSection(maxSection)
         setIsHydrating(false)
       })
@@ -210,6 +231,15 @@ export function useIntakeAnswers({
       // Optimistic local update — always immediate, never blocked by DB
       setForm(prev => ({ ...prev, [questionId]: value as FormState[typeof questionId] }))
 
+      // Reached regardless of whether the DB write lands: the client saw the
+      // question and interacted with it, which is what the flag means.
+      setReachedQuestions(prev => {
+        if (prev.has(questionId as string)) return prev
+        const next = new Set(prev)
+        next.add(questionId as string)
+        return next
+      })
+
       if (!sessionId) return   // session not yet bootstrapped; local-only for now
 
       fireSave({
@@ -232,6 +262,7 @@ export function useIntakeAnswers({
     isHydrating,
     hydrationError,
     resumeSection,
+    reachedQuestions,
     saveStatus,
     retryLastSave,
   }

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { saveIntakeSection, completeIntake } from './actions'
+import { getSectionData } from '@/lib/intake/sectionProjection'
 import IntakeVisualScale    from './components/IntakeVisualScale'
 import BristolStoolSelector from './components/BristolStoolSelector'
 import TimingSelector       from './components/TimingSelector'
@@ -523,51 +524,9 @@ function initialState(
 //   case 8  ← after step 7  (Mind)
 //   case 9  ← after step 8  (Goals stub)      ← shrinks after Phase 1 deletions
 //   case 10 ← after step 9  (Readiness stub)  ← shrinks after Phase 1 deletions
-function getSectionData(f: FormState, s: number, primarySystem: string): Record<string, unknown> {
-  switch (s) {
-    case 1: return { arrival_emotion: f.arrival_emotion || null }
-    case 2: return {
-      primary_concerns:        f.primary_concerns,
-      concern_duration:        f.concern_duration || null,
-      symptom_pattern:         f.symptom_pattern || null,
-      primary_system:          primarySystem,
-      // Sprint B Phase 1 — signature question lives on intake_responses
-      most_want_to_understand: f.most_want_to_understand || null,
-    }
-    case 3: return {
-      timeline_last_well:      f.timeline_last_well || null,
-      // Sprint B Phase 2 — Best Self Baseline flushes to intake_responses
-      // when leaving Chapter 2 (step 2). Downstream (body story, synopsis,
-      // practitioner workspace, What We Heard Pattern F) reads these.
-      best_self_description:   f.best_self_description   || null,
-      best_self_sleep:         f.best_self_sleep         || null,
-      best_self_energy:        f.best_self_energy        || null,
-      best_self_mood:          f.best_self_mood          || null,
-      best_self_recovery_goal: f.best_self_recovery_goal || null,
-    }
-    case 4: return { timeline_trigger:   f.timeline_trigger   || null }
-    case 5: return { systems_reviewed:   f.systems_reviewed,   primary_system: primarySystem }
-    case 6: return { sleep_hours: f.sleep_hours, sleep_quality: f.sleep_quality, stress_level: f.stress_level, energy_level: f.energy_level, exercise_frequency: f.exercise_frequency || null, diet_description: f.diet_description || null }
-    case 7: return {
-      // Sprint B Phase 1 — practitioner_types + surgeries_or_injuries removed.
-      diagnosed_conditions: f.diagnosed_conditions,
-      current_medications:  f.current_medications || null,
-      current_supplements:  f.current_supplements || null,
-      past_treatments:      f.past_treatments || null,
-      family_history:       f.family_history,
-    }
-    case 8: return { psychosocial_impact: f.psychosocial_impact || null, psychosocial_worry: f.psychosocial_worry || null, psychosocial_supported: f.psychosocial_supported ? ['alone', 'not_really'].includes(f.psychosocial_supported) ? false : true : null }
-    // Sprint B Phase 1 — case 9 (Goals stub) is now empty after the
-    // health_goals / timeline_expectation / biggest_barrier deletions.
-    // Returns {} so the section transition still saves completed_sections.
-    case 9: return {}
-    // Sprint B Phase 1 — case 10 (Readiness stub): readiness_time and
-    // readiness_change removed; only readiness_budget remains for now
-    // (architecture §10 recommends moving to onboarding later).
-    case 10: return { readiness_budget: f.readiness_budget || null }
-    default: return {}
-  }
-}
+// getSectionData moved to lib/intake/sectionProjection.ts so it can be tested.
+// It now also takes the set of questions the client actually reached, so a
+// deliberate blank is no longer stored as "never asked". See that file.
 
 // ─── Sprint 16.3 Tier 1 constants ────────────────────────────────────────────
 
@@ -1953,6 +1912,7 @@ export function IntakeForm({
     isHydrating,
     hydrationError,
     resumeSection,
+    reachedQuestions,
     saveStatus,
     retryLastSave,
   } = useIntakeAnswers({
@@ -2065,14 +2025,14 @@ export function IntakeForm({
     setSaving(true)
     setError(null)
     try {
-      await saveIntakeSection(getSectionData(form, section + 1, section2Branch), section + 1)
+      await saveIntakeSection(getSectionData(form, section + 1, section2Branch, reachedQuestions), section + 1)
       transition(() => setSection(s => s + 1))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setSaving(false)
     }
-  }, [form, section, section2Branch])
+  }, [form, section, section2Branch, reachedQuestions])
 
   const handleBack = useCallback(() => {
     if (section <= 0) return
@@ -2090,14 +2050,14 @@ export function IntakeForm({
     try {
       // Sprint B Phase 1 — was case 9 in the old 10-section flow; final
       // case is now 10 in the new 11-step (Chapter 5) flow.
-      await saveIntakeSection(getSectionData(form, 10, section2Branch), 10)
+      await saveIntakeSection(getSectionData(form, 10, section2Branch, reachedQuestions), 10)
       await completeIntake({ consent_to_ai_analysis: true, consent_given_at: new Date().toISOString() })
       router.push('/dashboard/synopsis')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setSaving(false)
     }
-  }, [consent, form, router, section2Branch])
+  }, [consent, form, router, section2Branch, reachedQuestions])
 
   const isSection0  = section === 0
   const isLastSection = section === TOTAL - 1

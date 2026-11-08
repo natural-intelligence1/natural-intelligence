@@ -4,62 +4,66 @@ import type {
   FounderReviewRefusal,
   FounderReviewListRow,
 } from '@natural-intelligence/db/crt'
-import {
-  REVIEW_SECTIONS,
-  RETIRED_RESPONSE_FIELDS,
-  RECORD_FIELDS,
-  RESPONSE_METADATA_COLUMNS,
-  REGISTERED_RESPONSE_KEYS,
-  REGISTERED_KEYS,
-  type ReviewField,
-} from './fields'
+import type {
+  CanonicalAnswer,
+  CanonicalIntake,
+  SupportLevel,
+} from '@natural-intelligence/db/intake'
 
 // ─── Founder Review Mode — presentation ──────────────────────────────────────
 // Separated from the route so the admin guard and the data read sit in the
-// page and this file does nothing but render what it was handed. It takes a
-// FounderReviewCase as a prop and has no client, no query and no fallback: if
-// a field is absent from the data, it says so.
+// page and this file does nothing but render what it was handed.
+//
+// It resolves NOTHING. Every answer arrives already decided by the shared
+// canonical projection (packages/db getCanonicalIntake): which store won, how
+// the shape was normalised, which session it came from, what was superseded.
+// The bespoke "column empty, intake_answers has a value" fallback that used to
+// live here is gone — that judgement belongs in one place, and this is not it.
 //
 // No form, no button, no input, no action, no mutation verb. Asserted by
 // packages/db/src/crt/founderReviewBoundary.test.ts, which sweeps this whole
 // directory rather than trusting the claim.
 
-const NOT_ANSWERED = 'Not answered'
+/** How a stored value reads as English. Shape-aware, never interpretive. */
+function present(a: CanonicalAnswer): string {
+  if (a.status === 'unanswered') return 'Not answered'
 
-/** Render a stored value honestly. Each shape gets its own plain-English form,
- *  and the differences matter clinically: a question never reached is not the
- *  same as one reached and left blank, and an empty multi-select is not the
- *  same as no answer at all. */
-export function present(value: unknown): { text: string; answered: boolean } {
-  if (value === null || value === undefined) return { text: NOT_ANSWERED, answered: false }
-  if (typeof value === 'string') {
-    const t = value.trim()
-    return t === '' ? { text: 'Reached, left blank', answered: false } : { text: value, answered: true }
+  const v = a.value
+  if (v === null || v === undefined) return 'Not answered'
+
+  if (typeof v === 'object' && v !== null && 'supported' in (v as object)) {
+    const s = v as SupportLevel
+    if (s.key) return s.key.replace(/_/g, ' ')
+    if (s.supported !== null) return s.supported ? 'Supported' : 'Not supported'
+    return 'Reached, nothing recorded'
   }
-  if (typeof value === 'boolean') return { text: value ? 'Yes' : 'No', answered: true }
-  if (typeof value === 'number') return { text: String(value), answered: true }
-  if (Array.isArray(value)) {
-    return value.length === 0
-      ? { text: 'Reached, nothing selected', answered: false }
-      : {
-          text: value.map((v) => (typeof v === 'string' ? v : JSON.stringify(v))).join(' · '),
-          answered: true,
-        }
+
+  if (typeof v === 'string') return v.trim() === '' ? 'Reached, left blank' : v
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  if (typeof v === 'number') return String(v)
+  if (Array.isArray(v)) {
+    return v.length === 0
+      ? 'Reached, nothing selected'
+      : v.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' · ')
   }
-  if (typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>).filter(
-      ([, v]) => v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0),
+  if (typeof v === 'object') {
+    const entries = Object.entries(v as Record<string, unknown>).filter(
+      ([, x]) => x !== null && x !== undefined && x !== '' && !(Array.isArray(x) && x.length === 0),
     )
     return entries.length === 0
-      ? { text: 'Reached, nothing recorded', answered: false }
-      : {
-          text: entries
-            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : String(v)}`)
-            .join(' · '),
-          answered: true,
-        }
+      ? 'Reached, nothing recorded'
+      : entries.map(([k, x]) => `${k}: ${Array.isArray(x) ? x.join(', ') : String(x)}`).join(' · ')
   }
-  return { text: String(value), answered: true }
+  return String(v)
+}
+
+function presentRaw(v: unknown): string {
+  if (v === null || v === undefined) return '—'
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  if (Array.isArray(v)) return v.length === 0 ? 'Empty list' : v.map(String).join(' · ')
+  if (typeof v === 'object') return JSON.stringify(v)
+  const s = String(v)
+  return s.trim() === '' ? 'Empty' : s
 }
 
 function ukDate(iso: string | null): string {
@@ -104,31 +108,54 @@ function Facts({ rows }: { rows: Array<[string, React.ReactNode]> }) {
   )
 }
 
-function AnswerRow({
-  field,
-  value,
-  fromAnswerRowOnly = false,
-}: {
-  field: ReviewField
-  value: unknown
-  /** The denormalised column is empty and this came from intake_answers. */
-  fromAnswerRowOnly?: boolean
-}) {
-  const { text, answered } = present(value)
+/** One canonical answer, with its provenance shown only where it matters. */
+function AnswerRow({ answer }: { answer: CanonicalAnswer }) {
+  const text = present(answer)
+  const plain = answer.status === 'answered'
+  const notes: string[] = []
+
+  if (answer.conditional && answer.status === 'unanswered') {
+    notes.push('conditional, may not have been shown')
+  }
+  // Provenance worth surfacing: the answer store disagreed with the legacy
+  // column, or the legacy column is all that survives.
+  if (answer.source === 'legacy_column') {
+    notes.push('from the legacy column — no answer row exists')
+  }
+  if (answer.superseded.length > 0) {
+    notes.push(
+      answer.superseded.length === 1
+        ? 'revised — 1 earlier answer on record'
+        : `revised — ${answer.superseded.length} earlier answers on record`,
+    )
+  }
+
   return (
     <div className="py-2.5 border-t border-border-muted first:border-t-0">
       <p className="text-xs text-text-muted mb-1">
-        {field.label}
-        {field.conditional && !answered && (
-          <span className="ml-1.5">· conditional, may not have been shown</span>
-        )}
-        {fromAnswerRowOnly && (
-          <span className="ml-1.5">· recorded in intake_answers only, column is empty</span>
-        )}
+        {answer.label}
+        {notes.map((n) => (
+          <span key={n} className="ml-1.5">
+            · {n}
+          </span>
+        ))}
       </p>
-      <p className={answered ? 'text-sm text-text-primary break-words' : 'text-sm text-text-muted italic'}>
+      <p className={plain ? 'text-sm text-text-primary break-words' : 'text-sm text-text-muted italic'}>
         {text}
       </p>
+      {answer.superseded.length > 0 && (
+        <details className="mt-1.5">
+          <summary className="text-[11px] text-text-brand cursor-pointer">Earlier answers</summary>
+          <ul className="mt-1 pl-3 border-l border-border-muted space-y-1">
+            {answer.superseded.map((s, i) => (
+              <li key={i} className="text-xs text-text-muted break-words">
+                {presentRaw(s.value)}
+                <span className="ml-1.5">· {ukDateTime(s.answeredAt)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   )
 }
@@ -216,49 +243,70 @@ export function FounderReviewRefusedView({
   )
 }
 
-export function FounderReviewView({ data: c }: { data: FounderReviewCase }) {
-  const answerByKey = new Map(c.answers.map((a) => [a.questionId, a.value]))
-  const responseValues = c.response?.values ?? {}
-
-  /**
-   * Resolve a field from whichever canonical row actually holds it.
-   *
-   * The form's persist() writes BOTH the denormalised intake_responses column
-   * and a per-question intake_answers row. They can disagree — Tree Khan has
-   * a most_want_to_understand answer row while the column is NULL — and when
-   * they do, reporting "Not answered" from the column alone would be wrong:
-   * the client reached the question. So the answer row is used as the
-   * fallback, and the page says where the value came from.
-   */
-  const resolve = (field: ReviewField): { value: unknown; fromAnswerRowOnly: boolean } => {
-    if (field.source === 'answer') {
-      return { value: answerByKey.get(field.key), fromAnswerRowOnly: false }
-    }
-    const column = responseValues[field.key]
-    if ((column === null || column === undefined) && answerByKey.has(field.key)) {
-      return { value: answerByKey.get(field.key), fromAnswerRowOnly: true }
-    }
-    return { value: column, fromAnswerRowOnly: false }
+function IntakeStatePanel({ intake, caseId }: { intake: CanonicalIntake; caseId: string }) {
+  const c = intake.completion
+  if (c === null) {
+    return (
+      <Panel title="Intake state">
+        <p className="text-sm text-text-muted italic">
+          No Intake response. This member has no row in intake_responses.
+        </p>
+      </Panel>
+    )
   }
 
-  // Anything stored that this registry does not label. Surfaced rather than
-  // dropped: a review surface that silently hides a populated column is not a
-  // review surface.
-  const unregisteredColumns = Object.entries(responseValues).filter(
-    ([k, v]) =>
-      !RESPONSE_METADATA_COLUMNS.has(k) &&
-      !REGISTERED_RESPONSE_KEYS.has(k) &&
-      v !== null &&
-      v !== undefined,
-  )
-  // Checked against BOTH key sets: persist() dual-writes, so a question
-  // labelled as a column is also a legitimate answer row.
-  const unregisteredAnswers = c.answers.filter((a) => !REGISTERED_KEYS.has(a.questionId))
-  const retiredWithValues = RETIRED_RESPONSE_FIELDS.filter(
-    (f) => responseValues[f.key] !== null && responseValues[f.key] !== undefined,
-  )
+  const linkageOk = c.linkedCaseId === caseId
 
-  const linkageOk = c.response !== null && c.response.linkedCaseId === c.caseId
+  return (
+    <Panel title="Intake state">
+      <Facts
+        rows={[
+          ['Intake version', c.version !== null ? `v${c.version}` : '—'],
+          ['Completion', c.isComplete ? 'Completed' : 'In progress'],
+          ['Completion recorded', c.isComplete ? ukDateTime(c.updatedAt) : '—'],
+          [
+            'Section progress',
+            c.completedSections !== null
+              ? `${c.completedSections} sections recorded as complete`
+              : '—',
+          ],
+          [
+            'Questions answered',
+            `${intake.answeredCount} of ${intake.questionCount} in the question registry`,
+          ],
+          ['Response ID', <span key="r" className="font-mono text-xs break-all">{c.responseId}</span>],
+          [
+            'Case linkage',
+            linkageOk ? (
+              <span key="l" className="text-status-successText break-all">
+                Linked to this case · {c.linkedCaseId}
+              </span>
+            ) : c.linkedCaseId === null ? (
+              <span key="l" className="text-status-warningText">
+                Not linked — intake_responses.case_id is NULL
+              </span>
+            ) : (
+              <span key="l" className="text-status-errorText break-all">
+                Linked to a DIFFERENT case · {c.linkedCaseId}
+              </span>
+            ),
+          ],
+          [
+            'AI analysis consent',
+            c.consentToAi === null
+              ? 'Not recorded'
+              : c.consentToAi
+                ? `Given${c.consentGivenAt ? ` on ${ukDate(c.consentGivenAt)}` : ''}`
+                : 'Not given',
+          ],
+        ]}
+      />
+    </Panel>
+  )
+}
+
+export function FounderReviewView({ data: c }: { data: FounderReviewCase }) {
+  const intake = c.intake
 
   return (
     <div className="p-8 max-w-4xl">
@@ -304,154 +352,92 @@ export function FounderReviewView({ data: c }: { data: FounderReviewCase }) {
         />
       </Panel>
 
-      <Panel title="Intake state">
-        {c.response === null ? (
-          <p className="text-sm text-text-muted italic">
-            No Intake response. This member has no row in intake_responses.
-          </p>
-        ) : (
-          <Facts
-            rows={[
-              ['Intake version', c.response.version !== null ? `v${c.response.version}` : '—'],
-              ['Completion', c.response.isComplete ? 'Completed' : 'In progress'],
-              ['Completion recorded', c.response.isComplete ? ukDateTime(c.response.updatedAt) : '—'],
-              [
-                'Section progress',
-                c.response.completedSections !== null
-                  ? `${c.response.completedSections} sections recorded as complete`
-                  : '—',
-              ],
-              ['Response ID', <span key="r" className="font-mono text-xs break-all">{c.response.id}</span>],
-              [
-                'Case linkage',
-                linkageOk ? (
-                  <span key="l" className="text-status-successText break-all">
-                    Linked to this case · {c.response.linkedCaseId}
-                  </span>
-                ) : c.response.linkedCaseId === null ? (
-                  <span key="l" className="text-status-warningText">
-                    Not linked — intake_responses.case_id is NULL
-                  </span>
-                ) : (
-                  <span key="l" className="text-status-errorText break-all">
-                    Linked to a DIFFERENT case · {c.response.linkedCaseId}
-                  </span>
-                ),
-              ],
-              [
-                'AI analysis consent',
-                c.response.consentToAi === null
-                  ? 'Not recorded'
-                  : c.response.consentToAi
-                    ? `Given${c.response.consentGivenAt ? ` on ${ukDate(c.response.consentGivenAt)}` : ''}`
-                    : 'Not given',
-              ],
-              ...RECORD_FIELDS.map((f): [string, React.ReactNode] => {
-                const { text, answered } = present(responseValues[f.key])
-                return [f.label, answered ? text : <span className="text-text-muted italic">{text}</span>]
-              }),
-            ]}
-          />
-        )}
-      </Panel>
+      <IntakeStatePanel intake={intake} caseId={c.caseId} />
 
-      <Panel title="Intake session" note="The session row records how the client moved through the form.">
-        {c.session === null ? (
+      <Panel
+        title="Intake sessions"
+        note="Every sitting the client has had at the form. Older sessions are history and are kept."
+      >
+        {intake.sessions.length === 0 ? (
           <p className="text-sm text-text-muted italic">
             No Intake session. This member has no row in intake_sessions.
           </p>
         ) : (
-          <Facts
-            rows={[
-              ['Session status', c.session.status],
-              ['Started', ukDateTime(c.session.startedAt)],
-              ['Completed', ukDateTime(c.session.completedAt)],
-              [
-                'Position when last saved',
-                c.session.currentSection ?? <span className="text-text-muted italic">—</span>,
-              ],
-              [
-                'Progress recorded on session',
-                c.session.completionPercentage !== null ? `${c.session.completionPercentage}%` : '—',
-              ],
-              [
-                'Questions answered / shown',
-                `${c.session.answeredCount ?? 0} / ${c.session.visibleCount ?? 0}`,
-              ],
-              ['Safety prompts flagged', String(c.session.redFlagCount ?? 0)],
-              ['Stored answer rows', `${c.answers.length} in intake_answers`],
-            ]}
-          />
+          <div className="space-y-2">
+            {intake.sessions.map((s) => (
+              <div key={s.id} className="py-2 border-t border-border-muted first:border-t-0">
+                <p className="text-sm text-text-primary">
+                  {s.status}
+                  {s.isCurrent && (
+                    <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-status-successBg text-status-successText border border-status-successBorder align-middle">
+                      CURRENT ANSWERS
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-text-muted mt-0.5">
+                  started {ukDateTime(s.startedAt)}
+                  {s.completedAt ? ` · completed ${ukDateTime(s.completedAt)}` : ' · not completed'}
+                  {` · ${s.answerCount} answer rows`}
+                </p>
+                <p className="text-[11px] text-text-muted mt-0.5 font-mono break-all">{s.id}</p>
+              </div>
+            ))}
+          </div>
         )}
       </Panel>
 
       <Panel
         title="Client-reported content"
-        note="The client's own answers, as stored. Nothing here is interpreted, scored or summarised."
+        note="The client's own answers, resolved by the shared canonical projection. Nothing here is interpreted, scored or summarised."
       >
-        {c.response === null && c.answers.length === 0 ? (
+        {intake.answeredCount === 0 && intake.sessions.length === 0 && intake.completion === null ? (
           <p className="text-sm text-text-muted italic">
             No Intake response and no stored answers, so there is nothing the client has reported.
           </p>
         ) : (
           <div className="space-y-6">
-            {REVIEW_SECTIONS.map((section) => {
-              const answeredCount = section.fields.filter((f) => present(resolve(f).value).answered).length
-              return (
-                <div key={section.id}>
-                  <div className="flex items-baseline justify-between gap-3 mb-1">
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
-                      {section.title}
-                    </h3>
-                    <span className="text-[11px] text-text-muted shrink-0">
-                      {answeredCount} of {section.fields.length} answered
-                    </span>
-                  </div>
-                  <div>
-                    {section.fields.map((f) => {
-                      const r = resolve(f)
-                      return (
-                        <AnswerRow
-                          key={`${f.source}:${f.key}`}
-                          field={f}
-                          value={r.value}
-                          fromAnswerRowOnly={r.fromAnswerRowOnly}
-                        />
-                      )
-                    })}
-                  </div>
+            {intake.sections.map((section) => (
+              <div key={section.id}>
+                <div className="flex items-baseline justify-between gap-3 mb-1">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+                    {section.title}
+                  </h3>
+                  <span className="text-[11px] text-text-muted shrink-0">
+                    {section.answeredCount} of {section.answers.length} answered
+                  </span>
                 </div>
-              )
-            })}
+                <div>
+                  {section.answers.map((a) => (
+                    <AnswerRow key={a.questionId} answer={a} />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </Panel>
 
-      {retiredWithValues.length > 0 && (
+      {intake.legacyOnly.length > 0 && (
         <Panel
-          title="Retired fields holding a value"
-          note="The form no longer asks these. Shown because the column is not empty."
+          title="Legacy fields holding a value"
+          note="Columns with no question behind them. Shown because they are not empty."
         >
-          {retiredWithValues.map((f) => (
-            <AnswerRow key={f.key} field={f} value={responseValues[f.key]} />
-          ))}
+          <Facts
+            rows={intake.legacyOnly.map((f): [string, React.ReactNode] => [
+              `${f.label}${f.kind === 'stale' ? ' · retired' : ' · derived'}`,
+              presentRaw(f.value),
+            ])}
+          />
         </Panel>
       )}
 
-      {(unregisteredColumns.length > 0 || unregisteredAnswers.length > 0) && (
+      {intake.unregistered.length > 0 && (
         <Panel
           title="Stored but unlabelled"
-          note="Present in the database with no question wording in this registry. Shown so nothing stored is hidden."
+          note="Answer rows with no entry in the question registry. Shown so nothing stored is hidden."
         >
-          {unregisteredColumns.map(([k, v]) => (
-            <AnswerRow key={`col:${k}`} field={{ key: k, label: k, source: 'response' }} value={v} />
-          ))}
-          {unregisteredAnswers.map((a) => (
-            <AnswerRow
-              key={`ans:${a.id}`}
-              field={{ key: a.questionId, label: a.questionId, source: 'answer' }}
-              value={a.value}
-            />
+          {intake.unregistered.map((a) => (
+            <AnswerRow key={a.questionId} answer={a} />
           ))}
         </Panel>
       )}
@@ -499,9 +485,9 @@ export function FounderReviewView({ data: c }: { data: FounderReviewCase }) {
       </Panel>
 
       <p className="text-xs text-text-muted">
-        Read from client_cases, profiles, intake_responses, intake_sessions, intake_answers,
-        case_taking_sessions and case_taking_answers. One case identity — no preview copy, no
-        snapshot, no fixture.
+        Answers resolved by the shared canonical Intake projection over client_cases, profiles,
+        intake_responses, intake_sessions, intake_answers, case_taking_sessions and
+        case_taking_answers. One case identity — no preview copy, no snapshot, no fixture.
       </p>
     </div>
   )

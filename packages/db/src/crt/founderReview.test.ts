@@ -159,16 +159,40 @@ describe('getFounderReviewCase — the test-data guard', () => {
   })
 })
 
-describe('getFounderReviewCase — honest empty states', () => {
-  it('returns null for an absent Intake response, not an empty shell', async () => {
+describe('getFounderReviewCase — the Intake is delegated, not re-resolved', () => {
+  it('hands back a canonical Intake rather than its own answer shape', async () => {
     const d = mkDouble({ client_cases: { data: CASE_ROW }, profiles: { data: TEST_PROFILE } })
     const result = await getFounderReviewCase(d.client, CASE_ID)
 
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.data.response).toBeNull()
-    expect(result.data.session).toBeNull()
-    expect(result.data.answers).toEqual([])
+    // The shape of the shared projection, not a bespoke one.
+    expect(result.data.intake).toBeDefined()
+    expect(Array.isArray(result.data.intake.sections)).toBe(true)
+    expect(Array.isArray(result.data.intake.sessions)).toBe(true)
+    expect(result.data.intake.memberId).toBe(MEMBER_ID)
+  })
+
+  it('reads the Intake tables through the projection, not itself', () => {
+    // The bespoke "column empty, intake_answers has a value" fallback used to
+    // live here. If it comes back, these queries come back with it.
+    expect(SOURCE).toContain('getCanonicalIntake')
+    for (const table of ['intake_responses', 'intake_answers', 'intake_sessions']) {
+      expect(SOURCE, `still queries ${table} itself`).not.toContain(`from('${table}')`)
+    }
+  })
+
+  it('resolves no answer of its own', () => {
+    // No precedence logic, no shape coercion, no emptiness judgement.
+    expect(SOURCE).not.toMatch(/most_want_to_understand|current_supplements|psychosocial_supported/)
+    expect(SOURCE).not.toMatch(/fromAnswerRowOnly|answerByKey/)
+  })
+
+  it('returns empty consultations rather than a placeholder', async () => {
+    const d = mkDouble({ client_cases: { data: CASE_ROW }, profiles: { data: TEST_PROFILE } })
+    const result = await getFounderReviewCase(d.client, CASE_ID)
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
     expect(result.data.consultations).toEqual([])
   })
 
@@ -206,76 +230,6 @@ describe('getFounderReviewCase — honest empty states', () => {
       ['s1', 2],
       ['s2', 1],
     ])
-  })
-
-  it('surfaces an unlinked response as null rather than guessing the case', async () => {
-    const d = mkDouble({
-      client_cases: { data: CASE_ROW },
-      profiles: { data: TEST_PROFILE },
-      intake_responses: {
-        data: { id: 'r1', member_id: MEMBER_ID, case_id: null, is_complete: true, completed_sections: 6 },
-      },
-    })
-    const result = await getFounderReviewCase(d.client, CASE_ID)
-
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.data.response?.linkedCaseId).toBeNull()
-  })
-
-  it('carries every stored column through verbatim', async () => {
-    const row = {
-      id: 'r1',
-      member_id: MEMBER_ID,
-      case_id: CASE_ID,
-      is_complete: true,
-      completed_sections: 6,
-      arrival_emotion: 'curious',
-      primary_concerns: [],
-      most_want_to_understand: '',
-      some_future_column: 'kept',
-    }
-    const d = mkDouble({
-      client_cases: { data: CASE_ROW },
-      profiles: { data: TEST_PROFILE },
-      intake_responses: { data: row },
-    })
-    const result = await getFounderReviewCase(d.client, CASE_ID)
-
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.data.response?.values).toEqual(row)
-    // An empty string and an empty array survive as themselves: the page needs
-    // to tell "reached and left blank" apart from "never answered".
-    expect(result.data.response?.values.most_want_to_understand).toBe('')
-    expect(result.data.response?.values.primary_concerns).toEqual([])
-  })
-
-  it('reports the session position without inventing progress', async () => {
-    const d = mkDouble({
-      client_cases: { data: CASE_ROW },
-      profiles: { data: TEST_PROFILE },
-      intake_sessions: {
-        data: {
-          id: 'sess1',
-          status: 'completed',
-          current_section: 'arrival',
-          completion_percentage: 0,
-          answered_question_ids: null,
-          visible_question_ids: null,
-          red_flag_count: 0,
-          started_at: '2026-11-04T22:55:46.899Z',
-          completed_at: '2026-11-08T02:44:05.339Z',
-        },
-      },
-    })
-    const result = await getFounderReviewCase(d.client, CASE_ID)
-
-    expect(result.ok).toBe(true)
-    if (!result.ok) return
-    expect(result.data.session?.completionPercentage).toBe(0)
-    expect(result.data.session?.answeredCount).toBeNull()
-    expect(result.data.session?.visibleCount).toBeNull()
   })
 })
 

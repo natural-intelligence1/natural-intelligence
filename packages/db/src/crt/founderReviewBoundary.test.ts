@@ -154,19 +154,35 @@ describe('Founder Review route — no fixture, no second source', () => {
   })
 })
 
-describe('Founder Review registry — labels, not answers', () => {
-  const fields = SOURCES.find((s) => s.path.endsWith('fields.ts'))!
-
-  it('carries no answer, value or default alongside its labels', () => {
-    expect(fields.text).not.toMatch(/^\s*(value|answer|example|default|sample)\s*:/m)
+describe('Founder Review holds no question model of its own', () => {
+  it('keeps no local registry — there is one, and it is shared', () => {
+    // The route used to carry its own fields.ts. A second copy of the
+    // question model is a second answer to "what was this client asked",
+    // which is exactly what the canonical projection exists to prevent.
+    const rel = FILES.map((f) => relative(REPO, f).replace(/\\/g, '/'))
+    expect(rel.some((p) => p.endsWith('/fields.ts'))).toBe(false)
+    expect(ALL).not.toMatch(/REVIEW_SECTIONS|RETIRED_RESPONSE_FIELDS|REGISTERED_RESPONSE_KEYS/)
   })
 
-  it('declares every field with a key, a label and a source only', () => {
-    const keys = new Set(
-      [...fields.text.matchAll(/^\s*(?:readonly\s+)?([a-zA-Z]+)\??:/gm)].map((m) => m[1]),
-    )
-    for (const k of keys) {
-      expect(['key', 'label', 'source', 'conditional', 'id', 'title', 'fields']).toContain(k)
+  it('reads the shared registry and projection from the db package', () => {
+    expect(ALL).toMatch(/@natural-intelligence\/db\/intake/)
+    expect(ALL).toMatch(/CanonicalAnswer|CanonicalIntake/)
+  })
+
+  it('resolves no answer itself — no precedence, no shape coercion', () => {
+    // The bespoke "column empty, intake_answers has a value" fallback lived
+    // in the view. If any of this reappears here, two surfaces can disagree
+    // about the same client again.
+    expect(ALL).not.toMatch(/fromAnswerRowOnly|answerByKey|responseValues/)
+    expect(ALL).not.toMatch(/current_supplements|psychosocial_supported/)
+    expect(ALL).not.toMatch(/\bresolve\s*=\s*\(/)
+  })
+
+  it('carries no answer, value or default of its own', () => {
+    for (const { path, text } of SOURCES) {
+      expect(text, `${path} declares a value or default`).not.toMatch(
+        /^\s*(value|answer|example|default|sample)\s*:/m,
+      )
     }
   })
 })

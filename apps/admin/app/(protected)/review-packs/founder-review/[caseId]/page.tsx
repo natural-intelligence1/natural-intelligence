@@ -6,6 +6,11 @@ import { FounderReviewView, FounderReviewRefusedView } from '../view'
 
 export const metadata: Metadata = { title: 'Founder Review' }
 export const dynamic = 'force-dynamic'
+// Next patches global fetch and caches GET responses in the Data Cache.
+// supabase-js reads through that fetch, so without this a reviewer could be
+// shown a stale case: the page rendered 'Completed / 6 sections' for several
+// minutes after the row had been reset in the database. Proven, not assumed.
+export const fetchCache = 'force-no-store'
 
 // ─── Founder Review Mode — the route ─────────────────────────────────────────
 // Stage 2 of the one-case walkthrough. The Founder sees the real synthetic
