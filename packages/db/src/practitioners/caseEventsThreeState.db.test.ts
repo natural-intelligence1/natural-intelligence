@@ -283,6 +283,8 @@ describe('STATE 3 — POST-0065 is the canonical chain', () => {
 // ── The whole point: no transient grant anywhere in the sequence ──────────
 
 describe('the release sequence contains no transient grant', () => {
+  // Builds THREE PGlite databases. ~4.2s on a quiet machine, which is too
+  // close to vitest's 5s default to be reliable; budget it explicitly.
   it('client and service policies are byte-identical across all three states', async () => {
     const states = await Promise.all(
       (['pre0064', 'post0064', 'post0065'] as Stage[]).map(async (s) => {
@@ -301,7 +303,7 @@ describe('the release sequence contains no transient grant', () => {
     expect(states[1].service).toBe(states[2].service)
     expect(states[0].member).toContain('client_cases')
     expect(states[0].service).toContain('service_role')
-  })
+  }, 30_000)
 
   it('practitioner access goes ALLOWED -> DENIED -> ALLOWED, never grant-to-grant', async () => {
     const seen: number[] = []
@@ -315,5 +317,5 @@ describe('the release sequence contains no transient grant', () => {
     // Stale grant, then denied, then still denied: the weak claim never
     // regains access, and the middle state is not the old rule.
     expect(seen).toEqual([1, 0, 0])
-  })
+  }, 30_000)
 })

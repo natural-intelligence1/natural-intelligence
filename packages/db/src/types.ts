@@ -4602,6 +4602,20 @@ export type Database = {
         Args: { p_case_id: string }
         Returns: boolean
       }
+      complete_intake_with_case: {
+        Args: {
+          p_completed_sections?: number
+          p_consent_given_at?: string
+          p_consent_to_ai?: boolean
+          p_member_id: string
+        }
+        Returns: {
+          already_linked: boolean
+          case_id: string
+          case_status: string
+          outcome: string
+        }[]
+      }
       complete_practitioner_work: {
         Args: {
           p_decision: string

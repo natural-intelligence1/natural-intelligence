@@ -109,30 +109,6 @@ export async function completeIntake(consentData: {
   if (!user) throw new Error('Unauthenticated')
   await assertIntakeConsents(supabase, user.id)   // Sprint 3: no consent, no completion
 
-  const { data: existing } = await supabase
-    .from('intake_responses')
-    .select('id, completed_sections')
-    .eq('member_id', user.id)
-    .maybeSingle()
-
-  const finalData = {
-    ...consentData,
-    is_complete: true,
-    completed_sections: 6,
-    updated_at: new Date().toISOString(),
-  }
-
-  if (existing) {
-    await supabase
-      .from('intake_responses')
-      .update(finalData)
-      .eq('member_id', user.id)
-  } else {
-    await supabase
-      .from('intake_responses')
-      .insert({ member_id: user.id, ...finalData })
-  }
-
   // Sprint 3 — restriction enforcement (purpose-aware, review amendment 1):
   // AI processing is blocked when the member has a GLOBAL restriction
   // (restriction / erasure / blanket withdrawal) OR has specifically withdrawn
@@ -148,16 +124,24 @@ export async function completeIntake(consentData: {
   // that this was acceptable because both intake kill-switches were
   // default-off. Both clauses are obsolete: client_rights_requests exists
   // (0051 is applied), and the 13 September ruling opened collection.)
-  // ─── MANDATORY: establish case identity ────────────────────────────────────
+  // ─── MANDATORY: completion AND case identity, in ONE transaction ──────────
   //
-  // This is the one operation on this path that is NOT fire-and-forget, and
-  // it deliberately runs before everything optional below.
+  // This single call persists the completion, creates or resumes the canonical
+  // case, links the response to it and marks the session completed. It is the
+  // only write on this path that is not fire-and-forget, and it deliberately
+  // runs before everything optional below.
   //
   // Case identity used to be a side effect of generateBodyStory(). When the
   // AI hold switched that generator off, case creation went with it —
   // silently, because the caller's .catch() swallowed the result. Completed
   // Intakes then produced no case at all, which is how one real member
   // finished an Intake in September and still has none.
+  //
+  // The completion write used to live above this, as a separate request. That
+  // was the remaining hole: a failure here would have left is_complete = true
+  // with case_id NULL, already committed. It is now inside the same database
+  // transaction (migration 0068), so either the whole completion lands or none
+  // of it does.
   //
   // It also runs BEFORE the restriction check below. A member who has
   // withdrawn AI-processing consent has still completed an Intake and still
@@ -167,7 +151,10 @@ export async function completeIntake(consentData: {
   // caller and completion reports failure, because telling someone their
   // Intake is complete when nothing can be traced to it is a lie with
   // clinical consequences.
-  const spine = await linkIntakeCompletionToCase(createAdminClient(), user.id)
+  const spine = await linkIntakeCompletionToCase(createAdminClient(), user.id, {
+    consentToAi: consentData.consent_to_ai_analysis,
+    consentGivenAt: consentData.consent_given_at,
+  })
   console.log(JSON.stringify({
     event: 'intake.case.resolved',
     member_id: user.id,

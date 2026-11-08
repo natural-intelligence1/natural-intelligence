@@ -1,431 +1,303 @@
 // ─── intakeCaseSpine.test.ts ─────────────────────────────────────────────────
-// The Stage 1 contract: a completed Intake resolves to exactly one canonical
-// case, and that fact survives every optional feature being switched off.
+// The Stage 1 contract, after atomicity closure.
 //
-// These are unit tests over a scripted fake client. They prove the DECISION
-// logic — what gets looked up, what gets written, what is refused. The
-// database half of the contract (the FK, the same-owner rule and the
-// immutability of a set link) is enforced by migration 0067's trigger and
-// proved separately against the live catalogue.
+// The DECISION logic now lives in PostgreSQL (migration 0068,
+// complete_intake_with_case), because it has to be atomic and serialised per
+// client to be worth anything. These tests therefore cover what is still
+// TypeScript's job:
+//
+//   · the wrapper calls the one database primitive, with the right arguments
+//   · it refuses to report success on an empty or case-less result
+//   · completion is a single round trip — no sequence of writes to interleave
+//   · the completion path still runs it synchronously, before optional work
+//
+// The transactional and concurrency behaviour is proved against the live
+// database, not here: a scripted fake cannot demonstrate a rollback.
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
-  resolveCaseForIntakeCompletion,
+  completeIntakeWithCase,
   linkIntakeCompletionToCase,
-  markIntakeSessionCompleted,
   OPEN_CASE_STATUSES,
   INTAKE_COMPLETION_CASE_STATUS,
+  INTAKE_COMPLETION_RPC,
 } from './intakeCaseSpine'
 
-// ─── A scripted Supabase double ──────────────────────────────────────────────
-// Records every call so the tests can assert on what was asked for, not only
-// on what came back.
+const HERE = dirname(fileURLToPath(import.meta.url))
+const REPO = join(HERE, '../../../..')
 
-interface Call { table: string; op: string; args: unknown[] }
-
-function makeClient(script: {
-  cases?: { data: unknown; error?: unknown }
-  caseInsert?: { data: unknown; error?: unknown }
-  caseUpdate?: { error?: unknown }
-  response?: { data: unknown; error?: unknown }
-  responseUpdate?: { data: unknown; error?: unknown }
-  responseReRead?: { data: unknown; error?: unknown }
-  caseStatus?: { data: unknown; error?: unknown }
-  sessionUpdate?: { data: unknown; error?: unknown }
-}) {
-  const calls: Call[] = []
-  let responseSelects = 0
-
-  function builder(table: string, op: string) {
-    const node: Record<string, unknown> = {}
-    const chain = (name: string) => (...args: unknown[]) => {
-      calls.push({ table, op: name, args })
-      return node
-    }
-    for (const m of ['select', 'eq', 'in', 'is', 'order', 'limit', 'update', 'insert']) {
-      node[m] = chain(m)
-    }
-    node.maybeSingle = async () => {
-      if (table === 'client_cases') return script.cases ?? { data: null, error: null }
-      if (table === 'intake_responses' && op === 'update') {
-        return script.responseUpdate ?? { data: { case_id: 'case-new' }, error: null }
-      }
-      return script.response ?? { data: null, error: null }
-    }
-    node.single = async () => {
-      if (table === 'client_cases' && op === 'insert') {
-        return script.caseInsert ?? { data: { id: 'case-new', status: INTAKE_COMPLETION_CASE_STATUS }, error: null }
-      }
-      if (table === 'client_cases') return script.caseStatus ?? { data: { status: 'active' }, error: null }
-      return script.responseReRead ?? { data: { case_id: 'case-new' }, error: null }
-    }
-    node.then = (resolve: (v: unknown) => unknown) => {
-      if (table === 'client_cases' && op === 'update') return resolve(script.caseUpdate ?? { error: null })
-      if (table === 'intake_sessions') return resolve(script.sessionUpdate ?? { data: [{ id: 's1' }], error: null })
-      return resolve({ data: null, error: null })
-    }
-    return node
-  }
-
-  const client = {
-    from(table: string) {
-      const node: Record<string, unknown> = {}
-      node.select = (...args: unknown[]) => {
-        calls.push({ table, op: 'select', args })
-        if (table === 'intake_responses') responseSelects++
-        return builder(table, 'select')
-      }
-      node.insert = (...args: unknown[]) => {
-        calls.push({ table, op: 'insert', args })
-        return builder(table, 'insert')
-      }
-      node.update = (...args: unknown[]) => {
-        calls.push({ table, op: 'update', args })
-        return builder(table, 'update')
-      }
-      return node
-    },
-  }
-
-  return { client: client as never, calls, responseSelects: () => responseSelects }
+function codeOf(file: string): string {
+  return readFileSync(file, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/^\s*\/\/.*$/gm, ' ')
+    .replace(/\s\/\/[^\n]*/g, ' ')
 }
 
-const find = (calls: Call[], table: string, op: string) =>
-  calls.filter((c) => c.table === table && c.op === op)
+/** A double that records every rpc call and returns a scripted result. */
+function makeClient(result: { data: unknown; error: unknown }) {
+  const calls: { fn: string; args: Record<string, unknown> }[] = []
+  const client = {
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      calls.push({ fn, args })
+      return result
+    },
+    from() {
+      throw new Error('completion must go through the rpc, not a table write')
+    },
+  }
+  return { client: client as never, calls }
+}
 
-// ─── 1. successful completion creates or resolves a case ─────────────────────
+const ONE_ROW = [{
+  case_id: 'case-1', outcome: 'created',
+  case_status: 'intake_complete', already_linked: false,
+}]
 
-describe('1. a completed Intake resolves to a canonical case', () => {
-  it('creates one at intake_complete when the client has none', async () => {
-    const { client, calls } = makeClient({ cases: { data: null, error: null } })
-    const r = await resolveCaseForIntakeCompletion(client, 'member-1')
+describe('the wrapper calls the one database primitive', () => {
+  it('invokes complete_intake_with_case with the member and consent', async () => {
+    const { client, calls } = makeClient({ data: ONE_ROW, error: null })
+    const r = await completeIntakeWithCase(client, 'member-1', {
+      consentToAi: true, consentGivenAt: '2026-11-08T00:00:00.000Z',
+    })
 
-    expect(r.outcome).toBe('created')
-    expect(r.caseStatus).toBe('intake_complete')
-
-    const insert = find(calls, 'client_cases', 'insert')[0]
-    expect(insert).toBeDefined()
-    expect(insert.args[0]).toMatchObject({
-      client_id: 'member-1',
-      status: 'intake_complete',
+    expect(calls).toHaveLength(1)
+    expect(calls[0].fn).toBe('complete_intake_with_case')
+    expect(calls[0].args).toEqual({
+      p_member_id: 'member-1',
+      p_consent_to_ai: true,
+      p_consent_given_at: '2026-11-08T00:00:00.000Z',
+      p_completed_sections: 6,
+    })
+    expect(r).toEqual({
+      caseId: 'case-1', outcome: 'created',
+      caseStatus: 'intake_complete', alreadyLinked: false,
     })
   })
 
-  it('resumes an existing open case rather than manufacturing a second', async () => {
-    const { client, calls } = makeClient({
-      cases: { data: { id: 'case-existing', status: 'active' }, error: null },
-    })
-    const r = await resolveCaseForIntakeCompletion(client, 'member-1')
-
-    expect(r).toEqual({ caseId: 'case-existing', outcome: 'resumed', caseStatus: 'active' })
-    expect(find(calls, 'client_cases', 'insert')).toHaveLength(0)
+  it('is ONE round trip — there is nothing to interleave', async () => {
+    // The previous implementation made five separate requests. A sequence of
+    // requests cannot be rolled back; a single function call can.
+    const { client, calls } = makeClient({ data: ONE_ROW, error: null })
+    await completeIntakeWithCase(client, 'member-1')
+    expect(calls).toHaveLength(1)
   })
 
-  it('looks for ANY non-closed case, not only active ones', async () => {
-    // The whole duplication risk lives here: an 'active'-only lookup would
-    // miss a case sitting at intake_complete and insert a duplicate.
-    const { client, calls } = makeClient({ cases: { data: null, error: null } })
-    await resolveCaseForIntakeCompletion(client, 'member-1')
-
-    const inCall = find(calls, 'client_cases', 'in')[0]
-    expect(inCall).toBeDefined()
-    expect(inCall.args[0]).toBe('status')
-    expect(inCall.args[1]).toEqual(['draft', 'intake_complete', 'active', 'paused'])
-    expect(OPEN_CASE_STATUSES).not.toContain('closed')
-  })
-})
-
-// ─── 3. correct case status, and no demotion of live care ────────────────────
-
-describe('3. case status follows the lifecycle', () => {
-  it('advances a draft case to intake_complete', async () => {
-    const { client, calls } = makeClient({
-      cases: { data: { id: 'case-draft', status: 'draft' }, error: null },
-    })
-    const r = await resolveCaseForIntakeCompletion(client, 'member-1')
-
-    expect(r.caseStatus).toBe('intake_complete')
-    const update = find(calls, 'client_cases', 'update')[0]
-    expect(update.args[0]).toEqual({ status: 'intake_complete' })
+  it('never writes to a table directly', async () => {
+    // The double throws from from(); reaching it would fail the test.
+    const { client } = makeClient({ data: ONE_ROW, error: null })
+    await expect(completeIntakeWithCase(client, 'member-1')).resolves.toBeTruthy()
   })
 
-  it('does NOT demote an active case back to intake_complete', async () => {
-    // Re-submitting an Intake must never misreport a client in live care.
-    const { client, calls } = makeClient({
-      cases: { data: { id: 'case-active', status: 'active' }, error: null },
-    })
-    const r = await resolveCaseForIntakeCompletion(client, 'member-1')
-
-    expect(r.caseStatus).toBe('active')
-    expect(find(calls, 'client_cases', 'update')).toHaveLength(0)
+  it('passes nulls rather than inventing consent', async () => {
+    const { client, calls } = makeClient({ data: ONE_ROW, error: null })
+    await completeIntakeWithCase(client, 'member-1')
+    expect(calls[0].args.p_consent_to_ai).toBeNull()
+    expect(calls[0].args.p_consent_given_at).toBeNull()
   })
 
-  it('does not demote a paused case either', async () => {
-    const { client, calls } = makeClient({
-      cases: { data: { id: 'case-paused', status: 'paused' }, error: null },
-    })
-    const r = await resolveCaseForIntakeCompletion(client, 'member-1')
-    expect(r.caseStatus).toBe('paused')
-    expect(find(calls, 'client_cases', 'update')).toHaveLength(0)
-  })
-
-  it('never creates a case at active — that is a later transition', () => {
-    expect(INTAKE_COMPLETION_CASE_STATUS).toBe('intake_complete')
-  })
-})
-
-// ─── 2. the Intake response links to it ──────────────────────────────────────
-
-describe('2. the Intake response carries the case id', () => {
-  it('writes case_id onto the response row', async () => {
-    const { client, calls } = makeClient({
-      response: { data: { id: 'resp-1', case_id: null }, error: null },
-      cases: { data: null, error: null },
-    })
-    const r = await linkIntakeCompletionToCase(client, 'member-1')
-
-    expect(r.caseId).toBe('case-new')
-    expect(r.alreadyLinked).toBe(false)
-
-    const update = find(calls, 'intake_responses', 'update')[0]
-    expect(update.args[0]).toEqual({ case_id: 'case-new' })
-  })
-
-  it('claims the link only while case_id is still NULL', async () => {
-    const { client, calls } = makeClient({
-      response: { data: { id: 'resp-1', case_id: null }, error: null },
-      cases: { data: null, error: null },
-    })
-    await linkIntakeCompletionToCase(client, 'member-1')
-
-    // .is('case_id', null) is what makes two concurrent completions safe.
-    const guard = find(calls, 'intake_responses', 'is')
-      .find((c) => c.args[0] === 'case_id' && c.args[1] === null)
-    expect(guard).toBeDefined()
-  })
-})
-
-// ─── 4. repeat completion is idempotent ──────────────────────────────────────
-
-describe('4. repeat completion is idempotent', () => {
-  it('returns the existing link and touches no case', async () => {
-    const { client, calls } = makeClient({
-      response: { data: { id: 'resp-1', case_id: 'case-already' }, error: null },
-      caseStatus: { data: { status: 'intake_complete' }, error: null },
-    })
-    const r = await linkIntakeCompletionToCase(client, 'member-1')
-
-    expect(r).toMatchObject({ caseId: 'case-already', alreadyLinked: true })
-    expect(find(calls, 'client_cases', 'insert')).toHaveLength(0)
-    expect(find(calls, 'intake_responses', 'update')).toHaveLength(0)
-  })
-
-  it('a lost concurrent race returns the winner’s case, never a second one', async () => {
-    // The conditional update matched zero rows because another request got
-    // there first. We re-read and adopt its answer.
-    const { client, calls } = makeClient({
-      response: { data: { id: 'resp-1', case_id: null }, error: null },
-      cases: { data: null, error: null },
-      responseUpdate: { data: null, error: null },          // lost the race
-      responseReRead: { data: { case_id: 'case-winner' }, error: null },
-    })
-    const r = await linkIntakeCompletionToCase(client, 'member-1')
-
-    expect(r.caseId).toBe('case-winner')
-    expect(find(calls, 'intake_responses', 'update')).toHaveLength(1)
-  })
-
-  it('refuses to report success if the link is still unresolved after a lost race', async () => {
+  it('maps an already-linked repeat completion', async () => {
     const { client } = makeClient({
-      response: { data: { id: 'resp-1', case_id: null }, error: null },
-      cases: { data: null, error: null },
-      responseUpdate: { data: null, error: null },
-      responseReRead: { data: { case_id: null }, error: null },
+      data: [{ case_id: 'case-1', outcome: 'resumed', case_status: 'active', already_linked: true }],
+      error: null,
     })
-    await expect(linkIntakeCompletionToCase(client, 'member-1'))
-      .rejects.toThrow(/unresolved/)
+    const r = await completeIntakeWithCase(client, 'member-1')
+    expect(r).toMatchObject({ caseId: 'case-1', outcome: 'resumed', alreadyLinked: true })
+  })
+
+  it('keeps the previous export name working', () => {
+    expect(linkIntakeCompletionToCase).toBe(completeIntakeWithCase)
   })
 })
 
-// ─── 5 & 6. identity does not depend on optional features ────────────────────
+describe('it refuses to report a completion it cannot name a case for', () => {
+  it('throws on a database error', async () => {
+    const { client } = makeClient({ data: null, error: { message: 'deadlock', code: '40P01' } })
+    await expect(completeIntakeWithCase(client, 'member-1'))
+      .rejects.toMatchObject({ code: '40P01' })
+  })
 
-describe('5 & 6. identity survives every optional feature being off', () => {
-  const FLAGS = [
-    'AI_INTERPRETATION_ENABLED',
-    'INTAKE_ASSIGNMENT_ENABLED',
-  ] as const
+  it('throws when the function returns no row', async () => {
+    const { client } = makeClient({ data: [], error: null })
+    await expect(completeIntakeWithCase(client, 'member-1'))
+      .rejects.toThrow(/no row returned/)
+  })
 
-  it('the spine module reads no feature flag at all', async () => {
-    const { readFileSync } = await import('node:fs')
-    const { dirname, join } = await import('node:path')
-    const { fileURLToPath } = await import('node:url')
-    const here = dirname(fileURLToPath(import.meta.url))
-    const src = readFileSync(join(here, 'intakeCaseSpine.ts'), 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, ' ')
-      .replace(/^\s*\/\/.*$/gm, ' ')
+  it('throws when the row carries no case id', async () => {
+    const { client } = makeClient({
+      data: [{ case_id: null, outcome: 'created', case_status: 'intake_complete' }],
+      error: null,
+    })
+    await expect(completeIntakeWithCase(client, 'member-1'))
+      .rejects.toThrow(/no case id/)
+  })
+})
 
+describe('identity does not depend on any optional feature', () => {
+  it('the module reads no environment flag at all', () => {
+    const src = codeOf(join(HERE, 'intakeCaseSpine.ts'))
     expect(src).not.toMatch(/process\.env/)
-    for (const flag of FLAGS) expect(src).not.toContain(flag)
+    expect(src).not.toContain('AI_INTERPRETATION_ENABLED')
+    expect(src).not.toContain('INTAKE_ASSIGNMENT_ENABLED')
   })
 
-  it('resolves a case with every flag unset', async () => {
+  it('resolves with every flag unset, and with them false', async () => {
     const prev = { ...process.env }
-    delete process.env.AI_INTERPRETATION_ENABLED
-    delete process.env.INTAKE_ASSIGNMENT_ENABLED
     try {
-      const { client } = makeClient({ cases: { data: null, error: null } })
-      const r = await resolveCaseForIntakeCompletion(client, 'member-1')
-      expect(r.outcome).toBe('created')
-      expect(r.caseStatus).toBe('intake_complete')
-    } finally {
-      process.env = prev
-    }
-  })
+      delete process.env.AI_INTERPRETATION_ENABLED
+      delete process.env.INTAKE_ASSIGNMENT_ENABLED
+      const a = makeClient({ data: ONE_ROW, error: null })
+      expect((await completeIntakeWithCase(a.client, 'm')).caseId).toBe('case-1')
 
-  it('also resolves with the flags explicitly false', async () => {
-    const prev = { ...process.env }
-    process.env.AI_INTERPRETATION_ENABLED = 'false'
-    process.env.INTAKE_ASSIGNMENT_ENABLED = 'false'
-    try {
-      const { client } = makeClient({ cases: { data: null, error: null } })
-      const r = await resolveCaseForIntakeCompletion(client, 'member-1')
-      expect(r.caseId).toBe('case-new')
+      process.env.AI_INTERPRETATION_ENABLED = 'false'
+      process.env.INTAKE_ASSIGNMENT_ENABLED = 'false'
+      const b = makeClient({ data: ONE_ROW, error: null })
+      expect((await completeIntakeWithCase(b.client, 'm')).caseId).toBe('case-1')
     } finally {
       process.env = prev
     }
   })
 })
 
-// ─── 7. failure must not report a successful completion ──────────────────────
+describe('the completion path runs it synchronously, before optional work', () => {
+  const actions = readFileSync(
+    join(REPO, 'apps/web/app/dashboard/intake/actions.ts'), 'utf8',
+  )
 
-describe('7. a failure to establish identity is never swallowed', () => {
-  it('throws when the case lookup fails', async () => {
-    const { client } = makeClient({
-      cases: { data: null, error: { message: 'RLS denied', code: '42501' } },
-    })
-    await expect(resolveCaseForIntakeCompletion(client, 'member-1'))
-      .rejects.toMatchObject({ message: 'RLS denied' })
-  })
-
-  it('does NOT fall through to an insert when the lookup fails', async () => {
-    // Otherwise an unreadable existing case silently becomes a second case.
-    const { client, calls } = makeClient({
-      cases: { data: null, error: { message: 'timeout' } },
-    })
-    await expect(resolveCaseForIntakeCompletion(client, 'member-1')).rejects.toBeTruthy()
-    expect(find(calls, 'client_cases', 'insert')).toHaveLength(0)
-  })
-
-  it('throws when the case insert fails', async () => {
-    const { client } = makeClient({
-      cases: { data: null, error: null },
-      caseInsert: { data: null, error: { message: 'constraint', code: '23514' } },
-    })
-    await expect(resolveCaseForIntakeCompletion(client, 'member-1'))
-      .rejects.toMatchObject({ code: '23514' })
-  })
-
-  it('throws when there is no intake_responses row to link', async () => {
-    const { client } = makeClient({ response: { data: null, error: null } })
-    await expect(linkIntakeCompletionToCase(client, 'member-1'))
-      .rejects.toThrow(/no intake_responses row/)
-  })
-
-  it('completeIntake does not wrap the spine call in a catch', async () => {
-    const { readFileSync } = await import('node:fs')
-    const { dirname, join } = await import('node:path')
-    const { fileURLToPath } = await import('node:url')
-    const here = dirname(fileURLToPath(import.meta.url))
-    const actions = readFileSync(
-      join(here, '../../../../apps/web/app/dashboard/intake/actions.ts'), 'utf8',
-    )
-
+  it('awaits it directly and does not swallow failures', () => {
     const call = actions.indexOf('linkIntakeCompletionToCase(')
     expect(call).toBeGreaterThan(-1)
-
-    // It must be awaited directly, not attached to a .catch() like the
-    // optional generators below it.
     const line = actions.slice(actions.lastIndexOf('\n', call), actions.indexOf('\n', call))
     expect(line).toMatch(/await\s+linkIntakeCompletionToCase/)
     expect(line).not.toMatch(/\.catch\(/)
+  })
 
-    // And it must run BEFORE the optional work. Match the CALL SITES, not the
-    // imports at the top of the file — those naturally come first.
-    const story = actions.indexOf('generateBodyStory(user.id)')
-    const assign = actions.indexOf('routeCompletedCaseToPractitioner(user.id)')
-    const restriction = actions.indexOf('isProcessingBlocked(createAdminClient()')
-    expect(story).toBeGreaterThan(-1)
-    expect(assign).toBeGreaterThan(-1)
-    expect(call).toBeLessThan(story)
-    expect(call).toBeLessThan(assign)
+  it('runs before the generators, the assignment bridge and the restriction return', () => {
+    const call = actions.indexOf('linkIntakeCompletionToCase(')
+    for (const marker of [
+      'generateHealthSynopsis(user.id)',
+      'generateBodyStory(user.id)',
+      'routeCompletedCaseToPractitioner(user.id)',
+      'isProcessingBlocked(createAdminClient()',
+    ]) {
+      const at = actions.indexOf(marker)
+      expect(at, marker).toBeGreaterThan(-1)
+      expect(call, marker).toBeLessThan(at)
+    }
+  })
 
-    // It must also precede the AI-restriction early return: a member who has
-    // withdrawn AI consent has still completed an Intake and still needs a case.
-    expect(restriction).toBeGreaterThan(-1)
-    expect(call).toBeLessThan(restriction)
+  it('no longer writes the completion as a separate request', () => {
+    // That separate write was the remaining atomicity hole: it committed
+    // is_complete = true before the case existed.
+    const code = codeOf(join(REPO, 'apps/web/app/dashboard/intake/actions.ts'))
+    const completeFn = code.slice(code.indexOf('export async function completeIntake'))
+    expect(completeFn).not.toMatch(/is_complete:\s*true/)
+    expect(completeFn).not.toMatch(/from\('intake_responses'\)[\s\S]{0,120}\.insert\(/)
   })
 })
 
-// ─── 8. a member cannot be linked to another member's case ───────────────────
+describe('the migration carries the invariants', () => {
+  const sql = readFileSync(
+    join(REPO, 'supabase/migrations/0068_complete_intake_with_case.sql'), 'utf8',
+  )
 
-describe('8. cross-member linking', () => {
-  it('is refused by the database, and the spine never names another member', async () => {
-    // The spine only ever resolves cases filtered by the member's own id, so
-    // it cannot construct a cross-member link; the 0067 trigger is the
-    // enforcement if anything else tries.
-    const { client, calls } = makeClient({ cases: { data: null, error: null } })
-    await resolveCaseForIntakeCompletion(client, 'member-1')
+  it('serialises per client with a transaction-scoped advisory lock', () => {
+    expect(sql).toMatch(/pg_advisory_xact_lock\(hashtextextended\(p_member_id/)
+    // Never a global lock.
+    expect(sql).not.toMatch(/pg_advisory_xact_lock\(\s*\d+\s*\)/)
+  })
 
-    const scoped = find(calls, 'client_cases', 'eq')
-      .find((c) => c.args[0] === 'client_id')
-    expect(scoped?.args[1]).toBe('member-1')
+  it('takes the lock BEFORE the first read — otherwise the loser reads stale', () => {
+    const lock = sql.indexOf('pg_advisory_xact_lock')
+    const firstRead = sql.indexOf('FROM public.intake_responses')
+    expect(lock).toBeGreaterThan(-1)
+    expect(lock).toBeLessThan(firstRead)
+  })
 
-    const insert = find(calls, 'client_cases', 'insert')[0]
-    expect((insert.args[0] as { client_id: string }).client_id).toBe('member-1')
+  it('is SECURITY INVOKER and not a privilege grant', () => {
+    expect(sql).toMatch(/SECURITY INVOKER/)
+    expect(sql).not.toMatch(/SECURITY DEFINER/)
+    expect(sql).toMatch(/SET search_path = public, pg_temp/)
+  })
+
+  it('refuses a non-service caller completing someone else’s Intake', () => {
+    expect(sql).toMatch(/v_role <> 'service_role'/)
+    expect(sql).toMatch(/42501/)
+  })
+
+  it('creates at intake_complete and never at active', () => {
+    expect(sql).toMatch(/VALUES \(p_member_id, 'intake_complete'\)/)
+    expect(sql).not.toMatch(/VALUES \(p_member_id, 'active'\)/)
+  })
+
+  it('advances only draft, and never demotes active or paused', () => {
+    expect(sql).toMatch(/IF v_status = 'draft' THEN/)
+    expect(sql).toMatch(/WHERE id = v_case_id AND status = 'draft'/)
+  })
+
+  it('resumes any non-closed case', () => {
+    expect(sql).toMatch(/IN \('draft', 'intake_complete', 'active', 'paused'\)/)
+    expect(sql).not.toMatch(/'closed'/)
+  })
+
+  it('never reassigns a set link', () => {
+    // Qualified with the table alias: an unqualified `case_id` here is
+    // ambiguous against the RETURNS TABLE output parameter, which is exactly
+    // the defect the concurrency test caught.
+    expect(sql).toMatch(/case_id\s*=\s*coalesce\(r\.case_id, v_case_id\)/)
+  })
+
+  it('qualifies every column that shares a name with an output parameter', () => {
+    const body = sql.slice(sql.indexOf('UPDATE public.intake_responses AS r'))
+    const setBlock = body.slice(0, body.indexOf('WHERE'))
+    // No bare right-hand `case_id` — it must be r.case_id.
+    expect(setBlock).not.toMatch(/coalesce\(case_id/)
+    expect(sql).toMatch(/UPDATE public\.intake_responses AS r/)
+  })
+
+  it('marks only in_progress sessions completed', () => {
+    expect(sql).toMatch(/AND status\s*=\s*'in_progress'/)
+  })
+
+  it('adds no uniqueness constraint — duplicates are a separate mission', () => {
+    expect(sql).not.toMatch(/CREATE UNIQUE INDEX/i)
+    expect(sql).not.toMatch(/ADD CONSTRAINT.*UNIQUE/i)
+  })
+
+  it('is not executable anonymously', () => {
+    expect(sql).toMatch(/REVOKE ALL ON FUNCTION[\s\S]*FROM PUBLIC, anon/)
+  })
+
+  it('touches no practitioner authority', () => {
+    for (const banned of [
+      'case_team_roles', 'practitioner_assignment_eligibility',
+      'case_practitioner_work', 'signed_off', 'practitioners',
+    ]) {
+      expect(sql, banned).not.toContain(banned)
+    }
   })
 })
 
-// ─── Session consistency ─────────────────────────────────────────────────────
-
-describe('intake_sessions is brought into agreement', () => {
-  it('marks only in_progress sessions completed, with a timestamp', async () => {
-    const { client, calls } = makeClient({})
-    const n = await markIntakeSessionCompleted(client, 'member-1')
-    expect(n).toBe(1)
-
-    const update = find(calls, 'intake_sessions', 'update')[0]
-    const patch = update.args[0] as { status: string; completed_at: string }
-    expect(patch.status).toBe('completed')
-    expect(Date.parse(patch.completed_at)).not.toBeNaN()
-
-    const guard = find(calls, 'intake_sessions', 'eq')
-      .find((c) => c.args[0] === 'status')
-    expect(guard?.args[1]).toBe('in_progress')
+describe('shared constants', () => {
+  it('open statuses exclude closed', () => {
+    expect([...OPEN_CASE_STATUSES]).toEqual(['draft', 'intake_complete', 'active', 'paused'])
+    expect(OPEN_CASE_STATUSES).not.toContain('closed')
   })
 
-  it('is idempotent — a second call matches no rows', async () => {
-    const { client } = makeClient({ sessionUpdate: { data: [], error: null } })
-    expect(await markIntakeSessionCompleted(client, 'member-1')).toBe(0)
+  it('completion status is intake_complete', () => {
+    expect(INTAKE_COMPLETION_CASE_STATUS).toBe('intake_complete')
   })
 
-  it('throws rather than silently leaving the two tables disagreeing', async () => {
-    const { client } = makeClient({ sessionUpdate: { data: null, error: { message: 'nope' } } })
-    await expect(markIntakeSessionCompleted(client, 'member-1')).rejects.toBeTruthy()
+  it('names the one primitive', () => {
+    expect(INTAKE_COMPLETION_RPC).toBe('complete_intake_with_case')
   })
 })
 
-// ─── The helper that is NOT the intake path ──────────────────────────────────
-
-describe('getOrCreateClientCase no longer duplicates', () => {
-  it('resumes any open case, so it cannot miss an intake_complete one', async () => {
-    const { readFileSync } = await import('node:fs')
-    const { dirname, join } = await import('node:path')
-    const { fileURLToPath } = await import('node:url')
-    const here = dirname(fileURLToPath(import.meta.url))
-    const src = readFileSync(join(here, 'getOrCreateClientCase.ts'), 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, ' ')
-      .replace(/^\s*\/\/.*$/gm, ' ')
-
+describe('getOrCreateClientCase still cannot duplicate', () => {
+  it('resumes any open case rather than only active ones', () => {
+    const src = codeOf(join(HERE, 'getOrCreateClientCase.ts'))
     expect(src).toContain("in('status', OPEN_CASE_STATUSES")
     expect(src).not.toMatch(/\.eq\('status',\s*'active'\)/)
   })

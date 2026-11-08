@@ -18,7 +18,7 @@ was written from the file in good faith.
    ascending order up to `0043`. From `0053` onward the actual applied
    sequence was:
 
-   `0053 → 0054 → 0051 → 0056 → 0052 → 0057 → 0058 → 0059 → 0060 → 0063 → 0064 → 0065 → 0066 → 0067`
+   `0053 → 0054 → 0051 → 0056 → 0052 → 0057 → 0058 → 0059 → 0060 → 0063 → 0064 → 0065 → 0066 → 0067 → 0068`
 
    `0051` landed after `0053/0054`; `0052` after `0056`; `0063`, `0064` and
    `0065` all landed while `0061` and `0062` were still unapplied. The latest
@@ -80,6 +80,7 @@ it.
 | `0063_practitioner_taxonomy_reconciliation.sql` | **Already applied (`20261027052734`).** Its own header still says "NOT YET APPLIED at the time of writing" — that is rule 2 in action, not a fact. It is re-runnable by design and would be a no-op, but it `create or replace`s three live governance functions and suspends two governance triggers around its translation, so do not run it to "check" anything. Verify instead: the three function hashes are recorded in its header and asserted in `packages/db/src/practitioners/taxonomy0063.db.test.ts`. |
 | `0066_case_taking_persistence.sql` | **APPLIED 7 Nov 2026 (`20261106234131`).** **Not re-runnable**: `CREATE TABLE` without `IF NOT EXISTS`, and `ALTER TABLE case_contributions ADD COLUMN` without it either, so a second run fails. It `create or replace`d one live governance function (`block_contribution_rewrite`), widening it by three frozen columns. Applied on its own, never through an apply-all-pending run, because `0055`, `0061` and `0062` must stay unapplied. Verify via the 93 tests in `packages/db/src/intakeV2/caseTaking0066.db.test.ts`, which execute this exact file against PGlite. **Note on the applied text:** the committed file wraps its DDL in `BEGIN; … COMMIT;` and carries extensive comments; what was submitted to `apply_migration` was the same DDL with comments stripped and that envelope removed, because the tool supplies its own transaction and a nested `COMMIT` would have broken atomicity. Every resulting object was verified against this file — see the Track 2 report. |
 | `0067_intake_case_link.sql` | **APPLIED 8 Nov 2026 (`20261108023815`).** Adds the nullable `intake_responses.case_id` FK to `client_cases`, a partial index, and `enforce_intake_case_link()` — a BEFORE INSERT OR UPDATE trigger holding two rules a CHECK cannot express: the case must belong to the same member as the Intake, and once set the link is immutable (reassignment AND clearing are both refused). Re-runnable: every statement is `IF NOT EXISTS` or `CREATE OR REPLACE`. **Backfills nothing** — all three historical Intakes are deliberately left NULL (one ambiguous, one absent, one incomplete); see the migration's own backfill note. Applied on its own; `0055`, `0061` and `0062` remain unapplied. Same envelope note as 0066: the committed file wraps its DDL in `BEGIN; … COMMIT;`, and what was submitted had that envelope and the comments stripped because `apply_migration` supplies its own transaction. Verify via `packages/db/src/crt/intakeCaseSpine.test.ts`. |
+| `0068_complete_intake_with_case.sql` | **APPLIED 8 Nov 2026 (`20261108030204`).** Adds `complete_intake_with_case()` — the mandatory Intake-completion spine as ONE transaction: response completion, canonical case create/resume, immutable case link, session completion. Serialised per client by `pg_advisory_xact_lock(hashtextextended(member_id))`, never a global lock. **SECURITY INVOKER**, `search_path` pinned, not executable by `anon`, and a non-service caller may only complete their own Intake — it is not a privilege grant and touches no practitioner authority. Re-runnable (`CREATE OR REPLACE`). Adds no uniqueness constraint; duplicate active cases remain a separate reconciliation mission. **Correction note:** the first application carried an ambiguous reference to `case_id` (the `RETURNS TABLE` output parameter vs the column), so every call failed with 42702. Caught by the concurrency test, before any caller had succeeded. The committed file is the corrected version (sha256 `4dd2ff88…`, blob `2968a0c2…`); the fix was applied in place with `CREATE OR REPLACE`, so a fresh environment applying this file reaches the same state. Verify via `packages/db/src/crt/intakeCaseSpine.test.ts`. |
 
 ## Choosing a filename for a new migration
 
@@ -94,6 +95,7 @@ namespace is not contiguous and this folder is not the authority:
 | `0064`, `0065` | yes | yes | **yes — live** |
 | `0066` | yes | yes | see the live history — applied 7 Nov 2026 |
 | `0067` | yes | yes | **yes — live, applied 8 Nov 2026** |
+| `0068` | yes | yes | **yes — live, applied 8 Nov 2026** |
 
 **This table is a worked example of a trap, not a static fact.** It was true in
 this shape on 7 November 2026; it goes stale the moment anything is applied or
