@@ -25,18 +25,67 @@ const CANONICAL_PATH = 'packages/db/src/cockpit/caseTakingSignOff.ts'
 
 /**
  * Files that may MENTION the signature columns without being a write path,
- * each with the reason. Kept deliberately short — every entry is a hole in
- * the guarantee above, so it has to earn its place.
+ * each with the reason and the shape of its exemption. Kept deliberately
+ * short — every entry is a hole in the guarantee above, so it has to earn its
+ * place, and every entry is VERIFIED below rather than trusted.
  *
- * types.ts is GENERATED from the live catalogue by
- * `supabase gen types typescript`. It declares case_taking_sessions, its
- * columns and the Row/Insert/Update shapes, which is exactly what makes the
- * canonical path type-safe. It contains type declarations only — no
- * executable statement, no client, no query — so it cannot write anything.
- * Hand-editing it is a separate error that the type-check and the catalogue
- * comparison would both catch.
+ * The ban above is on the mention, not on a write-shaped expression, and that
+ * bluntness is the point: a regex that tries to recognise "a write" can be
+ * fooled by a column name in a variable or an object built a few lines up.
+ * So the way to read a signature column is to be listed here, not to make the
+ * ban cleverer.
  */
-const DOCUMENTED_NON_WRITERS = ['packages/db/src/types.ts']
+type ExemptionKind =
+  /** Type declarations only. Executes nothing, so it cannot write. */
+  | 'declarations-only'
+  /**
+   * Contains no mutation verb at all — no .update(, .insert(, .upsert(,
+   * .delete( or .rpc(, to any table. A file that cannot write anything cannot
+   * write a signature, so where the column name appears stops mattering.
+   * That is a broader and much less fragile claim than trying to recognise a
+   * write by its shape.
+   */
+  | 'no-mutation-verb'
+
+interface DocumentedNonWriter {
+  path: string
+  kind: ExemptionKind
+  why: string
+}
+
+const DOCUMENTED_NON_WRITERS: DocumentedNonWriter[] = [
+  {
+    path: 'packages/db/src/types.ts',
+    kind: 'declarations-only',
+    why:
+      'GENERATED from the live catalogue by `supabase gen types typescript`. It declares ' +
+      'case_taking_sessions, its columns and the Row/Insert/Update shapes, which is exactly ' +
+      'what makes the canonical path type-safe. Type declarations only — no executable ' +
+      'statement, no client, no query. Hand-editing it is a separate error that the ' +
+      'type-check and the catalogue comparison would both catch.',
+  },
+  {
+    path: 'packages/db/src/crt/founderReview.ts',
+    kind: 'no-mutation-verb',
+    why:
+      'Founder Review Mode (Stage 2) reader. It SHOWS whether a consultation has been signed ' +
+      'off, which is a read of signed_off_at and of case_taking_sessions. Displaying a ' +
+      'signature is not making one: the module contains no mutation verb at all, asserted ' +
+      'below and again in crt/founderReview.test.ts.',
+  },
+  {
+    path: 'apps/admin/app/(protected)/review-packs/founder-review/view.tsx',
+    kind: 'no-mutation-verb',
+    why:
+      'The Founder Review presentation names case_taking_sessions in its empty state ("this case ' +
+      'has no rows in case_taking_sessions") and lists the tables it read. That precision is ' +
+      'the Founder-facing evidence that the empty state is real rather than a fixture, so the ' +
+      'copy keeps the table name. The page has no server action, no form and no mutation ' +
+      'verb — see crt/founderReviewBoundary.test.ts.',
+  },
+]
+
+const EXEMPT_PATHS = DOCUMENTED_NON_WRITERS.map((e) => e.path)
 
 /** Source roots to sweep. Tests and fixtures are excluded deliberately: a
  *  test asserting a refusal legitimately mentions the columns. */
@@ -86,7 +135,7 @@ describe('only one module writes the signature columns', () => {
     // object property in an update, or as a filter on one.
     const offenders = sourceFiles()
       .filter((f) => rel(f) !== CANONICAL_PATH)
-      .filter((f) => !DOCUMENTED_NON_WRITERS.includes(rel(f)))
+      .filter((f) => !EXEMPT_PATHS.includes(rel(f)))
       .filter((f) => /signed_off_(at|by)/.test(codeOf(f)))
       .map(rel)
     expect(offenders).toEqual([])
@@ -95,7 +144,7 @@ describe('only one module writes the signature columns', () => {
   it('no source file outside the canonical path updates case_taking_sessions', () => {
     const offenders = sourceFiles()
       .filter((f) => rel(f) !== CANONICAL_PATH)
-      .filter((f) => !DOCUMENTED_NON_WRITERS.includes(rel(f)))
+      .filter((f) => !EXEMPT_PATHS.includes(rel(f)))
       .filter((f) => /case_taking_sessions/.test(codeOf(f)))
       .map(rel)
     expect(offenders).toEqual([])
@@ -213,9 +262,21 @@ describe('the guard is reachable from the package surface', () => {
 
 describe('the documented exemption is genuinely not a write path', () => {
   // An exemption list is only safe if each entry is checked, not trusted.
-  for (const rel of DOCUMENTED_NON_WRITERS) {
-    it(`${rel} declares types and executes nothing`, () => {
-      const src = codeOf(join(REPO, rel))
+
+  it('every exempted file exists and is actually swept', () => {
+    // An entry for a path that has moved would be a silent hole: the sweep
+    // would stop excluding anything while the list still looked deliberate.
+    const swept = sourceFiles().map(rel)
+    for (const e of DOCUMENTED_NON_WRITERS) {
+      expect(existsSync(join(REPO, e.path)), `${e.path} does not exist`).toBe(true)
+      expect(swept, `${e.path} is not in the swept set`).toContain(e.path)
+      expect(e.why.length, `${e.path} has no stated reason`).toBeGreaterThan(40)
+    }
+  })
+
+  for (const e of DOCUMENTED_NON_WRITERS.filter((x) => x.kind === 'declarations-only')) {
+    it(`${e.path} declares types and executes nothing`, () => {
+      const src = codeOf(join(REPO, e.path))
       expect(src).not.toMatch(/\.update\(/)
       expect(src).not.toMatch(/\.insert\(/)
       expect(src).not.toMatch(/\.upsert\(/)
@@ -232,6 +293,35 @@ describe('the documented exemption is genuinely not a write path', () => {
       const constBlock = src.slice(src.indexOf('export const Constants'))
       expect(constBlock).not.toMatch(/signed_off/)
       expect(constBlock).not.toMatch(/case_taking/)
+    })
+  }
+
+  for (const e of DOCUMENTED_NON_WRITERS.filter((x) => x.kind === 'no-mutation-verb')) {
+    it(`${e.path} contains no mutation verb, so it cannot write anything`, () => {
+      const src = codeOf(join(REPO, e.path))
+      for (const verb of ['update', 'insert', 'upsert', 'delete', 'rpc']) {
+        expect(src, `${e.path} calls .${verb}(`).not.toContain(`.${verb}(`)
+      }
+    })
+
+    it(`${e.path} never assigns a signature column or a case-taking state`, () => {
+      const src = codeOf(join(REPO, e.path))
+      // An object-literal write or a plain assignment. A READ is always
+      // dot-prefixed (`row.signed_off_at`) and so does not match either.
+      expect(src, `${e.path} assigns a signature column`).not.toMatch(
+        /(?<!\.)\bsigned_off_(at|by)\s*[:=][^:=]/,
+      )
+      expect(src, `${e.path} assigns a case-taking state`).not.toMatch(
+        /(?<!\.)\bstate\s*:\s*['"`]/,
+      )
+    })
+
+    it(`${e.path} does not reach for the sign-off authority guard`, () => {
+      // A reader has no business computing authority. If it ever needs to,
+      // that is a design change, not a test to update.
+      const src = codeOf(join(REPO, e.path))
+      expect(src).not.toMatch(/authoriseCaseTakingSignOff|assertCaseTakingSignOffAuthorised/)
+      expect(src).not.toMatch(/signOffCaseTakingSession/)
     })
   }
 })

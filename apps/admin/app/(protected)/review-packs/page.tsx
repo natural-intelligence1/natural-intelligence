@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 import { GenerateForm } from './GenerateForm'
@@ -87,6 +88,19 @@ export default async function ReviewPacksPage() {
         restriction or withdrawal is on file. DRAFT — requires
         solicitor/clinician review before real-client use.
       </p>
+
+      {/* Stage 2 — Founder Review Mode. Lives under this area deliberately:
+          same admin guard, same service-role read pattern, no new auth
+          concept. Read-only and restricted to test cases. */}
+      <Link
+        href="/review-packs/founder-review"
+        className="inline-block mb-6 px-4 py-2.5 rounded-lg bg-surface-raised border border-border-default text-sm text-text-primary hover:border-border-muted"
+      >
+        Founder Review →
+        <span className="block text-xs text-text-muted mt-0.5">
+          See a test case as the practitioner would receive it. Read only.
+        </span>
+      </Link>
 
       {packErr && (
         <div className="mb-6 px-4 py-3 rounded-md bg-status-warningBg text-status-warningText border border-status-warningBorder text-sm">

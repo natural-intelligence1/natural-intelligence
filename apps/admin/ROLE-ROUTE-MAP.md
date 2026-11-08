@@ -41,6 +41,8 @@ in prose; an em dash means the route has no flag.
 | /workshops, /workshops/new, /workshops/[id]/edit | LIVE + WIRED | — | Platform events CMS |
 | /support, /support/[id] | LIVE + WIRED | — | Support requests + referral matching |
 | /review-packs | LIVE + WIRED | PRACTITIONER_REVIEW_PACKS_ENABLED | Admin-only de-identified pack queue. Reads client_cases and intake_responses through service-role under the admin guard. The flag gates practitioner-side pack ACCESS, not this page |
+| /review-packs/founder-review | LIVE + WIRED | — | Founder Review Mode — case picker. Lists ONLY cases whose client profile has is_test_data = true; the filter is applied to profiles first, so a real member cannot appear. Read-only |
+| /review-packs/founder-review/[caseId] | LIVE + WIRED | — | Founder Review Mode — the real canonical case as the practitioner will receive it. Reads client_cases, profiles, intake_responses, intake_sessions, intake_answers, case_taking_sessions, case_taking_answers. REFUSES any case whose client is not test data, before reading a single health row. No server action, no form, no mutation verb, no fixture — asserted by packages/db/src/crt/founderReviewBoundary.test.ts. Confers no practitioner, Lead or LRP authority |
 | /dev/seed | LIVE + WIRED | — | Test-data seeding; nav link shown outside production only. Creates practitioners, applications, support requests, events and resources — never client_cases |
 | /route-map | LIVE | — | This panel — read-only render of this document |
 
