@@ -12,6 +12,7 @@
     "./intakeV2": "./src/intakeV2/index.ts",
     "./intake": "./src/intake/index.ts",
     "./ai": "./src/ai/index.ts",
+    "./pricing": "./src/pricing/index.ts",
     "./cockpit": "./src/cockpit/index.ts",
     "./practitioners": "./src/practitioners/index.ts",
     "./crt": "./src/crt/index.ts",

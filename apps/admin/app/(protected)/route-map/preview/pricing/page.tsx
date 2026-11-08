@@ -2,14 +2,41 @@ import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { Cormorant_Garamond } from 'next/font/google'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
+import {
+  MEMBERSHIP, MEMBERSHIP_HEADLINE, MEMBERSHIP_YEARLY_NOTE, FAMILY_MEMBERSHIP_NOTE,
+  GUIDED_GROUPS, INITIAL_CARE_REVIEW, formatPounds, inlinePriceLabel,
+} from '@natural-intelligence/db/pricing'
+import { C } from './theme'
+import { InertButton, Eyebrow, Tick, Dash, StatusPill } from './primitives'
+import { CareSection } from './CareSection'
+import { Disclosures } from './Disclosures'
+import { FaqAccordion } from './FaqAccordion'
 
-// ─── Admin-only pricing page PREVIEW ──────────────────────────────────────────
+// ─── Admin-only pricing page PREVIEW — v7 ────────────────────────────────────
 // Founder-review preview of the launch pricing page. NOT public: it lives
-// behind the admin (protected) layout, is linked from no public surface, and is
-// marked noindex. Every button is inert. No Stripe, no checkout, no payment or
-// subscription logic exists here — this is a picture of the launch product.
-// Prices are deliberately unset (Founder decision; the retired 19/49/69/119
-// figures must not be cited) — see FounderDecisionNotes at the foot of the page.
+// behind the admin (protected) layout, is linked from no public surface, and
+// is marked noindex. Every call to action is inert. No payment provider, no
+// basket and no subscription logic exists here — this is a picture of the
+// launch product, not the product.
+//
+// WHAT CHANGED IN v7
+//
+// The page this replaced was committed on 10 September and still advertised
+// two tiers the frozen architecture had withdrawn — a paid self-serve
+// tracking tier and a human-coordinated tier — with their prices left unset
+// for the Founder. It is replaced wholesale because it shared almost no
+// sections with the frozen architecture, not because a rewrite was the
+// smaller change.
+//
+// PRICES LIVE IN ONE PLACE
+//
+// Every figure comes from @natural-intelligence/db/pricing. No currency
+// literal appears anywhere in this directory, and previewPageBoundary.test.ts
+// fails if one does — including a bare figure typed without a symbol.
+//
+// Internal professional-time allowances are NOT importable here: they sit in
+// the catalogue's PRACTITIONER_TIME_ALLOWANCES namespace, which the public
+// barrel does not re-export, and a test sweeps apps/ to keep it that way.
 
 export const metadata: Metadata = {
   title: 'Pricing — Preview',
@@ -23,420 +50,545 @@ const cormorant = Cormorant_Garamond({
   display: 'swap',
 })
 
-// NI Brand System V1 (self-contained — the admin app keeps its own dark-shell
-// theme, so the preview carries the public palette via explicit values).
-const C = {
-  cream: '#F4ECDD', warm: '#FBF7EF', sand: '#E7DAC4',
-  pine: '#2E4636', botanical: '#1E2F24', sage: '#8AA07E', olive: '#5E6B3F',
-  gold: '#B08A3E', goldInk: '#7D6128', goldPale: '#E2D2AE',
-  text: '#26302A', text2: '#4A544C', muted: '#5F6862', border: '#E0D4BE',
-}
+const display = cormorant.className
 
-// ─── Inert button (preview only — no handlers, cannot submit) ─────────────────
-function InertButton({ children, variant = 'pine' }: { children: React.ReactNode; variant?: 'pine' | 'outline' | 'cream' }) {
-  const styles: Record<string, React.CSSProperties> = {
-    pine:    { background: C.pine, color: C.cream, border: 'none' },
-    outline: { background: 'transparent', color: C.text, border: `1px solid #C6B694` },
-    cream:   { background: C.cream, color: C.pine, border: 'none' },
-  }
-  return (
-    <span
-      role="button"
-      aria-disabled="true"
-      title="Preview only — buttons are inert"
-      className="inline-flex items-center justify-center px-6 py-3 rounded-full text-[15px] font-medium cursor-default select-none"
-      style={styles[variant]}
-    >
-      {children}
-    </span>
-  )
-}
+// ─── Preview banner ──────────────────────────────────────────────────────────
 
-function Eyebrow({ children, onDark = false }: { children: React.ReactNode; onDark?: boolean }) {
-  return (
-    <p className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase mb-4" style={{ color: onDark ? C.goldPale : C.goldInk }}>
-      {children}
-    </p>
-  )
-}
-
-// ─── 1. PreviewBanner ─────────────────────────────────────────────────────────
 function PreviewBanner() {
   return (
-    <div className="px-4 py-3 text-center" style={{ background: C.botanical }}>
-      <p className="text-[13px] font-medium tracking-wide" style={{ color: C.goldPale }}>
-        PREVIEW — not published. Represents the launch product, not current capability.
+    <div className="px-4 py-3" style={{ background: C.botanical }}>
+      <p className="max-w-5xl mx-auto text-[12.5px] leading-[1.6]" style={{ color: C.goldPale }}>
+        <strong className="font-semibold">Founder preview — not public.</strong>{' '}
+        Admin-only, noindexed and linked from no public page. Every call to action is inert; the
+        programme switcher, care-team toggle, mobile tabs, disclosures and questions work so their
+        behaviour can be reviewed. Care prices are working prices pending final sign-off.
       </p>
     </div>
   )
 }
 
-// ─── 2. PricingHero ───────────────────────────────────────────────────────────
-function PricingHero() {
+// ─── Hero ────────────────────────────────────────────────────────────────────
+
+function Hero() {
   return (
-    <section className="text-center px-4 pt-14 pb-10 max-w-3xl mx-auto">
-      <Eyebrow>Pricing</Eyebrow>
-      <h1 className={`${cormorant.className} italic font-light text-[34px] md:text-[44px] leading-[1.16] mb-4`} style={{ color: C.text }}>
-        Free to learn. Paid where a practitioner gives you their time.
-      </h1>
-      <p className="text-[15px] font-light leading-[1.75] max-w-xl mx-auto mb-5" style={{ color: C.text2 }}>
-        The Library, the community and your own tracking tools stay free. You pay
-        only for scarce professional value — a qualified practitioner&rsquo;s
-        review, judgement and continuing care. Coordination between you and a
-        practitioner is arranged by our team, person to person.
-      </p>
-      <p className="font-mono text-[11px] tracking-[0.1em] uppercase" style={{ color: C.goldInk }}>
-        Learn free → track yourself → get practitioner care → get coordinated support
-      </p>
-    </section>
-  )
-}
-
-// ─── 3. AudiencePathCards ─────────────────────────────────────────────────────
-function AudiencePathCards() {
-  const paths = [
-    { k: 'I want to learn',            d: 'Start free with The Library, community and workshops. No account needed to read.' },
-    { k: 'I want to understand my health', d: 'Track your own patterns and ranges with the self-serve tools. They show patterns; they do not diagnose.' },
-    { k: 'I want practitioner care',   d: 'NI Care — a qualified practitioner, human-led from the first conversation through continuing care.' },
-    { k: 'I represent an organisation', d: 'Workforce and community sessions, scoped and quoted individually. See NI Corporate below.' },
-  ]
-  return (
-    <section className="px-4 pb-12 max-w-5xl mx-auto">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {paths.map((p) => (
-          <div key={p.k} className="rounded-xl p-5" style={{ background: C.warm, border: `1px solid ${C.border}` }}>
-            <p className="text-[15px] font-medium mb-1.5" style={{ color: C.pine }}>{p.k}</p>
-            <p className="text-[13px] leading-relaxed" style={{ color: C.text2 }}>{p.d}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-// ─── Tier data ────────────────────────────────────────────────────────────────
-interface Tier {
-  name: string
-  label: string
-  price: string
-  priceNote?: string
-  blurb: string
-  features: string[]
-  /** Optional grouped stages (NI Care: one journey at two intensities). */
-  stages?: { title: string; items: string[] }[]
-  featured?: boolean
-  cta: string
-}
-
-const TIERS: Tier[] = [
-  {
-    name: 'NI Knowledge & Community',
-    label: 'Free',
-    price: 'Free',
-    blurb: 'Learning and belonging. The open front door — no payment, ever, for knowledge.',
-    features: ['The Library — open reading', 'Community membership', 'Free community workshops', 'Workshop updates'],
-    cta: 'Start reading',
-  },
-  {
-    name: 'Your Health, Tracked',
-    label: 'Self-serve',
-    price: '£ — / month',
-    priceNote: 'Founder to set',
-    blurb: 'Your own picture, on your own terms. Tools that show patterns and ranges — they do not diagnose.',
-    features: ['Lab report organiser & trends', 'Daily habit & protocol tracking', 'Check-ins and personal goals', 'Symptom pattern explorer'],
-    cta: 'Track your health',
-  },
-  {
-    name: 'NI Care',
-    label: 'Practitioner-led',
-    price: '£ —',
-    priceNote: 'Founder to set',
-    blurb: 'One care journey with a qualified practitioner, at two intensities — begin, then continue for as long as it serves you. Everything in Tracked is included.',
-    features: [],
-    stages: [
-      {
-        title: 'Start with care',
-        items: ['Intake and consultation', 'Full case-taking', 'Your personal naturopathic plan'],
-      },
-      {
-        title: 'Continue care',
-        items: ['Follow-up reviews', 'Lab discounts and practitioner lab analysis', 'Plan updates over time', 'Consented health-story sharing with your practitioner'],
-      },
-    ],
-    featured: true,
-    cta: 'Begin NI Care',
-  },
-  {
-    name: 'Fully Supported',
-    label: 'Human-coordinated',
-    price: '£ — / month',
-    priceNote: 'Founder to set',
-    blurb: 'The most complete arrangement: your practitioner plus our team coordinating around you.',
-    features: ['Everything in NI Care', 'Named coordination contact', 'Multi-practitioner coordination', 'Care planning between reviews'],
-    cta: 'Enquire',
-  },
-]
-
-// ─── 4. TierCard ──────────────────────────────────────────────────────────────
-function TierCard({ tier }: { tier: Tier }) {
-  return (
-    <div
-      className="rounded-2xl p-6 flex flex-col"
-      style={{
-        background: tier.featured ? C.pine : C.warm,
-        border: `1px solid ${tier.featured ? C.pine : C.border}`,
-        boxShadow: '0 1px 3px rgba(38,48,42,0.06), 0 1px 2px rgba(38,48,42,0.04)',
-      }}
-    >
-      <span
-        className="self-start font-mono text-[10.5px] tracking-[0.12em] uppercase px-2.5 py-1 rounded-full mb-4"
-        style={tier.featured
-          ? { background: 'rgba(244,236,221,0.14)', color: C.goldPale, border: '1px solid rgba(244,236,221,0.2)' }
-          : { background: C.cream, color: C.goldInk, border: `1px solid ${C.border}` }}
-      >
-        {tier.label}
-      </span>
-      <h3 className={`${cormorant.className} text-[24px] font-medium leading-tight mb-1`} style={{ color: tier.featured ? C.cream : C.text }}>
-        {tier.name}
-      </h3>
-      <p className="text-[22px] font-light mb-0.5" style={{ color: tier.featured ? C.goldPale : C.pine }}>{tier.price}</p>
-      {tier.priceNote && (
-        <p className="font-mono text-[10px] tracking-[0.08em] uppercase mb-3" style={{ color: tier.featured ? 'rgba(244,236,221,0.6)' : C.muted }}>
-          {tier.priceNote}
+    <section className="px-4 pt-14 pb-10" style={{ background: C.cream }}>
+      <div className="max-w-3xl mx-auto text-center">
+        <Eyebrow>Pricing</Eyebrow>
+        <h1 className={`${display} text-[40px] sm:text-[52px] font-light leading-[1.1] mb-5`} style={{ color: C.text }}>
+          Free to begin. Membership for continuity.
+          <span className="block italic" style={{ color: C.pine }}>
+            Professional care when you need it.
+          </span>
+        </h1>
+        <p className="text-[15.5px] leading-[1.75] max-w-2xl mx-auto" style={{ color: C.text2 }}>
+          NI keeps learning and community open to everyone, helps you build a living health record
+          over time, and charges separately only when a qualified professional gives you their
+          time.
         </p>
-      )}
-      <p className="text-[13px] leading-relaxed mb-5" style={{ color: tier.featured ? 'rgba(244,236,221,0.8)' : C.text2 }}>
-        {tier.blurb}
-      </p>
-      <div className="mb-6 flex-1 space-y-4">
-        {tier.features.length > 0 && (
-          <ul className="space-y-2">
-            {tier.features.map((f) => (
-              <li key={f} className="flex gap-2 text-[13px] leading-snug" style={{ color: tier.featured ? 'rgba(244,236,221,0.85)' : C.text2 }}>
-                <span aria-hidden="true" className="mt-[7px] w-1 h-1 rounded-full flex-shrink-0" style={{ background: tier.featured ? C.goldPale : C.gold }} />
-                {f}
-              </li>
-            ))}
-          </ul>
-        )}
-        {tier.stages?.map((stage) => (
-          <div key={stage.title}>
-            <p className="font-mono text-[10px] tracking-[0.12em] uppercase mb-2" style={{ color: tier.featured ? C.goldPale : C.goldInk }}>
-              {stage.title}
-            </p>
-            <ul className="space-y-2">
-              {stage.items.map((f) => (
-                <li key={f} className="flex gap-2 text-[13px] leading-snug" style={{ color: tier.featured ? 'rgba(244,236,221,0.85)' : C.text2 }}>
-                  <span aria-hidden="true" className="mt-[7px] w-1 h-1 rounded-full flex-shrink-0" style={{ background: tier.featured ? C.goldPale : C.gold }} />
-                  {f}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
       </div>
-      <InertButton variant={tier.featured ? 'cream' : 'outline'}>{tier.cta}</InertButton>
-    </div>
+    </section>
   )
 }
 
-// ─── Comparison data ──────────────────────────────────────────────────────────
-type Cell = 'Included' | 'Add-on' | 'Not included'
-const COMPARE: { row: string; cells: Cell[] }[] = [
-  { row: 'The Library & community',                    cells: ['Included', 'Included', 'Included', 'Included'] },
-  { row: 'Free community workshops',                   cells: ['Included', 'Included', 'Included', 'Included'] },
-  { row: 'Self-serve tracking tools',                  cells: ['Not included', 'Included', 'Included', 'Included'] },
-  { row: 'Intake, consultation & case-taking',         cells: ['Not included', 'Not included', 'Included', 'Included'] },
-  { row: 'Personal naturopathic plan',                 cells: ['Not included', 'Not included', 'Included', 'Included'] },
-  { row: 'Follow-up reviews & plan updates',           cells: ['Not included', 'Not included', 'Included', 'Included'] },
-  { row: 'Lab discounts & practitioner lab analysis',  cells: ['Not included', 'Not included', 'Included', 'Included'] },
-  { row: 'Consented health-story sharing',             cells: ['Not included', 'Not included', 'Included', 'Included'] },
-  { row: 'Named coordination contact',                 cells: ['Not included', 'Not included', 'Add-on', 'Included'] },
-  { row: 'Multi-practitioner coordination',            cells: ['Not included', 'Not included', 'Not included', 'Included'] },
+// ─── What would you like from NI? ────────────────────────────────────────────
+
+const ROUTES: readonly { want: string; name: string; href: string }[] = [
+  { want: 'I want to learn', name: 'NI Free', href: '#free' },
+  { want: 'I want NI to organise my health over time', name: 'NI Membership', href: '#membership' },
+  { want: 'I want my household’s health records connected', name: 'NI Family Membership', href: '#family' },
+  { want: 'I want affordable practitioner-led support', name: 'NI Guided Groups', href: '#groups' },
+  { want: 'I want individual practitioner care', name: 'NI Care 1-to-1', href: '#one-to-one' },
+  { want: 'I represent an organisation', name: 'NI for Organisations', href: '#organisations' },
 ]
-const TIER_SHORT = ['Knowledge', 'Tracked', 'NI Care', 'Fully Supported']
 
-function CellMark({ v }: { v: Cell }) {
-  const map: Record<Cell, { t: string; c: string }> = {
-    'Included':     { t: 'Included',     c: '#4A6B4F' },
-    'Add-on':       { t: 'Add-on',       c: C.goldInk },
-    'Not included': { t: '—',            c: C.muted },
-  }
-  return <span className="text-[12px] font-medium" style={{ color: map[v].c }}>{map[v].t}</span>
-}
-
-// ─── 5. ComparisonAccordionMobile (native <details> — no JS) ─────────────────
-function ComparisonAccordionMobile() {
+function AudiencePaths() {
   return (
-    <div className="md:hidden space-y-2">
-      {TIERS.map((tier, i) => (
-        <details key={tier.name} className="rounded-xl overflow-hidden" style={{ background: C.warm, border: `1px solid ${C.border}` }}>
-          <summary className="px-5 py-4 cursor-pointer text-[14px] font-medium list-none flex justify-between items-center" style={{ color: C.text }}>
-            {tier.name}
-            <span className="font-mono text-[10px] uppercase tracking-[0.1em]" style={{ color: C.goldInk }}>{tier.label}</span>
-          </summary>
-          <div className="px-5 pb-4 space-y-2" style={{ borderTop: `1px solid ${C.border}` }}>
-            {COMPARE.map((r) => (
-              <div key={r.row} className="flex justify-between gap-3 pt-2 text-[13px]" style={{ color: C.text2 }}>
-                <span>{r.row}</span>
-                <CellMark v={r.cells[i]} />
-              </div>
-            ))}
-          </div>
-        </details>
-      ))}
-    </div>
-  )
-}
-
-// ─── 6. ComparisonTableDesktop ────────────────────────────────────────────────
-function ComparisonTableDesktop() {
-  return (
-    <div className="hidden md:block overflow-x-auto rounded-2xl" style={{ background: C.warm, border: `1px solid ${C.border}` }}>
-      <table className="w-full text-left">
-        <thead>
-          <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-            <th className="px-5 py-4 text-[12px] font-mono uppercase tracking-[0.1em] font-medium" style={{ color: C.muted }}>What you get</th>
-            {TIER_SHORT.map((t) => (
-              <th key={t} className="px-4 py-4 text-[13px] font-medium text-center" style={{ color: C.pine }}>{t}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {COMPARE.map((r, ri) => (
-            <tr key={r.row} style={{ borderBottom: ri < COMPARE.length - 1 ? `1px solid ${C.border}` : 'none' }}>
-              <td className="px-5 py-3 text-[13px]" style={{ color: C.text2 }}>{r.row}</td>
-              {r.cells.map((c, ci) => (
-                <td key={ci} className="px-4 py-3 text-center"><CellMark v={c} /></td>
-              ))}
-            </tr>
+    <section className="px-4 pb-14" style={{ background: C.cream }}>
+      <div className="max-w-5xl mx-auto">
+        <h2 className={`${display} text-[28px] font-light text-center mb-6`} style={{ color: C.text }}>
+          What would you like from NI?
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {ROUTES.map((r) => (
+            <a
+              key={r.name}
+              href={r.href}
+              className="block rounded-xl p-4 transition-colors hover:bg-white"
+              style={{ background: C.warm, border: `1px solid ${C.border}` }}
+            >
+              <p className="text-[13px] leading-[1.5] mb-2" style={{ color: C.muted }}>{r.want}</p>
+              <p className="text-[15px] font-medium flex items-center gap-2" style={{ color: C.text }}>
+                {r.name}
+                <span aria-hidden style={{ color: C.gold }}>→</span>
+              </p>
+            </a>
           ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// ─── 7. CorporateBlock ────────────────────────────────────────────────────────
-function CorporateBlock() {
-  return (
-    <section className="rounded-2xl p-8 md:p-10 relative overflow-hidden" style={{ background: C.pine }}>
-      <div aria-hidden="true" className="pointer-events-none absolute -top-24 -right-20 w-80 h-80 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(176,138,62,0.15), transparent 68%)' }} />
-      <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-        <div>
-          <Eyebrow onDark>NI Corporate · By proposal</Eyebrow>
-          <h2 className={`${cormorant.className} text-[30px] font-light leading-tight mb-3`} style={{ color: C.cream }}>
-            Health education for your workforce or community.
-          </h2>
-          <p className="text-[14px] leading-relaxed mb-6" style={{ color: 'rgba(244,236,221,0.8)' }}>
-            Practitioner-led sessions for workplaces, care settings and community
-            organisations — education and wellbeing, scoped to your setting.
-            Enquiry, scope, quote, deliver: every engagement is priced by proposal.
-          </p>
-          <InertButton variant="cream">Enquire about NI Corporate</InertButton>
         </div>
-        <ul className="space-y-3">
-          {['Workforce health education sessions', 'Care-home education and support visits', 'Organisation wellbeing programmes', 'Delivered by qualified practitioners'].map((f) => (
-            <li key={f} className="flex gap-2 text-[13.5px]" style={{ color: 'rgba(244,236,221,0.85)' }}>
-              <span aria-hidden="true" className="mt-[7px] w-1 h-1 rounded-full flex-shrink-0" style={{ background: C.goldPale }} />
-              {f}
-            </li>
-          ))}
-        </ul>
+        <p className="text-center text-[13px] mt-5" style={{ color: C.muted }}>
+          These are choices, not steps. Use one, or combine them. Membership is never required for
+          professional care.
+        </p>
       </div>
     </section>
   )
 }
 
-// ─── 8. SubsidisedAccessBlock ─────────────────────────────────────────────────
-function SubsidisedAccessBlock() {
-  return (
-    <section className="rounded-2xl p-8 text-center" style={{ background: C.sand, border: `1px solid ${C.border}` }}>
-      <Eyebrow>Subsidised access · Eligibility-based</Eyebrow>
-      <h2 className={`${cormorant.className} text-[26px] font-light mb-3`} style={{ color: C.text }}>
-        Cost should not be the reason you go without care.
-      </h2>
-      <p className="text-[14px] leading-relaxed max-w-xl mx-auto mb-5" style={{ color: C.text2 }}>
-        A limited number of subsidised places are available on our practitioner-led
-        tiers, assessed on eligibility. Tell us your situation and our team will
-        respond personally.
-      </p>
-      <InertButton variant="outline">Ask about subsidised access</InertButton>
-    </section>
-  )
-}
+// ─── Your health record and continuity ───────────────────────────────────────
 
-// ─── 9. PricingFAQ ────────────────────────────────────────────────────────────
-const FAQS: { q: string; a: string }[] = [
-  {
-    q: 'Do the tools diagnose anything?',
-    a: 'No. The self-serve tools organise your own information and show patterns and ranges over time. They do not diagnose, treat or make any clinical judgement — that is always the work of a qualified human practitioner.',
-  },
-  {
-    q: 'How am I matched with a practitioner?',
-    a: 'You are not matched by software. Our team routes your request to a practitioner personally — coordination is human and admin-arranged at every step.',
-  },
-  {
-    q: 'What exactly am I paying for on the care tiers?',
-    a: 'A qualified practitioner’s time and judgement: the review you request, the written response they sign, and — on the ongoing tiers — their continuing attention over time.',
-  },
-  {
-    q: 'Can I stay on the free tier forever?',
-    a: 'Yes. The Library, the community and free community workshops are not a trial — they are a permanent part of what Natural Intelligence is.',
-  },
-  {
-    q: 'Does Natural Intelligence replace my GP?',
-    a: 'No. Natural Intelligence supports care; it does not replace medical care, and it is not an emergency service. In an emergency call 999, or use NHS 111 for urgent concerns.',
-  },
-]
+function RecordCards() {
+  const card: React.CSSProperties = { background: C.warm, border: `1px solid ${C.border}` }
 
-function PricingFAQ() {
   return (
-    <section className="max-w-2xl mx-auto">
-      <h2 className={`${cormorant.className} text-[30px] font-light text-center mb-6`} style={{ color: C.text }}>
-        Fair questions
-      </h2>
-      <div className="space-y-2">
-        {FAQS.map((f) => (
-          <details key={f.q} className="rounded-xl" style={{ background: C.warm, border: `1px solid ${C.border}` }}>
-            <summary className="px-5 py-4 cursor-pointer text-[14px] font-medium list-none" style={{ color: C.text }}>{f.q}</summary>
-            <p className="px-5 pb-4 text-[13.5px] leading-relaxed" style={{ color: C.text2 }}>{f.a}</p>
-          </details>
-        ))}
+    <section className="px-4 py-14" style={{ background: C.warm }}>
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-8">
+          <Eyebrow>Your health record and continuity</Eyebrow>
+          <p className="text-[14.5px] leading-[1.7] max-w-2xl mx-auto" style={{ color: C.text2 }}>
+            These products organise your health over time. None of them include practitioner time.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-start">
+          {/* NI Free */}
+          <div id="free" className="rounded-2xl p-6 sm:p-7 h-full" style={{ ...card, background: '#FFFDF9' }}>
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: C.goldInk }}>
+                To begin
+              </span>
+              <StatusPill>Open now</StatusPill>
+            </div>
+            <h3 className={`${display} text-[24px] font-light mb-1`} style={{ color: C.text }}>NI Free</h3>
+            <p className="text-[32px] leading-none font-light mb-1" style={{ color: C.text }}>Free</p>
+            <p className="text-[13px] mb-4" style={{ color: C.muted }}>No card needed</p>
+            <p className="text-[14px] leading-[1.7] mb-5" style={{ color: C.text2 }}>
+              Begin organising and understanding your own health.
+            </p>
+            <ul className="space-y-2 mb-6">
+              <Tick>NI Knowledge — free health education</Tick>
+              <Tick>The NI community</Tick>
+              <Tick>Free community workshops</Tick>
+              <Tick>Basic self-serve health organisation, where available</Tick>
+              <Dash>No practitioner time included</Dash>
+            </ul>
+            <InertButton variant="outline">Start Free</InertButton>
+          </div>
+
+          {/* NI Membership */}
+          <div
+            id="membership"
+            className="rounded-2xl p-6 sm:p-7 h-full"
+            style={{ background: '#FFFDF9', border: `1.5px solid ${C.goldLine}` }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: C.goldInk }}>
+                For continuity
+              </span>
+              <StatusPill>Opening soon</StatusPill>
+            </div>
+            <h3 className={`${display} text-[24px] font-light mb-1`} style={{ color: C.text }}>NI Membership</h3>
+            <p className="text-[32px] leading-none font-light mb-1" style={{ color: C.text }}>
+              {MEMBERSHIP_HEADLINE}
+              <span className="text-[15px] font-normal ml-1" style={{ color: C.muted }}>/ month</span>
+            </p>
+            {/* No Monthly/Yearly selector: both figures are stated, with the saving. */}
+            <p className="text-[13px] mb-4" style={{ color: C.muted }}>{MEMBERSHIP_YEARLY_NOTE}</p>
+            <p className="text-[14px] leading-[1.7] mb-5" style={{ color: C.text2 }}>
+              Your health story, organised over time.
+            </p>
+            <ul className="space-y-2 mb-6">
+              <Tick>Your living, longitudinal health record</Tick>
+              <Tick>BioHub — your results in one organised place</Tick>
+              <Tick>LifeTracker — tracking over time</Tick>
+              <Tick>Continuity across NI and connected tools</Tick>
+              <Tick>Preferential pricing on NI professional care</Tick>
+              <Dash>No practitioner time or appointments included</Dash>
+            </ul>
+            <InertButton>Register interest</InertButton>
+          </div>
+
+          {/* NI Family Membership */}
+          <div id="family" className="rounded-2xl p-6 sm:p-7 h-full" style={{ ...card, background: '#FFFDF9' }}>
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: C.goldInk }}>
+                For your household
+              </span>
+              <StatusPill>Opening later</StatusPill>
+            </div>
+            <h3 className={`${display} text-[24px] font-light mb-1`} style={{ color: C.text }}>
+              NI Family Membership
+            </h3>
+            <p className="text-[20px] leading-tight font-light mb-1" style={{ color: C.text }}>
+              {FAMILY_MEMBERSHIP_NOTE}
+            </p>
+            <p className="text-[13px] mb-4" style={{ color: C.muted }}>
+              Priced per household · adults only at launch
+            </p>
+            <p className="text-[14px] leading-[1.7] mb-4" style={{ color: C.text2 }}>
+              One connected household. Private records for each adult.
+            </p>
+            <p className="font-mono text-[10.5px] tracking-[0.12em] uppercase mb-3" style={{ color: C.goldInk }}>
+              Shared household context
+            </p>
+            <ul className="space-y-2 mb-6">
+              <Tick>A separate, private record for each adult</Tick>
+              <Tick>
+                Shared household context, only where each adult consents — family history, cooking,
+                water, mould, pets, home environment
+              </Tick>
+              <Tick>The account holder never sees another adult’s record automatically</Tick>
+              <Dash>Not family care: care is per person, per episode</Dash>
+            </ul>
+            <InertButton variant="outline">Register interest</InertButton>
+          </div>
+        </div>
+
+        {/* The membership boundary — the most important line on this page. */}
+        <div
+          className="mt-8 rounded-xl px-6 py-5 text-center"
+          style={{ background: C.sand, border: `1px solid ${C.border}` }}
+        >
+          <p className={`${display} text-[20px] font-light leading-snug mb-2`} style={{ color: C.text }}>
+            Membership pays for continuity. Professional care pays for defined human input.
+          </p>
+          <p className="text-[13.5px]" style={{ color: C.text2 }}>
+            Membership is not required for professional care. Members receive preferential pricing.
+          </p>
+        </div>
       </div>
     </section>
   )
 }
 
-// ─── 10. FounderDecisionNotes (admin-facing, would not ship publicly) ─────────
-function FounderDecisionNotes() {
-  const notes = [
-    'Prices are unset on every paid tier ("£ —"). The retired 19/49/69/119 figures are not used and must not return. Founder to set launch prices.',
-    'Tier names, labels and the Included/Add-on grid are proposals for review — nothing here is published.',
-    'Founder amendment applied: First Care and Ongoing Support are collapsed into one NI Care tier — one care journey at two intensities (Start with care / Continue care). NI Care is the featured tier; confirm the single-price treatment (one price vs start + continue pricing).',
-    'Subsidised access is worded as eligibility-based with no donation, charity or charitable-structure language, per the open legal question.',
-    'Corporate is by-proposal only, mirroring the Plan of Record lane (enquiry → scope → quote → deliver).',
-    'All CTAs are inert. Publishing any of this requires: prices set, Stripe/billing built (currently none exists), and the Sprint 3 safety floor for the care tiers.',
+// ─── At a glance ─────────────────────────────────────────────────────────────
+
+function AtAGlance() {
+  const COLS = ['NI Free', 'Membership', 'Family Membership', 'Guided Groups', 'NI Care 1-to-1']
+
+  // Every price cell is composed from the catalogue — no figure is typed here.
+  const ROWS: readonly (readonly string[])[] = [
+    [
+      'Price',
+      'Free',
+      `${formatPounds(MEMBERSHIP.monthly)}/month or ${formatPounds(MEMBERSHIP.yearly)}/year`,
+      FAMILY_MEMBERSHIP_NOTE,
+      inlinePriceLabel(GUIDED_GROUPS),
+      `Initial Review ${inlinePriceLabel(INITIAL_CARE_REVIEW)}`,
+    ],
+    ['Your health record', 'Basic, where available', 'Living, longitudinal', 'Private record per adult', 'Programme tracking', 'One connected record'],
+    ['Practitioner time', 'Not included', 'Not included', 'Not included', 'Programme-based', 'Included in this episode'],
+    ['Individual signed Protocol', 'Not included', 'Not included', 'Not included', 'Available separately', 'Included in this episode'],
+    ['Specialist input', '—', '—', '—', 'Programme-based', 'Scoped if needed'],
+    ['Member pricing on care', '—', 'Preferential member pricing', 'Preferential member pricing', 'Preferential member pricing', 'Preferential member pricing'],
   ]
+
   return (
-    <section className="rounded-2xl p-6" style={{ background: C.warm, border: `2px dashed ${C.gold}` }}>
-      <p className="font-mono text-[11px] tracking-[0.14em] uppercase font-medium mb-3" style={{ color: C.goldInk }}>
-        Founder decision notes — admin-only, not part of the public page
+    <section className="px-4 py-14" style={{ background: C.warm }}>
+      <div className="max-w-6xl mx-auto">
+        <h2 className={`${display} text-[30px] font-light text-center mb-7`} style={{ color: C.text }}>
+          At a glance
+        </h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px]" style={{ minWidth: 760, borderCollapse: 'collapse' }}>
+            <caption className="sr-only">
+              NI products and professional care compared across price, record, practitioner time,
+              Protocol, specialist input and member pricing.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col" className="text-left p-3" style={{ borderBottom: `1px solid ${C.border}` }} />
+                {COLS.map((c) => (
+                  <th
+                    key={c} scope="col"
+                    className="text-left p-3 font-medium text-[13px]"
+                    style={{ color: C.text, borderBottom: `1px solid ${C.border}` }}
+                  >
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ROWS.map((row) => (
+                <tr key={row[0]}>
+                  <th
+                    scope="row"
+                    className="text-left p-3 font-medium align-top whitespace-nowrap"
+                    style={{ color: C.text, borderBottom: `1px solid ${C.border}` }}
+                  >
+                    {row[0]}
+                  </th>
+                  {row.slice(1).map((cell, i) => (
+                    <td
+                      key={`${row[0]}-${COLS[i]}`}
+                      className="p-3 align-top leading-[1.6]"
+                      style={{ color: C.text2, borderBottom: `1px solid ${C.border}` }}
+                    >
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Organisations and subsidised access ─────────────────────────────────────
+
+function OrganisationsAndAccess() {
+  return (
+    <section className="px-4 py-12" style={{ background: C.cream }}>
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div id="organisations" className="rounded-2xl p-7" style={{ background: C.warm, border: `1px solid ${C.border}` }}>
+          <div className="flex items-center justify-between mb-4">
+            <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: C.goldInk }}>
+              For organisations
+            </span>
+            <StatusPill>Bespoke</StatusPill>
+          </div>
+          <h3 className={`${display} text-[24px] font-light mb-3`} style={{ color: C.text }}>
+            NI for Organisations
+          </h3>
+          <p className="text-[14px] leading-[1.7] mb-5" style={{ color: C.text2 }}>
+            Health education, workforce wellbeing and practitioner-led programmes, shaped to your
+            people and priced by proposal.
+          </p>
+          <div className="flex flex-wrap gap-2 mb-6">
+            {['Employers', 'Care homes', 'Community organisations', 'Health education', 'Workforce wellbeing', 'Commissioned group support'].map((t) => (
+              <span
+                key={t}
+                className="inline-block text-[12.5px]"
+                style={{ border: `1px solid ${C.border}`, borderRadius: 999, padding: '4px 11px', color: C.text2 }}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+          <InertButton variant="outline">Talk to us</InertButton>
+        </div>
+
+        <div className="rounded-2xl p-7" style={{ background: C.warm, border: `1px solid ${C.border}` }}>
+          <div className="flex items-center justify-between mb-4">
+            <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: C.goldInk }}>
+              Subsidised access
+            </span>
+            <StatusPill>Based on eligibility</StatusPill>
+          </div>
+          <h3 className={`${display} text-[24px] font-light mb-3`} style={{ color: C.text }}>
+            Cost should not be the reason you go without care.
+          </h3>
+          <p className="text-[14px] leading-[1.7] mb-6" style={{ color: C.text2 }}>
+            A limited number of subsidised places may be offered, based on eligibility. Ask us
+            about it — we’ll explain what’s available when care opens.
+          </p>
+          <InertButton variant="outline">Ask about eligibility</InertButton>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Other ways to join NI ───────────────────────────────────────────────────
+
+function OtherWaysToJoin() {
+  const ways = [
+    {
+      eyebrow: 'For practitioners',
+      name: 'Practitioner Network',
+      body: 'Practitioners don’t pay to reach NI clients. Join for organised cases, NI referrals and NI-paid professional work as care opens.',
+      cta: 'Join the Practitioner Network →',
+    },
+    {
+      eyebrow: 'For students & graduates',
+      name: 'NI Student & Graduate Community',
+      body: 'Learn alongside practitioners, with supervised experience as NI’s pathways open. There’s no fee to join.',
+      cta: 'Join the Student & Graduate Community →',
+    },
+  ]
+
+  return (
+    <section className="px-4 py-12" style={{ background: C.botanical }}>
+      <div className="max-w-5xl mx-auto">
+        <h2 className={`${display} text-[26px] font-light text-center mb-7`} style={{ color: C.cream }}>
+          Other ways to join NI
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {ways.map((w) => (
+            <div
+              key={w.name}
+              className="rounded-2xl p-6"
+              style={{ border: `1px solid rgba(226,210,174,0.3)` }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: C.goldPale }}>
+                  {w.eyebrow}
+                </span>
+                <span
+                  className="font-mono text-[10.5px] tracking-[0.1em] uppercase"
+                  style={{ color: C.cream, border: `1px solid ${C.goldPale}`, borderRadius: 999, padding: '3px 9px' }}
+                >
+                  Free
+                </span>
+              </div>
+              <h3 className={`${display} text-[21px] font-light mb-3`} style={{ color: C.cream }}>
+                {w.name}
+              </h3>
+              <p className="text-[13.5px] leading-[1.7] mb-5" style={{ color: 'rgba(244,236,221,0.78)' }}>
+                {w.body}
+              </p>
+              <InertButton variant="cream">{w.cta}</InertButton>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Closing ─────────────────────────────────────────────────────────────────
+
+function Closing() {
+  return (
+    <section className="px-4 py-14" style={{ background: C.cream }}>
+      <div className="max-w-2xl mx-auto text-center">
+        <h2 className={`${display} text-[34px] font-light leading-tight mb-3`} style={{ color: C.text }}>
+          Begin free.
+          <span className="block italic" style={{ color: C.pine }}>
+            Add continuity or care when it helps.
+          </span>
+        </h2>
+        <div className="flex flex-wrap gap-3 justify-center mt-7">
+          <InertButton>Start Free</InertButton>
+          <InertButton variant="outline">Explore NI Knowledge</InertButton>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Footer() {
+  return (
+    <footer className="px-4 py-10" style={{ background: C.botanical }}>
+      <div className="max-w-3xl mx-auto text-center">
+        <p className={`${display} text-[19px] font-light`} style={{ color: C.cream }}>
+          Natural Intelligence
+        </p>
+        <p className={`${display} text-[14px] italic mb-5`} style={{ color: C.goldPale }}>
+          The signs are within you.
+        </p>
+        <p className="text-[12.5px] leading-[1.7]" style={{ color: 'rgba(244,236,221,0.7)' }}>
+          Natural Intelligence works alongside your GP and NHS care. It is not an emergency
+          service. If you need urgent medical help, call 999 or use NHS 111.
+        </p>
+      </div>
+    </footer>
+  )
+}
+
+// ─── Founder decision notes — open items only ────────────────────────────────
+
+function FounderDecisionNotes() {
+  const items: readonly { title: string; body: string }[] = [
+    {
+      title: 'Paid-service, subscription, refund and cancellation terms',
+      body: 'Legal lane. Required before billing activation. Nothing on this page creates a contract, and no payment path exists in the code.',
+    },
+    {
+      title: 'Guided Groups example programmes and discipline panels are placeholders',
+      body: 'The four example programmes and their practitioner panels are illustrative only. Each real Guided Group will state its own duration, group size, panel and price before anyone joins.',
+    },
+    {
+      title: 'Family Membership pricing is TBC',
+      body: 'The card and the comparison both say so rather than showing a figure. Adults only at launch, priced per household.',
+    },
+    {
+      title: 'Working prices are pending final sign-off',
+      body: 'Every care price carries a visible working-price tag on this preview. One flag in the pricing catalogue removes all of them when the prices are final — no page edit needed.',
+    },
+    {
+      title: 'The consultation timer is blocked until the care workspace ships to main',
+      body: 'Internal professional-time allowances are stored in the catalogue, unrendered. The timer, its phase log and the exception queue are not built. The phase-log table needs separate Founder approval, because the architecture moratorium applies.',
+    },
+  ]
+
+  return (
+    <div className="rounded-xl p-6" style={{ background: C.warm, border: `1px dashed ${C.goldLine}` }}>
+      <p className="font-mono text-[11px] tracking-[0.12em] uppercase mb-1" style={{ color: C.goldInk }}>
+        Founder decision notes
       </p>
-      <ul className="space-y-2">
-        {notes.map((n) => (
-          <li key={n} className="flex gap-2 text-[13px] leading-relaxed" style={{ color: C.text2 }}>
-            <span aria-hidden="true" className="mt-[7px] w-1 h-1 rounded-full flex-shrink-0" style={{ background: C.gold }} />
-            {n}
+      <p className="text-[12.5px] mb-5" style={{ color: C.muted }}>
+        Open items only. Internal — this block is part of the preview, not the public page.
+      </p>
+      <ol className="space-y-4">
+        {items.map((it, i) => (
+          <li key={it.title} className="flex gap-3">
+            <span
+              aria-hidden
+              className="flex-shrink-0 font-mono text-[12px] mt-0.5"
+              style={{ color: C.goldInk }}
+            >
+              {i + 1}.
+            </span>
+            <span>
+              <span className="block text-[14px] font-medium" style={{ color: C.text }}>{it.title}</span>
+              <span className="block text-[13px] leading-[1.7] mt-1" style={{ color: C.text2 }}>
+                {it.body}
+              </span>
+            </span>
           </li>
         ))}
-      </ul>
-    </section>
+      </ol>
+    </div>
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Page ────────────────────────────────────────────────────────────────────
+// The guard and the presentation are separate functions on purpose: the guard
+// is the only thing that decides who may see this, so it should be readable
+// on its own rather than buried at the top of three hundred lines of markup.
+
+function PricingPreviewBody() {
+  return (
+    <div className="min-h-screen" style={{ background: C.cream, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <PreviewBanner />
+      <Hero />
+      <AudiencePaths />
+      <RecordCards />
+      <CareSection />
+      <AtAGlance />
+      <OrganisationsAndAccess />
+      <OtherWaysToJoin />
+      <Disclosures />
+
+      <div className="px-4 py-14" style={{ background: C.cream }}>
+        <FaqAccordion />
+      </div>
+
+      {/* Clinical boundary — canonical three-clause wording */}
+      <div className="py-5 px-4" style={{ background: C.sand, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
+        <p className="text-center text-[13px] leading-[1.7] max-w-3xl mx-auto" style={{ color: C.text2 }}>
+          <strong className="font-medium" style={{ color: C.text }}>
+            A qualified human practitioner is always responsible for clinical judgement.
+          </strong>{' '}
+          Natural Intelligence supports care; it does not replace medical care.
+          Technology here organises and assists — it makes no clinical decision.
+        </p>
+      </div>
+
+      <Closing />
+
+      <div className="px-4 pb-12 max-w-4xl mx-auto">
+        <FounderDecisionNotes />
+      </div>
+
+      <Footer />
+    </div>
+  )
+}
+
 export default async function PricingPreviewPage() {
   // Defence-in-depth: the (protected) layout enforces this; repeated per convention.
   const supabase = createServerSupabaseClient()
@@ -447,47 +599,5 @@ export default async function PricingPreviewPage() {
     .from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin') redirect('https://natural-intelligence.uk')
 
-  return (
-    <div className="min-h-screen" style={{ background: C.cream, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      <PreviewBanner />
-      <PricingHero />
-      <AudiencePathCards />
-
-      <section className="px-4 pb-12 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {TIERS.map((t) => <TierCard key={t.name} tier={t} />)}
-        </div>
-      </section>
-
-      <section className="px-4 pb-12 max-w-6xl mx-auto">
-        <h2 className={`${cormorant.className} text-[30px] font-light text-center mb-6`} style={{ color: C.text }}>
-          Compare in detail
-        </h2>
-        <ComparisonAccordionMobile />
-        <ComparisonTableDesktop />
-      </section>
-
-      <div className="px-4 pb-12 max-w-6xl mx-auto space-y-6">
-        <CorporateBlock />
-        <SubsidisedAccessBlock />
-      </div>
-
-      <div className="px-4 pb-12">
-        <PricingFAQ />
-      </div>
-
-      {/* Clinical boundary — canonical three-clause wording */}
-      <div className="py-5 px-4" style={{ background: C.sand, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
-        <p className="text-center text-[13px] leading-[1.7] max-w-3xl mx-auto" style={{ color: C.text2 }}>
-          <strong className="font-medium" style={{ color: C.text }}>A qualified human practitioner is always responsible for clinical judgement.</strong>{' '}
-          Natural Intelligence supports care; it does not replace medical care.
-          Technology here organises and assists — it makes no clinical decision.
-        </p>
-      </div>
-
-      <div className="px-4 py-10 max-w-4xl mx-auto">
-        <FounderDecisionNotes />
-      </div>
-    </div>
-  )
+  return <PricingPreviewBody />
 }
