@@ -12,9 +12,19 @@ export const metadata: Metadata = { title: 'Route Map' }
 // design: it is a map, not a session tool.
 
 const BADGE: Record<RouteStatus, string> = {
+  // Reachable and doing its job.
   'LIVE':           'bg-status-successBg text-status-successText border-status-successBorder',
+  'WIRED':          'bg-status-successBg text-status-successText border-status-successBorder',
+  // Built, but not doing its job — the state most of the estate is in.
   'BUILT-NOT-LIVE': 'bg-status-warningBg text-status-warningText border-status-warningBorder',
+  'DORMANT':        'bg-status-warningBg text-status-warningText border-status-warningBorder',
+  'HELD':           'bg-status-warningBg text-status-warningText border-status-warningBorder',
+  // Real, but not the real thing.
+  'REVIEW':         'bg-surface-muted text-text-secondary border-border-default',
+  'FIXTURE':        'bg-surface-muted text-text-secondary border-border-default',
   'STUB':           'bg-surface-muted text-text-secondary border-border-default',
+  // Stopped, or absent.
+  'BLOCKED':        'bg-status-errorBg text-status-errorText border-status-errorBorder',
   'NOT FOUND':      'bg-status-errorBg text-status-errorText border-status-errorBorder',
   'UNKNOWN':        'bg-surface-muted text-text-muted border-border-default',
 }
@@ -24,6 +34,22 @@ function StatusBadge({ status }: { status: RouteStatus }) {
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${BADGE[status]}`}>
       {status}
     </span>
+  )
+}
+
+/**
+ * A route cell. Where the row names one concrete path, it is rendered as a
+ * link so the document's own entries are clickable — which is what let the
+ * hardcoded preview-link block below be deleted. A row naming several routes,
+ * or prose, stays plain text.
+ */
+function RouteCell({ route }: { route: string }) {
+  const isSinglePath = /^\/[A-Za-z0-9/_\-[\]().]*$/.test(route)
+  if (!isSinglePath) return <>{route}</>
+  return (
+    <a href={route} className="text-text-brand underline underline-offset-2 hover:no-underline">
+      {route}
+    </a>
   )
 }
 
@@ -51,24 +77,11 @@ export default async function RouteMapPage() {
         </p>
       </div>
 
-      {/* Connected Care previews — internal, branch-only, synthetic.
-          Listed here so founder review does not depend on typing raw URLs. */}
-      <section className="rounded-xl border border-border-default bg-surface-raised p-6 mb-8">
-        <h2 className="text-lg font-semibold text-text-primary mb-1">Connected care previews (internal)</h2>
-        <p className="text-xs text-text-muted mb-3 max-w-3xl">
-          The three surfaces showing the chain end to end: intake → factual synopsis → practitioner
-          review → signed protocol → DailyPath → check-ins → since last review. Synthetic data only,
-          every control is inert, nothing reads or writes live records, and these are not client-facing
-          pages. Not on production until KR approves merge/deploy. Screen C additionally demonstrates a
-          contract the live schema does not yet support — it says so on the page.
-        </p>
-        <ul className="text-sm space-y-1.5">
-          <li><a className="text-text-brand underline" href="/route-map/preview/client-today">A — Client Today (one agreed next step)</a></li>
-          <li><a className="text-text-brand underline" href="/route-map/preview/case-overview">B — Practitioner case overview (“Since last review”)</a></li>
-          <li><a className="text-text-brand underline" href="/route-map/preview/signed-protocol">C — Signed protocol → DailyPath (versioning contract)</a></li>
-          <li><a className="text-text-brand underline" href="/route-map/preview/pricing">Pricing page preview</a></li>
-        </ul>
-      </section>
+      {/* The internal preview links used to be hardcoded here, which meant the
+          page held route data of its own and the document was no longer the
+          single source of truth. They now live in ROLE-ROUTE-MAP.md under
+          "Internal previews" and render like any other row — route cells are
+          links, so nothing was lost by deleting the block. */}
 
       {!map ? (
         <div className="rounded-lg border border-status-errorBorder bg-status-errorBg px-4 py-3 text-sm text-status-errorText">
@@ -98,6 +111,12 @@ export default async function RouteMapPage() {
                     <dd>{section.enforcement}</dd>
                   </div>
                 )}
+                {section.lastVerified && (
+                  <div className="flex gap-2">
+                    <dt className="font-medium text-text-primary flex-shrink-0">Last verified:</dt>
+                    <dd>{section.lastVerified}</dd>
+                  </div>
+                )}
               </dl>
 
               {section.routes.length > 0 && (
@@ -107,14 +126,24 @@ export default async function RouteMapPage() {
                       <tr className="text-left text-xs uppercase tracking-wider text-text-muted border-b border-border-default">
                         <th className="py-2 pr-4 font-semibold">Route / Screen</th>
                         <th className="py-2 pr-4 font-semibold">Status</th>
+                        <th className="py-2 pr-4 font-semibold">Flag</th>
                         <th className="py-2 font-semibold">Notes</th>
                       </tr>
                     </thead>
                     <tbody>
                       {section.routes.map((r, i) => (
                         <tr key={`${r.route}-${i}`} className="border-b border-border-muted align-top">
-                          <td className="py-2.5 pr-4 font-mono text-xs text-text-primary whitespace-nowrap">{r.route}</td>
-                          <td className="py-2.5 pr-4"><StatusBadge status={r.status} /></td>
+                          <td className="py-2.5 pr-4 font-mono text-xs text-text-primary whitespace-nowrap">
+                            <RouteCell route={r.route} />
+                          </td>
+                          <td className="py-2.5 pr-4">
+                            <span className="inline-flex flex-wrap gap-1">
+                              {r.statuses.map((s, j) => <StatusBadge key={`${s}-${j}`} status={s} />)}
+                            </span>
+                          </td>
+                          <td className="py-2.5 pr-4 font-mono text-[11px] text-text-secondary whitespace-nowrap">
+                            {r.flag || <span className="text-text-muted">—</span>}
+                          </td>
                           <td className="py-2.5 text-text-secondary leading-relaxed">{r.notes}</td>
                         </tr>
                       ))}
