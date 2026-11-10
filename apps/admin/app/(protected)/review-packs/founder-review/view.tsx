@@ -368,16 +368,16 @@ export function FounderReviewView({ data: c }: { data: FounderReviewCase }) {
               <div key={s.id} className="py-2 border-t border-border-muted first:border-t-0">
                 <p className="text-sm text-text-primary">
                   {s.status}
-                  {s.isCurrent && (
+                  {s.canonicalCount > 0 && (
                     <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-status-successBg text-status-successText border border-status-successBorder align-middle">
-                      CURRENT ANSWERS
+                      {s.canonicalCount} CURRENT
                     </span>
                   )}
                 </p>
                 <p className="text-xs text-text-muted mt-0.5">
                   started {ukDateTime(s.startedAt)}
                   {s.completedAt ? ` · completed ${ukDateTime(s.completedAt)}` : ' · not completed'}
-                  {` · ${s.answerCount} answer rows`}
+                  {` · ${s.answerCount} answer rows, ${s.canonicalCount} still the current answer`}
                 </p>
                 <p className="text-[11px] text-text-muted mt-0.5 font-mono break-all">{s.id}</p>
               </div>

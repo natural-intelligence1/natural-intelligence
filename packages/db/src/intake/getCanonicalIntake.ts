@@ -142,8 +142,16 @@ export interface CanonicalIntakeSession {
   completedAt: string | null
   /** `intake_answers` rows written in this session. */
   answerCount: number
-  /** True for the session the most canonical answers came from. */
-  isCurrent: boolean
+  /**
+   * How many of this session's rows are still the canonical answer for their
+   * question — the rest have been superseded by a later sitting.
+   *
+   * A count rather than a flag, because answers legitimately span sessions:
+   * Tree Khan's 4 November sitting still owns `most_want_to_understand` while
+   * the 10 November one owns everything else. Flagging both as "current"
+   * reads as two live sittings, which is not what happened.
+   */
+  canonicalCount: number
 }
 
 export interface CanonicalCompletion {
@@ -429,9 +437,10 @@ export async function getCanonicalIntake(
     }
   }
 
-  const canonicalSessionIds = new Set(
-    [...canonicalRow.values()].map((r) => r.session_id),
-  )
+  const canonicalCountBySession = new Map<string, number>()
+  for (const r of canonicalRow.values()) {
+    canonicalCountBySession.set(r.session_id, (canonicalCountBySession.get(r.session_id) ?? 0) + 1)
+  }
 
   const sessions: CanonicalIntakeSession[] = (sessionsRes.data ?? []).map((s) => ({
     id: s.id,
@@ -439,7 +448,7 @@ export async function getCanonicalIntake(
     startedAt: s.started_at ?? null,
     completedAt: s.completed_at ?? null,
     answerCount: answerCountBySession.get(s.id) ?? 0,
-    isCurrent: canonicalSessionIds.has(s.id),
+    canonicalCount: canonicalCountBySession.get(s.id) ?? 0,
   }))
 
   const completion: CanonicalCompletion | null = legacy

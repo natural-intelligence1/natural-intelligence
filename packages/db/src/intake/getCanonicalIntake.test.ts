@@ -257,6 +257,37 @@ describe('3 — the old session remains queryable and history is preserved', () 
     expect(intake.sessions.find((s) => s.id === OLD_SESSION)!.status).toBe('completed')
   })
 
+  it('counts how many of each session is still canonical, rather than flagging both', async () => {
+    // Observed on the live walkthrough: Tree Khan's 4 November sitting still
+    // owns one answer while the 10 November one owns the rest. A boolean
+    // "current" flag marked BOTH sessions current, which reads as two live
+    // sittings. The count says what actually happened.
+    const { client } = mkClient({
+      answers: [
+        // superseded by the new session
+        answer({ id: 'a-old-1', session_id: OLD_SESSION, question_id: 'arrival_emotion', section_id: '0', answer: 'curious', updated_at: '2026-11-04T00:00:00.000Z' }),
+        // still canonical: the new session never touched this question
+        answer({ id: 'a-old-2', session_id: OLD_SESSION, question_id: 'most_want_to_understand', answer: '', updated_at: '2026-11-04T00:00:01.000Z' }),
+        answer({ id: 'a-new-1', session_id: NEW_SESSION, question_id: 'arrival_emotion', section_id: '0', answer: 'hopeful', updated_at: '2026-11-10T00:00:00.000Z' }),
+        answer({ id: 'a-new-2', session_id: NEW_SESSION, question_id: 'concern_duration', answer: 'over_a_year', updated_at: '2026-11-10T00:00:01.000Z' }),
+      ],
+      sessions: [
+        { id: NEW_SESSION, status: 'completed', started_at: '2026-11-10T00:00:00.000Z', completed_at: null },
+        { id: OLD_SESSION, status: 'completed', started_at: '2026-11-04T00:00:00.000Z', completed_at: null },
+      ],
+    })
+    const intake = await getCanonicalIntake(client, MEMBER)
+    const oldS = intake.sessions.find((s) => s.id === OLD_SESSION)!
+    const newS = intake.sessions.find((s) => s.id === NEW_SESSION)!
+
+    expect(oldS.answerCount).toBe(2)
+    expect(oldS.canonicalCount).toBe(1) // only most_want_to_understand survives
+    expect(newS.answerCount).toBe(2)
+    expect(newS.canonicalCount).toBe(2)
+    // Every canonical answer is owned by exactly one session.
+    expect(oldS.canonicalCount + newS.canonicalCount).toBe(3)
+  })
+
   it('deletes nothing — the projection has no mutation verb', () => {
     for (const verb of ['insert', 'update', 'upsert', 'delete', 'rpc']) {
       expect(SOURCE).not.toContain(`.${verb}(`)
