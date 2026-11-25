@@ -162,14 +162,31 @@ function CommunityWorkshopCard({ w }: { w: CommunityWorkshop }) {
                 <p className="text-sm text-text-secondary mb-3">{w.registerLines.join(' ')}</p>
               )}
               <p className="text-sm text-text-secondary mb-3">{w.booking.instruction}</p>
-              <a
-                href={w.booking.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-brand-default text-text-inverted text-sm font-medium hover:bg-brand-hover transition-colors mb-3"
-              >
-                {w.booking.linkLabel}
-              </a>
+              <div className="flex flex-wrap items-center gap-3 mb-3">
+                <a
+                  href={w.booking.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-brand-default text-text-inverted text-sm font-medium hover:bg-brand-hover transition-colors"
+                >
+                  {w.booking.linkLabel}
+                </a>
+
+                {/* Secondary only — see the `community` note in the registry. */}
+                {w.community && (
+                  <a
+                    href={w.community.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-brand-default text-brand-default text-sm font-medium hover:bg-brand-subtle transition-colors"
+                  >
+                    {w.community.label}
+                  </a>
+                )}
+              </div>
+              {w.community?.note && (
+                <p className="text-xs text-text-muted leading-relaxed mb-3">{w.community.note}</p>
+              )}
               <p className="text-sm font-medium text-text-primary">{w.booking.deadline}</p>
             </div>
           )}

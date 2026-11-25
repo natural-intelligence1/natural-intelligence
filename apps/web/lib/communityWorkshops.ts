@@ -45,6 +45,20 @@ export interface CommunityWorkshop {
     deadline: string
   }
   bookingComingSoon?: string
+  /**
+   * Optional SECONDARY community link, e.g. a WhatsApp group.
+   *
+   * Rendered beside the primary booking CTA, never instead of it, and only
+   * while booking is open — joining a community is not registering, and the
+   * two must not be confusable. Booking remains the single registration
+   * mechanism.
+   */
+  community?: {
+    label: string
+    url: string
+    /** One line making clear this is optional and separate from booking. */
+    note?: string
+  }
   closing?: string
   shareNote?: string
   provisionalNote?: string
@@ -363,6 +377,126 @@ export const communityWorkshops: CommunityWorkshop[] = [
     metaDescription:
       'A free morning workshop for ladies in Ilford on nutrition, lifestyle and supplements for ' +
       'winter immunity and resilience. Wednesday 4 November, 10:30am – 12:45pm. Free, booking essential.',
+  },
+  {
+    slug: 'heart-health-cholesterol-dec-2026',
+    title: 'Heart Health & Cholesterol',
+    subtitle:
+      'Understand how to support your heart and maintain healthy cholesterol levels through ' +
+      'nutrition, lifestyle and targeted supplementation',
+    series: 'Free Ladies’ Health Workshops — Ilford',
+    presentedBy: 'Natural Intelligence',
+    tagline: 'The Signs Are Within You',
+    theme: 'Heart Health • Cholesterol • Nutrition • Lifestyle • Supplements',
+    audience: 'Ladies only',
+    cost: 'Free',
+    date: 'Wednesday 2 December 2026',
+    time: '10:30am – 12:45pm',
+    venueLines: ['Ilford Community Centre', '15 Albert Road', 'Ilford IG1 1NG'],
+    venueNote: 'opposite the Albert Road Mosque',
+    status: 'open',
+    intro:
+      'Join us for a practical and informative morning exploring how to support your heart and ' +
+      'maintain healthy cholesterol levels through nutrition, lifestyle and targeted ' +
+      'supplementation.',
+    practitioners: [],
+    // Two speakers, so `speakers` carries both and `speaker` stays set to the
+    // first for the Event JSON-LD performer, which takes a single person.
+    //
+    // Names and titles are taken EXACTLY from the approved December leaflet
+    // (v8 GOLD FRAME) on Founder instruction: no postnominals, no upgraded
+    // qualifications. Note this deliberately differs from the November entry,
+    // which carries "mANP" — historical entries are left untouched.
+    speaker: {
+      name: 'Saima Khalil',
+      title: 'Student Naturopathic Nutritional Therapist & Educator',
+    },
+    speakers: [
+      {
+        name: 'Saima Khalil',
+        title: 'Student Naturopathic Nutritional Therapist & Educator',
+      },
+      {
+        name: 'Barbara Arienzo',
+        title: 'Cardiac Rehabilitation Nurse Specialist & Student Nutritional Therapist',
+      },
+    ],
+    whatToExpect: [
+      'Expert talks',
+      'Practical guidance',
+      'Time for your questions',
+      'A welcoming space',
+    ],
+    // The four leaflet pillars, worded as on the approved artwork.
+    learnAbout: [
+      'Support a healthy heart — nutritional strategies to maintain a healthy cardiovascular system',
+      'Understand cholesterol — the different types, what they mean and how to support healthy levels',
+      'Food and lifestyle for heart health — evidence-based recommendations to support circulation, blood pressure and overall heart health',
+      'Supplements in practice — key nutrients and supplements to support cardiovascular health',
+    ],
+    booking: {
+      instruction:
+        'Complete the booking form to register your free place.',
+      // Founder-supplied Google Form. Completing the form IS the registration
+      // for this event — there is no second confirmation step on our side.
+      // Verified 2026-11-25: collects name, email, mobile, how they heard and
+      // an attendance confirmation only. No health questions.
+      url: 'https://forms.gle/2fRUBPZYYG1AogUr8',
+      linkLabel: 'Book your free place',
+      deadline: 'Booking deadline: Tuesday 1 December 2026.',
+    },
+    // Secondary action only. Founder-supplied invite to the "NI Healthcare
+    // Community" group, verified 2026-11-25 as a valid invite link.
+    community: {
+      label: 'Join our WhatsApp community',
+      url: 'https://chat.whatsapp.com/HYE5KS61C7MCB05Ofv5SDA?s=cl&p=i&iam=2',
+      note: 'Optional, and separate from booking — the form above is what reserves your place.',
+    },
+    detailCopy: {
+      intro: [
+        'Join us for a practical and informative morning exploring how to support your heart and ' +
+          'maintain healthy cholesterol levels through nutrition, lifestyle and targeted ' +
+          'supplementation.',
+      ],
+      lookAt: [
+        'Support a healthy heart — nutritional strategies to maintain a healthy cardiovascular system',
+        'Understand cholesterol — the different types, what they mean and how to support healthy levels',
+        'Food and lifestyle for heart health — evidence-based recommendations to support circulation, blood pressure and overall heart health',
+        'Supplements in practice — key nutrients and supplements to support cardiovascular health',
+      ],
+      booking: [
+        'Complete the booking form to register your free place.',
+        'Booking deadline: Tuesday 1 December 2026.',
+      ],
+    },
+    excerpt:
+      'Supporting your heart and understanding cholesterol through nutrition, lifestyle and supplements.',
+    poster: {
+      // Founder-approved FINAL artwork ("NI-Heart-Health-Cholesterol-FINAL
+      // LEAFLET-v8-GOLD-FRAME.png", 1085×1584, 2.07MB), re-encoded to WebP q88
+      // at 1024×1495 (281KB) by scripts/optimise-workshop-poster.mjs. A pure
+      // proportional downscale — nothing cropped, nothing redrawn, no QR
+      // regenerated, and the source in the Founder's Drive is untouched.
+      src: '/images/workshops/heart-health-cholesterol-dec-2026.webp',
+      width: 1024,
+      height: 1495,
+      alt: 'Heart Health & Cholesterol — free ladies’ health workshop, Ilford, Wednesday 2 December',
+    },
+    scheduling: {
+      // December is GMT (+00:00): BST ended 25 October 2026.
+      start:           '2026-12-02T10:30:00+00:00',
+      end:             '2026-12-02T12:45:00+00:00',
+      timezone:        'Europe/London',
+      // The Founder-supplied deadline is a DATE, so bookings stay open to the
+      // end of Tuesday 1 December, matching September, October and November.
+      bookingClosesAt: '2026-12-01T23:59:00+00:00',
+      bookingState:    'open',
+    },
+    metaTitle: 'Heart Health & Cholesterol | Natural Intelligence',
+    metaDescription:
+      'A free morning workshop for ladies in Ilford on supporting heart health and understanding ' +
+      'cholesterol through nutrition, lifestyle and supplements. Wednesday 2 December, ' +
+      '10:30am – 12:45pm. Free, booking essential.',
   },
   {
     // Spelling corrected to "Divine Design" per Founder (2026-09-08).

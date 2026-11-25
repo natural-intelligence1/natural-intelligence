@@ -269,14 +269,33 @@ export default function WorkshopDetailPage({ params }: WorkshopPageProps) {
                     {paragraph}
                   </p>
                 ))}
-                <a
-                  href={event.booking.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center px-7 py-3.5 rounded-lg bg-brand-default text-text-inverted text-sm font-medium hover:bg-brand-hover transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-default"
-                >
-                  {event.booking.linkLabel}
-                </a>
+                <div className="flex flex-wrap items-center gap-3">
+                  <a
+                    href={event.booking.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center px-7 py-3.5 rounded-lg bg-brand-default text-text-inverted text-sm font-medium hover:bg-brand-hover transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-default"
+                  >
+                    {event.booking.linkLabel}
+                  </a>
+
+                  {/* Secondary only: visually subordinate to booking, and never
+                      shown on its own. Joining a community is not registering. */}
+                  {event.community && (
+                    <a
+                      href={event.community.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center px-7 py-3.5 rounded-lg border border-brand-default text-brand-default text-sm font-medium hover:bg-brand-subtle transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-default"
+                    >
+                      {event.community.label}
+                    </a>
+                  )}
+                </div>
+
+                {event.community?.note && (
+                  <p className="text-xs text-text-muted leading-relaxed mt-3">{event.community.note}</p>
+                )}
               </div>
             )}
 
