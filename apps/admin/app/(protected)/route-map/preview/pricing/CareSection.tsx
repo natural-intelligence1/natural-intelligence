@@ -1,66 +1,103 @@
 'use client'
 
-// ─── Two ways to work with NI practitioners ──────────────────────────────────
+// ─── Two ways to learn from and work with NI practitioners ───────────────────
 // The one interactive region of the preview. Three presentational controls
 // live here, and the Founder is reviewing their BEHAVIOUR, so they are real:
 //
-//   · the Guided Groups programme switcher  (4 example programmes)
+//   · the Circle switcher                   (4 launch Circles)
 //   · the 1-to-1 care-team toggle           (Initial Review / Ongoing support)
-//   · the mobile Guided Groups / 1-to-1 tabs
+//   · the mobile Circles / 1-to-1 tabs
 //
-// Every CALL TO ACTION remains inert. Switching a programme redraws an
-// illustration; it books nothing, prices nothing and writes nothing.
+// Every CALL TO ACTION remains inert. Switching a Circle redraws an
+// illustration; it joins nothing, prices nothing and writes nothing.
+//
+// WHAT v14 CHANGED HERE
+//
+// The left-hand panel was NI Guided Groups: a paid programme with its own
+// price, its own practitioner panel and its own body-system diagram. It is now
+// NI Circles, which are INCLUDED IN MEMBERSHIP and therefore have no price at
+// all. The panel lost its PriceBlock entirely — the figure did not move, it
+// ceased to exist — and gained the seat-at-the-table illustration.
+//
+// The right-hand 1-to-1 panel is unchanged in structure: same Galaxy-style
+// care-team diagram, same record chips, same entry point and optional ongoing
+// services. Only its copy was corrected.
 //
 // Responsive behaviour without measuring the viewport: on mobile the inactive
 // panel is `hidden`, on desktop both are `md:block`. One state, no resize
 // listener, no hydration mismatch.
+//
+// No animation anywhere in this file: the illustrations are static SVG, so
+// there is nothing for prefers-reduced-motion to suppress. Transitions are
+// limited to hover colour on controls, which carries no motion.
 //
 // Prices come from @natural-intelligence/db/pricing. This file contains no
 // figure — previewPageBoundary.test.ts fails if one appears.
 
 import { useState } from 'react'
 import {
-  GUIDED_GROUPS, INITIAL_CARE_REVIEW, CARE_PRICES, ONGOING_SUPPORT,
+  CIRCLES, CIRCLES_INCLUDED_NOTE, INITIAL_CARE_REVIEW, CARE_PRICES, ONGOING_SUPPORT,
   standardLabel, memberLabel, inlinePriceLabel,
 } from '@natural-intelligence/db/pricing'
 import { C, CHIP_ON, CHIP_OFF } from './theme'
 import { WorkingPrice } from './WorkingPrice'
 import { InertButton, Eyebrow, Tick, Dash } from './primitives'
 
-// ─── Illustration data (presentational only — not clinical guidance) ─────────
+// ─── Circle illustration data — EXAMPLES, not a schedule ─────────────────────
+// Every string here is illustrative and the page says so. The host is given by
+// DISCIPLINE, never by name: naming a practitioner on a pricing page would
+// promise a particular person for a session that has not been scheduled.
+//
+// Topics and nudges are deliberately descriptive rather than outcome-claiming
+// — "what's common" and "add one extra plant food", not "fix your bloating".
+// A pricing page is advertising, and an implied efficacy claim here would be
+// an advertising claim about health.
 
-const SYS: readonly (readonly [string, number])[] = [
-  ['Digestive', 104], ['Immune', 88], ['Endocrine', 104], ['Nervous', 92],
-  ['Musculoskeletal', 144], ['Cardiovascular', 136], ['Reproductive', 124],
-  ['Detox & liver', 124],
-]
-const ANG = [-90, -45, 0, 45, 90, 135, 180, 225]
-
-interface Prog {
-  name: string
-  primary: number[]
-  secondary: number[]
-  panel: readonly (readonly [string, boolean, number[]])[]
+interface CircleExample {
+  readonly name: string
+  readonly topic: readonly [string, string]
+  readonly host: string
+  readonly replay: string
+  readonly nudge: string
+  readonly space: string
 }
 
-const PROGS: readonly Prog[] = [
+const CIRCLE_EXAMPLES: readonly CircleExample[] = [
   {
-    name: 'Gut health', primary: [0, 1], secondary: [3, 7],
-    panel: [['Nutrition', true, [0, 1]], ['Herbal medicine', false, [0, 7]], ['Mind–body & breath', false, [3]]],
+    name: CIRCLES[0],
+    topic: ['Fibre, the microbiome', 'and everyday digestion'],
+    host: 'an NI nutritional therapist',
+    replay: 'Bloating: what’s common, and when to look closer',
+    nudge: 'Add one extra plant food to each meal this week',
+    space: 'Questions for the next live hour, shared tips and recipes',
   },
   {
-    name: 'Hormone balance', primary: [2, 6], secondary: [3, 7],
-    panel: [['Naturopathy', true, [2, 6]], ['Nutrition', false, [2, 7]], ['Herbal medicine', false, [6]], ['Sleep & stress', false, [3]]],
+    name: CIRCLES[1],
+    topic: ['Cycles, perimenopause', 'and everyday hormone health'],
+    host: 'an NI naturopathic practitioner',
+    replay: 'Sleep, stress and the hormone picture',
+    nudge: 'Note how you feel across the week, in one line a day',
+    space: 'Questions for the next live hour, and what others are noticing',
   },
   {
-    name: 'Energy & fatigue', primary: [2, 3], secondary: [0, 5],
-    panel: [['Functional medicine', true, [2, 3]], ['Nutrition', false, [0, 2]], ['Movement', false, [5]]],
+    name: CIRCLES[2],
+    topic: ['Blood sugar, meals', 'and steady energy'],
+    host: 'an NI nutritional therapist',
+    replay: 'Why afternoons feel flat, and what to look at',
+    nudge: 'Add protein to breakfast three mornings this week',
+    space: 'Questions for the next live hour, shared meals and routines',
   },
   {
-    name: 'Stress & sleep', primary: [3], secondary: [2, 5],
-    panel: [['Naturopathy', true, [3]], ['Mind–body & breath', false, [3, 5]], ['Herbal medicine', false, [3, 2]]],
+    name: CIRCLES[3],
+    topic: ['Wind-down, light', 'and the sleep window'],
+    host: 'an NI medical herbalist',
+    replay: 'Racing thoughts at bedtime: what’s common',
+    nudge: 'Step outside for daylight within an hour of waking',
+    space: 'Questions for the next live hour, and evening routines that stuck',
   },
 ]
+
+// ─── 1-to-1 illustration data (presentational only — not clinical guidance) ──
 
 const SPEC: readonly (readonly [string, number, number, number])[] = [
   ['Nutrition', 110, 108.1, 158.9],
@@ -79,96 +116,122 @@ const RECORD_CHIPS: readonly (readonly [string, boolean])[] = [
   ['Follow-up', false],
 ]
 
-const systemNames = (ix: number[]) => ix.map((i) => SYS[i][0]).join(' · ')
+// ─── Circles illustration — a seat at the table ──────────────────────────────
+// A round table seen from above. Ten seats: the HOST at the top, YOU at the
+// bottom, and eight others who are deliberately anonymous — no faces, no
+// names, no count stated in words. The page says "a focused group" and the
+// picture agrees with it rather than contradicting it with a countable crowd.
 
-// ─── Guided Groups illustration ──────────────────────────────────────────────
+function CircleTableDiagram({ ex }: { ex: CircleExample }) {
+  const cx = 280, cy = 205
+  const tableR = 118
+  // Seats sit just off the table edge, as the approved reference draws them.
+  // Pushed further out they stop reading as people AT a table and start
+  // reading as a ring of unrelated shapes around one.
+  const seatR = 145
+  const SEATS = 10
+  const hostIndex = 0
+  const youIndex = 5
 
-function GroupsDiagram({ prog }: { prog: Prog }) {
-  const cx = 280, cy = 200, r = 165
-  const nodes = SYS.map(([label, w], i) => {
-    const a = (ANG[i] * Math.PI) / 180
-    const x = Math.round((cx + r * Math.cos(a)) * 10) / 10
-    const y = Math.round((cy + r * Math.sin(a)) * 10) / 10
-    const primary = prog.primary.includes(i)
-    const secondary = prog.secondary.includes(i)
+  const seats = Array.from({ length: SEATS }, (_, i) => {
+    // Start at the top and go clockwise, so the host sits at 12 o'clock and
+    // "You" sits directly opposite, facing them across the table.
+    const a = ((-90 + (360 / SEATS) * i) * Math.PI) / 180
     return {
-      label, w, x, y, primary, secondary,
-      fill: primary ? C.dPrimary : secondary ? C.paper : C.dNeutral,
-      stroke: primary || secondary ? C.dStroke : C.dStrokeOff,
-      rectDash: secondary ? '4 3' : undefined,
-      ink: primary || secondary ? C.dInk : C.dInkOff,
-      weight: primary ? 600 : 400,
-      line: primary || secondary ? C.dStroke : 'transparent',
-      lineDash: secondary ? '5 4' : undefined,
+      i,
+      x: Math.round((cx + seatR * Math.cos(a)) * 10) / 10,
+      y: Math.round((cy + seatR * Math.sin(a)) * 10) / 10,
+      isHost: i === hostIndex,
+      isYou: i === youIndex,
     }
   })
 
   return (
     <svg
-      viewBox="0 0 560 400" role="img" className="w-full h-auto"
+      viewBox="0 0 560 410" role="img" className="w-full h-auto"
       aria-label={
-        `Illustration of the ${prog.name} example programme: your group at the centre, ` +
-        `held by one lead practitioner. Primary body systems: ${systemNames(prog.primary)}. ` +
-        `Secondary: ${systemNames(prog.secondary)}.`
+        `Illustration of an NI Circle: a round table with the host's seat at the top, ` +
+        `your seat opposite, and other members around it. This month's example live hour ` +
+        `for the ${ex.name} Circle is ${ex.topic[0]} ${ex.topic[1]}. Replays and a coach ` +
+        `nudge are available between sessions.`
       }
     >
-      {nodes.map((n) => (
-        <line
-          key={`l-${n.label}`} x1={cx} y1={cy} x2={n.x} y2={n.y}
-          stroke={n.line} strokeWidth={1.4} strokeDasharray={n.lineDash}
-        />
-      ))}
+      {/* The table */}
+      <circle cx={cx} cy={cy} r={tableR} fill={C.paper} stroke={C.goldLine} strokeWidth={1.6} />
+      <circle cx={cx} cy={cy} r={tableR - 10} fill="none" stroke={C.dStrokeOff} strokeWidth={0.8} />
 
-      {/* Centre — the group, held by one lead practitioner throughout. */}
-      <circle cx={cx} cy={cy} r={62} fill={C.paper} stroke={C.dLeadRing} strokeWidth={1.8} />
-      <text x={cx} y={cy - 14} textAnchor="middle" fontSize={8.5} letterSpacing="0.1em" fill={C.goldInk}>
-        LEAD PRACTITIONER
+      {/* Seats */}
+      {seats.map((s) => {
+        const fill = s.isYou ? C.pine : s.isHost ? C.goldPale : C.dPrimary
+        const stroke = s.isYou ? C.pine : s.isHost ? C.dLeadRing : C.dStrokeOff
+        return (
+          <g key={s.i}>
+            <rect
+              x={s.x - 18} y={s.y - 11.5} width={36} height={23} rx={11.5}
+              fill={fill} stroke={stroke} strokeWidth={1.4}
+            />
+            {s.isHost && (
+              <text x={s.x} y={s.y - 22} textAnchor="middle" fontSize={11} fill={C.goldInk}>
+                Host
+              </text>
+            )}
+            {s.isYou && (
+              <text x={s.x} y={s.y + 30} textAnchor="middle" fontSize={12} fontWeight={600} fill={C.dInk}>
+                You
+              </text>
+            )}
+          </g>
+        )
+      })}
+
+      {/* This month, on the table */}
+      <text x={cx} y={cy - 54} textAnchor="middle" fontSize={8.5} letterSpacing="0.14em" fill={C.goldInk}>
+        THIS MONTH’S LIVE HOUR
       </text>
-      <text x={cx} y={cy - 2} textAnchor="middle" fontSize={8.5} letterSpacing="0.1em" fill={C.goldInk}>
-        · THROUGHOUT ·
+      <text x={cx} y={cy - 24} textAnchor="middle" fontSize={23} fill={C.dInk}>
+        {ex.name}
       </text>
-      <text x={cx} y={cy + 18} textAnchor="middle" fontSize={15} fontWeight={500} fill={C.dInk}>
-        your group
+      <text x={cx} y={cy + 2} textAnchor="middle" fontSize={12.5} fill={C.dInkOff}>
+        {ex.topic[0]}
+      </text>
+      <text x={cx} y={cy + 19} textAnchor="middle" fontSize={12.5} fill={C.dInkOff}>
+        {ex.topic[1]}
       </text>
 
-      {nodes.map((n) => (
-        <g key={`n-${n.label}`}>
-          <rect
-            x={n.x - n.w / 2} y={n.y - 16} width={n.w} height={32} rx={16}
-            fill={n.fill} stroke={n.stroke} strokeWidth={1.3} strokeDasharray={n.rectDash}
-          />
-          <text x={n.x} y={n.y + 5} textAnchor="middle" fontSize={12.5} fontWeight={n.weight} fill={n.ink}>
-            {n.label}
-          </text>
-        </g>
-      ))}
+      {/* Between sessions, as two quiet chips on the table */}
+      <g>
+        <rect x={cx - 86} y={cy + 36} width={78} height={24} rx={12} fill={C.warm} stroke={C.dStrokeOff} strokeWidth={1} />
+        <text x={cx - 47} y={cy + 52} textAnchor="middle" fontSize={11} fill={C.dInkOff}>▶ Replays</text>
+        <rect x={cx + 8} y={cy + 36} width={94} height={24} rx={12} fill={C.warm} stroke={C.dStrokeOff} strokeWidth={1} />
+        <text x={cx + 55} y={cy + 52} textAnchor="middle" fontSize={11} fill={C.dInkOff}>Coach nudge</text>
+      </g>
     </svg>
   )
 }
 
-function GroupsLegend() {
-  const item = (fill: string, stroke: string, dash: string | undefined, label: string) => (
-    <span className="inline-flex items-center gap-2">
+/** One between-sessions row: an icon, a label and the example itself. */
+function BetweenRow({ icon, label, body }: { icon: string; label: string; body: string }) {
+  return (
+    <li className="flex items-start gap-3 py-3" style={{ borderTop: `1px solid ${C.border}` }}>
       <span
         aria-hidden
+        className="flex-shrink-0 inline-flex items-center justify-center text-[12px]"
         style={{
-          width: 22, height: 12, borderRadius: 999, background: fill,
-          border: `1.3px ${dash ? 'dashed' : 'solid'} ${stroke}`, display: 'inline-block',
+          width: 28, height: 28, borderRadius: 999,
+          border: `1px solid ${C.goldLine}`, color: C.goldInk,
         }}
-      />
-      <span>{label}</span>
-    </span>
-  )
-  return (
-    <div className="flex flex-wrap gap-x-5 gap-y-2 text-[12px] mt-3" style={{ color: C.muted }}>
-      {item(C.dPrimary, C.dStroke, undefined, 'Primary body system')}
-      {item(C.paper, C.dStroke, 'dashed', 'Secondary system')}
-      {item(C.dNeutral, C.dStrokeOff, undefined, 'Not a focus of this programme')}
-    </div>
+      >
+        {icon}
+      </span>
+      <span>
+        <span className="block text-[12px]" style={{ color: C.muted }}>{label}</span>
+        <span className="block text-[14px] leading-[1.6]" style={{ color: C.text }}>{body}</span>
+      </span>
+    </li>
   )
 }
 
-// ─── Care-team illustration ──────────────────────────────────────────────────
+// ─── 1-to-1 care-team illustration ───────────────────────────────────────────
 
 function CareTeamDiagram({ ongoing }: { ongoing: boolean }) {
   const lx = 280, ly = 252
@@ -289,103 +352,93 @@ function PriceBlock({
   )
 }
 
-function GuidedGroupsPanel() {
-  const [ggp, setGgp] = useState(0)
-  const prog = PROGS[ggp]
+function CirclesPanel() {
+  const [i, setI] = useState(0)
+  const ex = CIRCLE_EXAMPLES[i]
 
   return (
     <Card>
-      <Eyebrow>Together, more affordably</Eyebrow>
-      <h3 className="text-[26px] font-light mb-2" style={{ color: C.text }}>NI Guided Groups</h3>
+      <Eyebrow>Together · included with Membership</Eyebrow>
+      <h3 className="text-[26px] font-light mb-2" style={{ color: C.text }}>NI Circles</h3>
       <p className="text-[15px] mb-4" style={{ color: C.text }}>
-        One group. One coordinated journey. Several relevant perspectives.
+        One body system. One monthly hour. People on the same path.
       </p>
       <p className="text-[14px] leading-[1.7] mb-6" style={{ color: C.text2 }}>
-        A small, fixed-length group of people with a similar health concern, moving through a
-        structured programme together. One lead practitioner stays with the group; relevant
-        specialists contribute where they help.
+        Each member joins one Circle: the body system that needs them most right now. Each month an
+        NI practitioner hosts a live hour for each Circle — focused teaching on that body system and
+        open Q&amp;A, with a coach encouraging healthy everyday habits.
       </p>
 
       <p className="font-mono text-[11px] tracking-[0.12em] uppercase mb-3" style={{ color: C.goldInk }}>
-        Example programme
+        Choose your Circle
       </p>
-      <div role="group" aria-label="Example programme" className="flex flex-wrap gap-2 mb-4">
-        {PROGS.map((p, i) => (
+      <div role="group" aria-label="Choose your Circle" className="flex flex-wrap gap-2 mb-4">
+        {CIRCLE_EXAMPLES.map((c, idx) => (
           <button
-            key={p.name} type="button" onClick={() => setGgp(i)}
-            aria-pressed={i === ggp} style={i === ggp ? CHIP_ON : CHIP_OFF}
+            key={c.name} type="button" onClick={() => setI(idx)}
+            aria-pressed={idx === i} style={idx === i ? CHIP_ON : CHIP_OFF}
           >
-            {p.name}
+            {c.name}
           </button>
         ))}
       </div>
 
-      <GroupsDiagram prog={prog} />
-      <GroupsLegend />
+      <CircleTableDiagram ex={ex} />
 
-      <p className="font-mono text-[11px] tracking-[0.12em] uppercase mt-7 mb-3" style={{ color: C.goldInk }}>
-        This example&rsquo;s practitioner panel
+      <p className="text-[12.5px] mt-3" style={{ color: C.muted }}>
+        Hosted by {ex.host} · A focused group · Live online, monthly
       </p>
-      <ul className="space-y-2 mb-4">
-        {prog.panel.map(([modality, isLead, systems]) => (
-          <li key={modality} className="flex items-start gap-3 text-[14px]">
-            <span aria-hidden className="mt-1.5 flex-shrink-0" style={{ width: 16, textAlign: 'center' }}>
-              <span
-                style={
-                  isLead
-                    ? { display: 'inline-block', width: 14, height: 14, borderRadius: '50%', border: `1.8px solid ${C.dLeadRing}`, boxSizing: 'border-box' }
-                    : { display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: C.dStroke }
-                }
-              />
-            </span>
-            <span>
-              <span style={{ color: C.text }}>{modality}</span>
-              {isLead && (
-                <span className="ml-2 text-[12px]" style={{ color: C.goldInk }}>Lead practitioner</span>
-              )}
-              <span className="block text-[13px]" style={{ color: C.muted }}>
-                → {systemNames(systems)}
-              </span>
-            </span>
-          </li>
-        ))}
+
+      <ul className="mt-5">
+        <BetweenRow icon="▶" label="Replays · for example, last month" body={ex.replay} />
+        <BetweenRow icon="◇" label="Coach nudge · between sessions" body={ex.nudge} />
+        <BetweenRow icon="◎" label="Circle space · moderated" body={ex.space} />
       </ul>
-      <p className="text-[12.5px] leading-[1.65] mb-6" style={{ color: C.muted }}>
-        Programmes are illustrative. Not every programme uses every modality. Some may include
-        supervised students where appropriate. Each Guided Group lists its duration, group size,
-        practitioner panel and price before you join.
+
+      <p className="text-[12.5px] leading-[1.65] mt-4 mb-6" style={{ color: C.muted }}>
+        Choose the body system that needs you most right now. You can swap from the following
+        month. A Circle opens once enough members have joined. Sessions may include supervised
+        students where appropriate. Illustrative.
       </p>
 
       <p className="font-mono text-[11px] tracking-[0.12em] uppercase mb-3" style={{ color: C.goldInk }}>
-        A Guided Group includes
+        Each Circle includes
       </p>
       <ul className="space-y-2">
         {[
-          'A structured, fixed-length programme',
-          'A named lead practitioner',
-          'Relevant specialist input',
-          'Shared education and group support',
-          'Your own goals and tracking',
-          'Limited personalisation within the programme',
+          'One live online hour a month',
+          'A focused group on the same path',
+          'Focused teaching and open Q&A',
+          'Coach encouragement for healthy everyday habits',
+          'Replays and a moderated Circle space',
+          'One Circle at a time; swap monthly',
         ].map((f) => <Tick key={f}>{f}</Tick>)}
       </ul>
 
-      <PriceBlock standard={standardLabel(GUIDED_GROUPS)} member={memberLabel(GUIDED_GROUPS)}>
-        <WorkingPrice />
-        <p className="text-[13px] leading-[1.65] mt-4" style={{ color: C.muted }}>
-          Each programme has its own length, group size, practitioner panel and price, shown in
-          full before you join.
+      {/* No PriceBlock and no WorkingPrice tag. Circles have no price of their
+          own: they are included, and a tagged figure here would invent a
+          purchase that does not exist. */}
+      <div className="pt-5 mt-6" style={{ borderTop: `1px solid ${C.border}` }}>
+        <p className="flex flex-wrap items-baseline gap-x-3">
+          <span className="text-[32px] leading-none font-light" style={{ color: C.text }}>Included</span>
+          <span className="text-[14px]" style={{ color: C.text2 }}>{CIRCLES_INCLUDED_NOTE}</span>
+        </p>
+        <p className="text-[13px] leading-[1.65] mt-3" style={{ color: C.muted }}>
+          No extra charge. Circles are for members only.
         </p>
         <div className="mt-5">
-          <InertButton>Register interest in Guided Groups</InertButton>
+          <InertButton>Register interest in Membership</InertButton>
         </div>
-      </PriceBlock>
+      </div>
 
+      {/* The boundary. A practitioner-led hour inside a membership is the line
+          most likely to be read as individual care, so it is stated here as
+          well as on the Membership card and in the questions. */}
       <p className="text-[13px] leading-[1.7] mt-6 pt-5" style={{ color: C.text2, borderTop: `1px solid ${C.border}` }}>
-        A Guided Group does not automatically include an individual signed Protocol. If you need
-        an individual assessment, private interpretation, personal clinical advice or an
-        individual Protocol, <strong className="font-medium" style={{ color: C.text }}>NI Care
-        1-to-1</strong> is the route — you can move across at any point.
+        Circles are group education and Q&amp;A, not individual care. Please don’t share personal
+        health details in a session. For personal advice, an assessment or a signed Protocol,{' '}
+        <strong className="font-medium" style={{ color: C.text }}>NI Care 1-to-1</strong> is the
+        route — at member prices.
       </p>
     </Card>
   )
@@ -403,8 +456,8 @@ function OneToOnePanel() {
         One person. One connected record. The right professional input at the right time.
       </p>
       <p className="text-[14px] leading-[1.7] mb-6" style={{ color: C.text2 }}>
-        A defined episode of individual care, with a named lead practitioner who signs anything
-        written for you.
+        A defined episode of individual care, with a named lead practitioner who reviews and signs
+        your personal Protocol.
       </p>
 
       <p className="font-mono text-[11px] tracking-[0.12em] uppercase mb-3" style={{ color: C.goldInk }}>
@@ -473,7 +526,7 @@ function OneToOnePanel() {
           Ongoing support
         </h4>
         <p className="text-[13.5px] leading-[1.7] mt-2 mb-4" style={{ color: C.text2 }}>
-          Not a subscription, not unlimited. Choose only what helps, and pay for it as you go.
+          Not a subscription. Choose only what helps, and pay for it as you go.
         </p>
 
         <ul className="space-y-3">
@@ -527,7 +580,7 @@ function OneToOnePanel() {
 // ─── The section, with its mobile tabs ───────────────────────────────────────
 
 export function CareSection() {
-  const [tab, setTab] = useState<'groups' | 'one-to-one'>('groups')
+  const [tab, setTab] = useState<'circles' | 'one-to-one'>('circles')
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     flex: 1, border: 0, borderBottom: `2px solid ${active ? C.gold : 'transparent'}`,
@@ -540,27 +593,27 @@ export function CareSection() {
     <section id="care" className="px-4 py-14" style={{ background: C.cream }}>
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <Eyebrow>Professional care</Eyebrow>
+          <Eyebrow>Professional care · opening soon</Eyebrow>
           <h2 className="text-[30px] font-light mb-3" style={{ color: C.text }}>
-            Two ways to work with NI practitioners
+            Two ways to learn from and work with NI practitioners
           </h2>
           <p className="text-[14.5px] leading-[1.7] max-w-2xl mx-auto" style={{ color: C.text2 }}>
-            A shared programme at a more accessible cost, or a defined episode of individual care.
-            Both are open to everyone.
+            Monthly practitioner-led Circles, included with Membership, or a defined episode of
+            individual care, open to everyone.
           </p>
         </div>
 
         {/* Mobile only — on desktop both panels show and tabs would mislead. */}
         <div
-          role="tablist" aria-label="Ways to work with NI practitioners"
+          role="tablist" aria-label="Ways to learn from and work with NI practitioners"
           className="flex md:hidden mb-6" style={{ borderBottom: `1px solid ${C.border}` }}
         >
           <button
-            type="button" role="tab" id="tab-groups" aria-controls="panel-groups"
-            aria-selected={tab === 'groups'} onClick={() => setTab('groups')}
-            style={tabStyle(tab === 'groups')}
+            type="button" role="tab" id="tab-circles" aria-controls="panel-circles"
+            aria-selected={tab === 'circles'} onClick={() => setTab('circles')}
+            style={tabStyle(tab === 'circles')}
           >
-            Guided Groups
+            NI Circles
           </button>
           <button
             type="button" role="tab" id="tab-one-to-one" aria-controls="panel-one-to-one"
@@ -573,10 +626,10 @@ export function CareSection() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
           <div
-            id="groups" role="tabpanel" aria-labelledby="tab-groups"
-            className={tab === 'groups' ? 'block' : 'hidden md:block'}
+            id="circles" role="tabpanel" aria-labelledby="tab-circles"
+            className={tab === 'circles' ? 'block' : 'hidden md:block'}
           >
-            <GuidedGroupsPanel />
+            <CirclesPanel />
           </div>
 
           <div

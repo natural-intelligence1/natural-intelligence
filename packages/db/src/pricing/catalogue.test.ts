@@ -12,7 +12,8 @@ import { fileURLToPath } from 'node:url'
 
 import {
   CARE_PRICES,
-  GUIDED_GROUPS,
+  CIRCLES,
+  CIRCLES_INCLUDED_NOTE,
   INITIAL_CARE_REVIEW,
   FOLLOW_UP_REVIEW,
   FOCUSED_CHECK_IN,
@@ -33,10 +34,18 @@ import { PRACTITIONER_TIME_ALLOWANCES } from './catalogue'
 const HERE = dirname(fileURLToPath(import.meta.url))
 
 describe('the frozen public care architecture', () => {
-  it('NI Guided Groups: from £199 · Members from £179', () => {
-    expect(GUIDED_GROUPS).toEqual({ standard: 199, member: 179, from: true })
-    expect(standardLabel(GUIDED_GROUPS)).toBe('from £199')
-    expect(memberLabel(GUIDED_GROUPS)).toBe('Members from £179')
+  it('NI Circles carry no price of their own — they are included in Membership', () => {
+    // The absence is the product decision. A figure here would imply a
+    // separate purchase that does not exist, and the v14 page says
+    // "Included" where a price would otherwise sit.
+    const keys = Object.keys(CARE_PRICES)
+    expect(keys).not.toContain('circles')
+    expect(keys).not.toContain('ni_circles')
+    expect(CIRCLES_INCLUDED_NOTE).toBe('with Membership · £19 / month or £190 / year')
+  })
+
+  it('the four launch Circles are one per body system, in page order', () => {
+    expect(CIRCLES).toEqual(['Gut health', 'Hormones', 'Energy & metabolism', 'Stress & sleep'])
   })
 
   it('Initial NI Care Review: £249 · Members £225', () => {
@@ -91,12 +100,13 @@ describe('the frozen public care architecture', () => {
     for (const s of ONGOING_SUPPORT) expect(CARE_PRICES[s.key]).toBeDefined()
   })
 
-  it('the entry points are not in the ongoing-support list', () => {
-    // Guided Groups and the Initial Review are where care STARTS. Listing
-    // either as "optional ongoing support" would misdescribe the product.
-    const keys = ONGOING_SUPPORT.map((s) => s.key)
-    expect(keys).not.toContain('guided_groups')
+  it('the entry point is not in the ongoing-support list', () => {
+    // The Initial Review is where individual care STARTS. Listing it as
+    // "optional ongoing support" would misdescribe the product.
+    const keys: string[] = ONGOING_SUPPORT.map((s) => s.key)
     expect(keys).not.toContain('initial_care_review')
+    // Guided Groups was the other entry point until v14 retired it.
+    expect(keys).not.toContain('guided_groups')
   })
 
   it('formatPounds is the only place the symbol is spelled', () => {
@@ -111,16 +121,21 @@ describe('no retired pricing survives in the catalogue', () => {
     for (const banned of [
       '12-Week', '12-week', 'Fully Supported', 'Seed', 'Growth', 'Flourish',
       'Your Health, Tracked',
+      // v14 withdrew the paid Guided Groups programme. The identifier must not
+      // survive as a live export: the prose explaining WHY it went is allowed
+      // to name it, which is why this checks the declaration, not the word.
+      'GUIDED_GROUPS',
     ]) {
       expect(source, banned).not.toContain(banned)
     }
   })
 
   it('carries none of the retired figures', () => {
-    // The retired 19/49/69/119 self-serve ladder. 19 survives legitimately as
-    // Membership, so only the three that were withdrawn are checked.
+    // The retired 19/49/69/119 self-serve ladder, plus the Guided Groups pair
+    // withdrawn in v14. 19 survives legitimately as Membership, so only the
+    // figures that were actually withdrawn are checked.
     const live = new Set(Object.values(CARE_PRICES).flatMap((p) => [p.standard, p.member]))
-    for (const retired of [49, 69, 119]) expect(live.has(retired)).toBe(false)
+    for (const retired of [49, 69, 119, 199, 179]) expect(live.has(retired)).toBe(false)
   })
 })
 

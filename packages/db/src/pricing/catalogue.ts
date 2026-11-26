@@ -85,11 +85,33 @@ export const MEMBERSHIP_YEARLY_NOTE =
 export const FAMILY_MEMBERSHIP_PRICE: null = null
 export const FAMILY_MEMBERSHIP_NOTE = 'Pricing to be confirmed' as const
 
-// ─── Professional care ───────────────────────────────────────────────────────
-// The frozen architecture. Guided Groups and the Initial Review are entry
-// points; the three ongoing services are optional and individually agreed.
+// ─── NI Circles ──────────────────────────────────────────────────────────────
+// Included in Membership, so Circles have NO price of their own. That absence
+// is the product decision: a member joins one Circle at no extra charge, and
+// a figure here would imply a separate purchase that does not exist.
+//
+// Circles replaced the paid Guided Groups programme in v14. The retired
+// figures are asserted gone by catalogue.test.ts rather than left commented
+// out, because a commented-out price is still a price someone can revive.
 
-export const GUIDED_GROUPS: ServicePrice = { standard: 199, member: 179, from: true }
+/** The launch Circles, one per body system, in the order the page lists them. */
+export const CIRCLES = [
+  'Gut health',
+  'Hormones',
+  'Energy & metabolism',
+  'Stress & sleep',
+] as const
+
+export type CircleName = (typeof CIRCLES)[number]
+
+/** "with Membership · £19 / month or £190 / year" — composed, never typed. */
+export const CIRCLES_INCLUDED_NOTE =
+  `with Membership · ${formatPounds(MEMBERSHIP.monthly)} / month or ` +
+  `${formatPounds(MEMBERSHIP.yearly)} / year`
+
+// ─── Professional care ───────────────────────────────────────────────────────
+// The frozen architecture. The Initial Review is the entry point; the three
+// ongoing services are optional and individually agreed.
 
 export const INITIAL_CARE_REVIEW: ServicePrice = { standard: 249, member: 225, from: false }
 
@@ -101,7 +123,6 @@ export const SPECIALIST_CONTRIBUTION: ServicePrice = { standard: 95, member: 85,
 
 /** Every care price, for iteration and for the guard tests. */
 export const CARE_PRICES = {
-  guided_groups: GUIDED_GROUPS,
   initial_care_review: INITIAL_CARE_REVIEW,
   follow_up_review: FOLLOW_UP_REVIEW,
   focused_check_in: FOCUSED_CHECK_IN,
@@ -135,8 +156,9 @@ export const PRICING_PREVIEW = {
   /**
    * Drives <WorkingPrice>. Set false and every working-price tag disappears
    * with no page edit — which is what makes this safe to hand to production
-   * later. Placed once per care price block: Guided Groups, the Initial
-   * Review, and the ongoing-support list as a whole. Never on Membership.
+   * later. Placed once per care price block: the Initial Review, and the
+   * ongoing-support list as a whole. Never on Membership, whose figures are
+   * settled, and never on Circles, which have no price of their own.
    */
   showWorkingPrices: true,
   workingPriceLabel: 'Working price · preview',

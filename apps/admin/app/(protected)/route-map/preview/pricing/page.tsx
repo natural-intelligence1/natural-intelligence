@@ -4,7 +4,7 @@ import { Cormorant_Garamond } from 'next/font/google'
 import { createServerSupabaseClient, createAdminClient } from '@natural-intelligence/db'
 import {
   MEMBERSHIP, MEMBERSHIP_HEADLINE, MEMBERSHIP_YEARLY_NOTE, FAMILY_MEMBERSHIP_NOTE,
-  GUIDED_GROUPS, INITIAL_CARE_REVIEW, formatPounds, inlinePriceLabel,
+  INITIAL_CARE_REVIEW, formatPounds, inlinePriceLabel,
 } from '@natural-intelligence/db/pricing'
 import { C } from './theme'
 import { InertButton, Eyebrow, Tick, Dash, StatusPill } from './primitives'
@@ -12,21 +12,27 @@ import { CareSection } from './CareSection'
 import { Disclosures } from './Disclosures'
 import { FaqAccordion } from './FaqAccordion'
 
-// ─── Admin-only pricing page PREVIEW — v7 ────────────────────────────────────
+// ─── Admin-only pricing page PREVIEW — v14 ───────────────────────────────────
 // Founder-review preview of the launch pricing page. NOT public: it lives
 // behind the admin (protected) layout, is linked from no public surface, and
 // is marked noindex. Every call to action is inert. No payment provider, no
 // basket and no subscription logic exists here — this is a picture of the
 // launch product, not the product.
 //
-// WHAT CHANGED IN v7
+// WHAT CHANGED IN v14
 //
-// The page this replaced was committed on 10 September and still advertised
-// two tiers the frozen architecture had withdrawn — a paid self-serve
-// tracking tier and a human-coordinated tier — with their prices left unset
-// for the Founder. It is replaced wholesale because it shared almost no
-// sections with the frozen architecture, not because a rewrite was the
-// smaller change.
+// GUIDED GROUPS IS GONE. The paid programme was withdrawn — too much admin
+// for too little revenue — and NI CIRCLES replaced it INSIDE Membership. That
+// is not a rename: Guided Groups was a separate purchase with its own price,
+// and Circles cost nothing extra. So the price disappears from the care
+// section, the comparison column becomes "Included with Membership", and the
+// Membership card gains a line it did not have.
+//
+// The boundary that matters most on this page also moved. Membership used to
+// include NO practitioner time at all, which was simple to say. It now
+// includes a monthly practitioner-led GROUP hour while still including no
+// INDIVIDUAL consultation — a finer distinction, and one the page now has to
+// draw in several places rather than assert once.
 //
 // PRICES LIVE IN ONE PLACE
 //
@@ -60,7 +66,7 @@ function PreviewBanner() {
       <p className="max-w-5xl mx-auto text-[12.5px] leading-[1.6]" style={{ color: C.goldPale }}>
         <strong className="font-semibold">Founder preview — not public.</strong>{' '}
         Admin-only, noindexed and linked from no public page. Every call to action is inert; the
-        programme switcher, care-team toggle, mobile tabs, disclosures and questions work so their
+        Circle switcher, care-team toggle, mobile tabs, disclosures and questions work so their
         behaviour can be reviewed. Care prices are working prices pending final sign-off.
       </p>
     </div>
@@ -80,10 +86,14 @@ function Hero() {
             Professional care when you need it.
           </span>
         </h1>
+        {/* The hero has to carry the whole commercial shape in three sentences:
+            what is free, what continuity buys, and that individual care is a
+            separate purchase. The last sentence is the one that stops someone
+            reading £19 as the price of seeing a practitioner. */}
         <p className="text-[15.5px] leading-[1.75] max-w-2xl mx-auto" style={{ color: C.text2 }}>
-          NI keeps learning and community open to everyone, helps you build a living health record
-          over time, and charges separately only when a qualified professional gives you their
-          time.
+          Learning and community stay open to everyone. Membership builds your living health record
+          over time and includes monthly practitioner-led Circles. Individual professional care is
+          priced separately.
         </p>
       </div>
     </section>
@@ -96,7 +106,7 @@ const ROUTES: readonly { want: string; name: string; href: string }[] = [
   { want: 'I want to learn', name: 'NI Free', href: '#free' },
   { want: 'I want NI to organise my health over time', name: 'NI Membership', href: '#membership' },
   { want: 'I want my household’s health records connected', name: 'NI Family Membership', href: '#family' },
-  { want: 'I want affordable practitioner-led support', name: 'NI Guided Groups', href: '#groups' },
+  { want: 'I want practitioner-led support with others', name: 'NI Circles · with Membership', href: '#circles' },
   { want: 'I want individual practitioner care', name: 'NI Care 1-to-1', href: '#one-to-one' },
   { want: 'I represent an organisation', name: 'NI for Organisations', href: '#organisations' },
 ]
@@ -142,9 +152,13 @@ function RecordCards() {
     <section className="px-4 py-14" style={{ background: C.warm }}>
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <Eyebrow>Your health record and continuity</Eyebrow>
+          <Eyebrow>Start with NI</Eyebrow>
+          <h2 className={`${display} text-[30px] font-light mb-3`} style={{ color: C.text }}>
+            Your health record and continuity
+          </h2>
           <p className="text-[14.5px] leading-[1.7] max-w-2xl mx-auto" style={{ color: C.text2 }}>
-            These products organise your health over time. None of them include practitioner time.
+            These products organise your health over time. Membership adds monthly
+            practitioner-led NI Circles; individual consultations are booked separately.
           </p>
         </div>
 
@@ -200,8 +214,12 @@ function RecordCards() {
               <Tick>BioHub — your results in one organised place</Tick>
               <Tick>LifeTracker — tracking over time</Tick>
               <Tick>Continuity across NI and connected tools</Tick>
+              <Tick>NI Circles — a monthly practitioner-led hour for the body system you choose</Tick>
               <Tick>Preferential pricing on NI professional care</Tick>
-              <Dash>No practitioner time or appointments included</Dash>
+              {/* Not "no practitioner time": Membership now includes a GROUP
+                  hour. The exclusion that still holds is the individual one,
+                  and saying it precisely is what keeps the page honest. */}
+              <Dash>No individual consultations included</Dash>
             </ul>
             <InertButton>Register interest</InertButton>
           </div>
@@ -262,23 +280,35 @@ function RecordCards() {
 // ─── At a glance ─────────────────────────────────────────────────────────────
 
 function AtAGlance() {
-  const COLS = ['NI Free', 'Membership', 'Family Membership', 'Guided Groups', 'NI Care 1-to-1']
+  const COLS = ['NI Free', 'Membership', 'Family Membership', 'NI Circles', 'NI Care 1-to-1']
 
   // Every price cell is composed from the catalogue — no figure is typed here.
+  // The Circles price cell is the one that is NOT a figure: Circles are
+  // included, and writing a number there would invent a purchase.
   const ROWS: readonly (readonly string[])[] = [
     [
       'Price',
       'Free',
       `${formatPounds(MEMBERSHIP.monthly)}/month or ${formatPounds(MEMBERSHIP.yearly)}/year`,
       FAMILY_MEMBERSHIP_NOTE,
-      inlinePriceLabel(GUIDED_GROUPS),
+      'Included with Membership',
       `Initial Review ${inlinePriceLabel(INITIAL_CARE_REVIEW)}`,
     ],
-    ['Your health record', 'Basic, where available', 'Living, longitudinal', 'Private record per adult', 'Programme tracking', 'One connected record'],
-    ['Practitioner time', 'Not included', 'Not included', 'Not included', 'Programme-based', 'Included in this episode'],
-    ['Individual signed Protocol', 'Not included', 'Not included', 'Not included', 'Available separately', 'Included in this episode'],
-    ['Specialist input', '—', '—', '—', 'Programme-based', 'Scoped if needed'],
-    ['Member pricing on care', '—', 'Preferential member pricing', 'Preferential member pricing', 'Preferential member pricing', 'Preferential member pricing'],
+    ['Your health record', 'Basic, where available', 'Living, longitudinal', 'Private record per adult', 'Your Membership record', 'One connected record'],
+    [
+      'Practitioner time',
+      'Not included',
+      'Monthly Circle hours',
+      'Not included',
+      'One group hour a month, with non-clinical coach encouragement',
+      'Included in this episode',
+    ],
+    ['Individual signed Protocol', 'Not included', 'Not included', 'Not included', 'Not included', 'Included in this episode'],
+    // Coach encouragement is deliberately NOT in this row. A coach is
+    // non-clinical, so listing them as "specialist input" alongside a
+    // scoped clinical contribution would misdescribe what a member gets.
+    ['Specialist input', '—', '—', '—', '—', 'Scoped if needed'],
+    ['Member pricing on care', '—', 'Preferential member pricing', 'Preferential member pricing', 'Included in Membership', 'Preferential member pricing'],
   ]
 
   return (
@@ -480,8 +510,11 @@ function Footer() {
           The signs are within you.
         </p>
         <p className="text-[12.5px] leading-[1.7]" style={{ color: 'rgba(244,236,221,0.7)' }}>
+          {/* 999 and 111 are not interchangeable, and a page that lists them
+              with "or" invites the wrong call in the worst moment. */}
           Natural Intelligence works alongside your GP and NHS care. It is not an emergency
-          service. If you need urgent medical help, call 999 or use NHS 111.
+          service. If a life is at risk, call 999. For urgent medical help that is not an
+          emergency, use NHS 111.
         </p>
       </div>
     </footer>
@@ -497,8 +530,12 @@ function FounderDecisionNotes() {
       body: 'Legal lane. Required before billing activation. Nothing on this page creates a contract, and no payment path exists in the code.',
     },
     {
-      title: 'Guided Groups example programmes and discipline panels are placeholders',
-      body: 'The four example programmes and their practitioner panels are illustrative only. Each real Guided Group will state its own duration, group size, panel and price before anyone joins.',
+      title: 'Circle topics, replays and coach nudges on the illustration are examples',
+      body: 'The live-hour topic, the replay title and the coach nudge are illustrative, and the host is shown by role rather than by name. No group size is published: the page says "a focused group", and a Circle opens only once enough members have joined.',
+    },
+    {
+      title: 'Circles are group education, and the page has to keep saying so',
+      body: 'A practitioner-led hour inside a monthly membership is the line most likely to be read as individual care. The boundary is stated in the Membership card, the Circles panel, the comparison table and two FAQ answers — deliberately, not by repetition.',
     },
     {
       title: 'Family Membership pricing is TBC',

@@ -9,7 +9,7 @@
 // internal namespace is reachable only through this module's sibling deep
 // path, and previewPageBoundary.test.ts fails if an app takes it.
 
-export type { ServicePrice, CareServiceKey } from './catalogue'
+export type { ServicePrice, CareServiceKey, CircleName } from './catalogue'
 
 export {
   CURRENCY_SYMBOL,
@@ -22,7 +22,8 @@ export {
   MEMBERSHIP_YEARLY_NOTE,
   FAMILY_MEMBERSHIP_PRICE,
   FAMILY_MEMBERSHIP_NOTE,
-  GUIDED_GROUPS,
+  CIRCLES,
+  CIRCLES_INCLUDED_NOTE,
   INITIAL_CARE_REVIEW,
   FOLLOW_UP_REVIEW,
   FOCUSED_CHECK_IN,

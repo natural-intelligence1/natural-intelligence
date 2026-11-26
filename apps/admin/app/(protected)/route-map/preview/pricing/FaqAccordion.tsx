@@ -10,31 +10,37 @@
 import { useState } from 'react'
 import { C } from './theme'
 
+// v14. Three Circles questions replaced the two Guided Groups ones, and the
+// Membership answers were rewritten: "no practitioner time" was true until
+// Circles existed and is now simply wrong. The distinction every answer has to
+// hold is GROUP versus INDIVIDUAL, not practitioner versus no practitioner.
 const QUESTIONS: readonly (readonly [string, string])[] = [
   ['Is NI Free really free?',
    'Yes. NI Knowledge, the community, free workshops and basic self-serve tools cost nothing, and you don’t need a card. NI Free does not include practitioner time.'],
   ['What does Membership actually pay for?',
-   'Continuity: a living health record that builds over time, BioHub, LifeTracker and connected NI tools, so your health story stays organised across NI. Members also receive preferential pricing on professional care.'],
+   'Continuity: a living health record that builds over time, BioHub, LifeTracker and connected NI tools, so your health story stays organised across NI. Membership also includes NI Circles — a monthly practitioner-led group hour for the body system you choose — and preferential pricing on professional care.'],
   ['Does Membership include practitioner care?',
-   'No. Membership includes no practitioner time or appointments. Professional care is always priced separately.'],
+   'Membership includes NI Circles: a monthly practitioner-led group hour, with teaching and open Q&A, for the body system you choose. It does not include individual consultations or a personal Protocol. NI Care 1-to-1 is booked separately, at member prices.'],
   ['What is Family Membership?',
-   'One connected household health record for adults, with a separate private record for each person and shared household context — such as family history, cooking, water, mould, pets or your home environment — where each adult consents. It is not family care and includes no practitioner time. Pricing will be confirmed before it opens.'],
+   'One connected household health record for adults, with a separate private record for each person and shared household context — such as family history, cooking, water, mould, pets or your home environment — where each adult consents. It is not family care and includes no individual consultations. Pricing will be confirmed before it opens.'],
   ['Do family members share each other’s health records?',
    'No. Each adult’s record is private. The person who pays does not see another adult’s record. Only household context that each adult chooses to share is shared.'],
-  ['What is the difference between Guided Groups and 1-to-1 care?',
-   'A Guided Group is a small, fixed-length programme for people with a similar concern, led by one practitioner with relevant specialists — shared support at a more accessible cost. NI Care 1-to-1 is a defined episode of individual care with your own lead practitioner.'],
-  ['Do Guided Groups give me an individual Protocol?',
-   'Not automatically. Groups include shared education, support, your own goals and limited personalisation. If you need individual assessment, private interpretation, personal clinical advice or an individual signed Protocol, you can move into NI Care 1-to-1.'],
+  ['What are NI Circles?',
+   'Member groups organised around one body system: Gut health, Hormones, Energy & metabolism, and Stress & sleep at launch. Each month an NI practitioner hosts a live online hour for each Circle, with focused teaching and open Q&A, and a coach encouraging healthy everyday habits. Replays are available to members.'],
+  ['How many Circles can I join, and can I swap?',
+   'One at a time: choose the body system that needs you most right now. You can swap to another Circle from the following month. A Circle opens once enough members have joined.'],
+  ['Will I get personal advice in a Circle?',
+   'No. Circles are group education. Please don’t share personal health details in a session. For individual assessment, personal advice or a signed Protocol, book NI Care 1-to-1.'],
   ['How much does professional care cost?',
-   'Each Guided Group is priced to its own length and practitioner panel. NI Care 1-to-1 starts with an Initial NI Care Review. You will always see the full price before care begins, and members receive preferential pricing.'],
+   'NI Circles are included in Membership. NI Care 1-to-1 starts with an Initial NI Care Review. You will always see the full price before care begins, and members receive preferential pricing.'],
   ['What happens after my Initial Review?',
    'Your Initial Review is complete in itself, including one defined follow-up. If further support would help, you can choose individual services — such as a follow-up review or focused check-in — each priced and agreed first. It is not a subscription.'],
   ['What if I need specialist input?',
    'Additional specialist or complex professional input is discussed, scoped and agreed with you separately before it begins. Unusually senior or multidisciplinary input may cost more.'],
   ['Can I use NI Care without Membership?',
-   'Yes. Guided Groups and NI Care 1-to-1 are open to everyone. Membership adds continuity and preferential pricing; it is never required.'],
+   'Yes. NI Care 1-to-1 is open to everyone. Membership adds continuity, NI Circles and preferential pricing; it is never required for care.'],
   ['Does NI replace my GP?',
-   'No. NI works alongside your GP and NHS care. NI is not an emergency service — if you need urgent help, call 999 or use NHS 111.'],
+   'No. NI works alongside your GP and NHS care. NI is not an emergency service. If a life is at risk, call 999. For urgent medical help that is not an emergency, use NHS 111.'],
   ['Are tests and supplements charged separately?',
    'Yes. Where they are needed, you will see the cost before you agree to anything.'],
   ['Is subsidised access available?',
