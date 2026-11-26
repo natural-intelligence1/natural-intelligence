@@ -82,6 +82,9 @@ const CASE_ROW = {
   primary_concern: null,
   created_at: '2026-11-08T02:44:06.000Z',
   updated_at: '2026-11-08T02:44:06.000Z',
+  // Migration 0069's explicit designation. Present on the happy-path fixture
+  // so the tests below still reach the profile guard they are about.
+  is_test_data: true,
 }
 
 const TEST_PROFILE = { id: MEMBER_ID, full_name: 'Test Client', is_test_data: true }
@@ -103,6 +106,46 @@ describe('getFounderReviewCase — the test-data guard', () => {
 
     expect(result).toEqual({ ok: false, refusal: 'case_not_found' })
     expect(d.order).toEqual(['client_cases'])
+  })
+
+  it('refuses a case that is not designated test, before reading the profile', async () => {
+    const d = mkDouble({
+      client_cases: { data: { ...CASE_ROW, is_test_data: false } },
+      profiles: { data: TEST_PROFILE },
+    })
+    const result = await getFounderReviewCase(d.client, CASE_ID)
+
+    expect(result).toEqual({ ok: false, refusal: 'case_not_designated_test' })
+    // The case's own designation is now the first gate, so an undesignated
+    // case is refused without even looking up who its client is.
+    expect(d.order).toEqual(['client_cases'])
+    for (const t of CLINICAL_TABLES) expect(d.order).not.toContain(t)
+  })
+
+  it('treats a NULL case designation as not designated', async () => {
+    const d = mkDouble({
+      client_cases: { data: { ...CASE_ROW, is_test_data: null } },
+      profiles: { data: TEST_PROFILE },
+    })
+    const result = await getFounderReviewCase(d.client, CASE_ID)
+
+    // Strictly true, for the same reason as the profile flag: this surface
+    // shows stored health answers, so the absence of an answer is a refusal.
+    expect(result).toEqual({ ok: false, refusal: 'case_not_designated_test' })
+    for (const t of CLINICAL_TABLES) expect(d.order).not.toContain(t)
+  })
+
+  it('still refuses a designated case whose client is not test data', async () => {
+    // BOTH guards must pass. A designated case cannot drag a real client's
+    // health record into view.
+    const d = mkDouble({
+      client_cases: { data: CASE_ROW },
+      profiles: { data: { ...TEST_PROFILE, is_test_data: false } },
+    })
+    const result = await getFounderReviewCase(d.client, CASE_ID)
+
+    expect(result).toEqual({ ok: false, refusal: 'not_test_data' })
+    for (const t of CLINICAL_TABLES) expect(d.order).not.toContain(t)
   })
 
   it('refuses when the client profile is missing, before any clinical read', async () => {
@@ -267,6 +310,13 @@ describe('listFounderReviewCases — test clients only', () => {
 
     const caseFilter = d.calls.find((c) => c.table === 'client_cases' && c.method === 'in')
     expect(caseFilter?.args).toEqual(['client_id', [MEMBER_ID]])
+
+    // 0069: the case list is now filtered on the case's OWN designation too,
+    // so a case belonging to a test client but not itself designated cannot
+    // appear. Two filters that can only narrow.
+    const caseDesignation = d.calls.find(
+      (c) => c.table === 'client_cases' && c.method === 'eq')
+    expect(caseDesignation?.args).toEqual(['is_test_data', true])
   })
 })
 

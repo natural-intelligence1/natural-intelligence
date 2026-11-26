@@ -836,7 +836,11 @@ export type Database = {
           consultation_seq: number
           created_at: string
           current_position: string | null
+          effective_role: string | null
           id: string
+          is_test_output: boolean | null
+          override_active_at_signing: boolean | null
+          override_used_at_signing: boolean | null
           ready_at: string | null
           review_started_at: string | null
           review_started_by: string | null
@@ -857,7 +861,11 @@ export type Database = {
           consultation_seq: number
           created_at?: string
           current_position?: string | null
+          effective_role?: string | null
           id?: string
+          is_test_output?: boolean | null
+          override_active_at_signing?: boolean | null
+          override_used_at_signing?: boolean | null
           ready_at?: string | null
           review_started_at?: string | null
           review_started_by?: string | null
@@ -878,7 +886,11 @@ export type Database = {
           consultation_seq?: number
           created_at?: string
           current_position?: string | null
+          effective_role?: string | null
           id?: string
+          is_test_output?: boolean | null
+          override_active_at_signing?: boolean | null
+          override_used_at_signing?: boolean | null
           ready_at?: string | null
           review_started_at?: string | null
           review_started_by?: string | null
@@ -1073,6 +1085,7 @@ export type Database = {
           created_at: string
           escalation_required: boolean
           id: string
+          is_test_data: boolean
           primary_concern: string | null
           status: string
           updated_at: string
@@ -1083,6 +1096,7 @@ export type Database = {
           created_at?: string
           escalation_required?: boolean
           id?: string
+          is_test_data?: boolean
           primary_concern?: string | null
           status?: string
           updated_at?: string
@@ -1093,6 +1107,7 @@ export type Database = {
           created_at?: string
           escalation_required?: boolean
           id?: string
+          is_test_data?: boolean
           primary_concern?: string | null
           status?: string
           updated_at?: string
@@ -4206,6 +4221,38 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      testing_mode: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          enabled: boolean
+          id: boolean
+          new_cases_default_test: boolean
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          enabled?: boolean
+          id?: boolean
+          new_cases_default_test?: boolean
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          enabled?: boolean
+          id?: boolean
+          new_cases_default_test?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testing_mode_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_personalisation: {
         Row: {

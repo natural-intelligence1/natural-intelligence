@@ -29,12 +29,24 @@
 // the Founder a practitioner. Every mutation verb is absent by construction
 // and a structural test asserts that this file contains none.
 //
-// THE TEST-DATA GUARD
+// THE TEST-DATA GUARDS — TWO OF THEM, AND BOTH MUST PASS
 //
-// This is not an unrestricted admin health-data browser. The client's profile
-// must carry is_test_data = true or the surface is refused — and the guard
-// runs BEFORE any clinical table is touched, so a refusal reads no health data
-// at all. That ordering is asserted by test, not merely by reading order.
+// This is not an unrestricted admin health-data browser.
+//
+//   1. THE CASE must carry client_cases.is_test_data = true. This is the
+//      explicit designation added by migration 0069, checked before the
+//      client's profile is even read.
+//   2. THE CLIENT PROFILE must carry is_test_data = true, as before.
+//
+// Before 0069 only the second existed, because a case had no way to say what
+// it was and test status could only be inferred from whoever its client
+// happened to be. Inference cannot express a real client's test case, and
+// cannot survive a client later becoming real. Both guards are kept rather
+// than the profile one replaced, so this surface can only ever narrow.
+//
+// Either guard refuses BEFORE any clinical table is touched, so a refusal
+// reads no health data at all. That ordering is asserted by test, not merely
+// by reading order.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types'
@@ -57,6 +69,7 @@ export const FOUNDER_REVIEW_TABLES = [
 /** Why a review surface was refused. Never a silent empty render. */
 export type FounderReviewRefusal =
   | 'case_not_found'
+  | 'case_not_designated_test'
   | 'client_profile_missing'
   | 'not_test_data'
 
@@ -124,10 +137,15 @@ export async function listFounderReviewCases(
   for (const p of testProfiles ?? []) nameById.set(p.id, p.full_name ?? null)
   if (nameById.size === 0) return []
 
+  // BOTH must hold. 0069 gave client_cases its own explicit designation, so a
+  // case now says for itself whether it is test data rather than inheriting
+  // the answer from whoever its client happens to be. Keeping the profile
+  // filter as well means this list can only ever narrow, never widen.
   const { data: cases, error: caseErr } = await supabase
     .from('client_cases')
     .select('id, client_id, status, created_at')
     .in('client_id', [...nameById.keys()])
+    .eq('is_test_data', true)
     .order('created_at', { ascending: false })
 
   if (caseErr) throw caseErr
@@ -153,12 +171,21 @@ export async function getFounderReviewCase(
 ): Promise<FounderReviewResult> {
   const { data: caseRow, error: caseErr } = await supabase
     .from('client_cases')
-    .select('id, client_id, status, primary_concern, created_at, updated_at')
+    .select('id, client_id, status, primary_concern, created_at, updated_at, is_test_data')
     .eq('id', caseId)
     .maybeSingle()
 
   if (caseErr) throw caseErr
   if (!caseRow) return { ok: false, refusal: 'case_not_found' }
+
+  // ── THE CASE GUARD ──────────────────────────────────────────────────────
+  // 0069's explicit designation, checked before the client's profile is even
+  // read. Strictly true: an undesignated case is refused, which is what makes
+  // "unclassified cases are excluded" a property of the code rather than a
+  // promise about the data.
+  if (caseRow.is_test_data !== true) {
+    return { ok: false, refusal: 'case_not_designated_test' }
+  }
 
   const { data: profile, error: profileErr } = await supabase
     .from('profiles')
