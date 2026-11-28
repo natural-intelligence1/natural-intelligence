@@ -35,11 +35,31 @@ export function InertButton({
   )
 }
 
-export function Eyebrow({ children, onDark = false }: { children: React.ReactNode; onDark?: boolean }) {
+/**
+ * A section eyebrow.
+ *
+ * GOLD IS ORNAMENT, NOT TEXT.
+ *
+ * These rendered in gold (#7D6128) and in a monospace face. In the v14
+ * artboards every eyebrow is DM Sans 12px / 600 / 0.18em in either warm ink
+ * (#5E5850) or sage (#3F6B4D); #B8935A gold is reserved for rules, rings and
+ * the table rim. Gold text at this size also fails contrast against cream.
+ *
+ * `onDark` keeps the pale gold, because on the dark band it is a surface
+ * treatment rather than small body text.
+ */
+export function Eyebrow({ children, onDark = false, tone = 'ink' }: {
+  children: React.ReactNode
+  onDark?: boolean
+  tone?: 'ink' | 'sage'
+}) {
   return (
     <p
-      className="font-mono text-[11px] font-medium tracking-[0.14em] uppercase mb-4"
-      style={{ color: onDark ? C.goldPale : C.goldInk }}
+      className="text-[12px] tracking-[0.18em] uppercase mb-4"
+      style={{
+        fontWeight: 600,
+        color: onDark ? C.goldPale : tone === 'sage' ? C.eyebrowSage : C.eyebrowInk,
+      }}
     >
       {children}
     </p>
@@ -77,9 +97,10 @@ export function Dash({ children }: { children?: React.ReactNode }) {
 export function StatusPill({ children }: { children: React.ReactNode }) {
   return (
     <span
-      className="inline-block font-mono text-[10.5px] tracking-[0.1em] uppercase"
+      className="inline-block text-[10.5px] tracking-[0.14em] uppercase"
       style={{
-        color: C.goldInk, border: `1px solid ${C.goldLine}`,
+        // Gold keeps the RING; the text does not. Same rule as the eyebrows.
+        fontWeight: 600, color: C.eyebrowInk, border: `1px solid ${C.goldLine}`,
         borderRadius: 999, padding: '3px 9px',
       }}
     >

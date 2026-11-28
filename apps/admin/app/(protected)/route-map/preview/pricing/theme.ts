@@ -12,7 +12,42 @@ export const C = {
   dPrimary: '#E6EEE5', dNeutral: '#F1ECE2', dStroke: '#4E7A5C',
   dStrokeOff: '#DDD4C4', dInk: '#0E0D0B', dInkOff: '#7A7266',
   dLeadRing: '#B8935A',
+  // ── Eyebrow ink, taken from the v14 artboards ────────────────────────────
+  // Gold #B8935A is ORNAMENT ONLY: rules, rings, the table rim. Eyebrows and
+  // other small uppercase text use these two instead.
+  //
+  // Note for the record: the correction pack quoted sage as #4E7A5C, but every
+  // eyebrow in the artboards is #3F6B4D. The artboards are authoritative for
+  // visual fidelity, so #3F6B4D is what is used; #4E7A5C remains in use as the
+  // nutrition-category dot colour inside the galaxy, which is where it appears
+  // in the design source.
+  eyebrowInk: '#5E5850',
+  eyebrowSage: '#3F6B4D',
 } as const
+
+/**
+ * Cormorant Garamond 500 — H2s, panel titles, table titles, price figures.
+ *
+ * WEIGHT 500, NOT 300. The superseded build used `font-light` throughout,
+ * which rendered the display face a full two steps lighter than the artboards
+ * and made every heading look washed out beside the body text.
+ *
+ * `--ni-display` is the next/font variable set on the preview root, so this is
+ * the same loaded face the page headings use rather than a Georgia fallback.
+ */
+export const DISPLAY_FAMILY = "var(--ni-display), 'Cormorant Garamond', Georgia, serif"
+
+export const DISPLAY: React.CSSProperties = {
+  fontFamily: DISPLAY_FAMILY,
+  fontWeight: 500,
+}
+
+/** Cormorant italic — the one-line taglines under a panel title. */
+export const TAGLINE: React.CSSProperties = {
+  fontFamily: DISPLAY_FAMILY,
+  fontWeight: 500,
+  fontStyle: 'italic',
+}
 
 export const CHIP_ON: React.CSSProperties = {
   border: `1px solid ${C.pine}`, background: C.pine, color: '#F8F6F2',

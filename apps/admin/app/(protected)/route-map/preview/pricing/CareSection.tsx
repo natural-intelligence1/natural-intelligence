@@ -39,9 +39,13 @@ import {
   CIRCLES, CIRCLES_INCLUDED_NOTE, INITIAL_CARE_REVIEW, CARE_PRICES, ONGOING_SUPPORT,
   standardLabel, memberLabel, inlinePriceLabel,
 } from '@natural-intelligence/db/pricing'
-import { C, CHIP_ON, CHIP_OFF } from './theme'
+import { C, CHIP_ON, CHIP_OFF, DISPLAY, TAGLINE } from './theme'
 import { WorkingPrice } from './WorkingPrice'
 import { InertButton, Eyebrow, Tick, Dash } from './primitives'
+// The two care visuals, ported from the v14 artboards rather than redrawn.
+import {
+  CareGalaxy, CircleTable, CoachNudgeIcon, ONE_TO_ONE_CHIPS, type TbCircle,
+} from './v14Visuals'
 
 // ─── Circle illustration data — EXAMPLES, not a schedule ─────────────────────
 // Every string here is illustrative and the page says so. The host is given by
@@ -61,6 +65,33 @@ interface CircleExample {
   readonly nudge: string
   readonly space: string
 }
+
+/**
+ * Seat occupancy and the short name, from the v14 `TB` data.
+ *
+ * `filled` varies per Circle on purpose: the table should not look like the
+ * same eight people every time, and a half-full Circle is an honest picture
+ * of a group that is still forming. Kept beside CIRCLE_EXAMPLES rather than
+ * merged into it because the copy there is Founder-approved and this is
+ * purely a property of the drawing.
+ */
+const TB_META: readonly { readonly short: string; readonly filled: number }[] = [
+  { short: 'Gut', filled: 6 },
+  { short: 'Hormones', filled: 4 },
+  { short: 'Energy', filled: 5 },
+  { short: 'Stress & sleep', filled: 7 },
+]
+
+/** The host, without the leading article the prose line adds. */
+const tbHost = (ex: CircleExample) => ex.host.replace(/^an?\s+NI\s+/i, '')
+
+const toTbCircle = (ex: CircleExample, i: number): TbCircle => ({
+  name: ex.name,
+  short: TB_META[i]?.short ?? ex.name,
+  host: tbHost(ex),
+  filled: TB_META[i]?.filled ?? 6,
+  t: ex.topic,
+})
 
 const CIRCLE_EXAMPLES: readonly CircleExample[] = [
   {
@@ -97,17 +128,6 @@ const CIRCLE_EXAMPLES: readonly CircleExample[] = [
   },
 ]
 
-// ─── 1-to-1 illustration data (presentational only — not clinical guidance) ──
-
-const SPEC: readonly (readonly [string, number, number, number])[] = [
-  ['Nutrition', 110, 108.1, 158.9],
-  ['Herbal medicine', 160, 170.4, 64.7],
-  ['Naturopathy', 126, 280, 27],
-  ['Functional medicine', 194, 389.6, 64.7],
-  ['Movement', 101, 451.9, 158.9],
-]
-/** Specialists that light up once ongoing support is selected. */
-const SPEC_ON_ONGOING = [1, 4]
 
 const RECORD_CHIPS: readonly (readonly [string, boolean])[] = [
   ['Health Story', true], ['Symptoms', true], ['Goals', true], ['Labs', true],
@@ -122,95 +142,11 @@ const RECORD_CHIPS: readonly (readonly [string, boolean])[] = [
 // names, no count stated in words. The page says "a focused group" and the
 // picture agrees with it rather than contradicting it with a countable crowd.
 
-function CircleTableDiagram({ ex }: { ex: CircleExample }) {
-  const cx = 280, cy = 205
-  const tableR = 118
-  // Seats sit just off the table edge, as the approved reference draws them.
-  // Pushed further out they stop reading as people AT a table and start
-  // reading as a ring of unrelated shapes around one.
-  const seatR = 145
-  const SEATS = 10
-  const hostIndex = 0
-  const youIndex = 5
-
-  const seats = Array.from({ length: SEATS }, (_, i) => {
-    // Start at the top and go clockwise, so the host sits at 12 o'clock and
-    // "You" sits directly opposite, facing them across the table.
-    const a = ((-90 + (360 / SEATS) * i) * Math.PI) / 180
-    return {
-      i,
-      x: Math.round((cx + seatR * Math.cos(a)) * 10) / 10,
-      y: Math.round((cy + seatR * Math.sin(a)) * 10) / 10,
-      isHost: i === hostIndex,
-      isYou: i === youIndex,
-    }
-  })
-
-  return (
-    <svg
-      viewBox="0 0 560 410" role="img" className="w-full h-auto"
-      aria-label={
-        `Illustration of an NI Circle: a round table with the host's seat at the top, ` +
-        `your seat opposite, and other members around it. This month's example live hour ` +
-        `for the ${ex.name} Circle is ${ex.topic[0]} ${ex.topic[1]}. Replays and a coach ` +
-        `nudge are available between sessions.`
-      }
-    >
-      {/* The table */}
-      <circle cx={cx} cy={cy} r={tableR} fill={C.paper} stroke={C.goldLine} strokeWidth={1.6} />
-      <circle cx={cx} cy={cy} r={tableR - 10} fill="none" stroke={C.dStrokeOff} strokeWidth={0.8} />
-
-      {/* Seats */}
-      {seats.map((s) => {
-        const fill = s.isYou ? C.pine : s.isHost ? C.goldPale : C.dPrimary
-        const stroke = s.isYou ? C.pine : s.isHost ? C.dLeadRing : C.dStrokeOff
-        return (
-          <g key={s.i}>
-            <rect
-              x={s.x - 18} y={s.y - 11.5} width={36} height={23} rx={11.5}
-              fill={fill} stroke={stroke} strokeWidth={1.4}
-            />
-            {s.isHost && (
-              <text x={s.x} y={s.y - 22} textAnchor="middle" fontSize={11} fill={C.goldInk}>
-                Host
-              </text>
-            )}
-            {s.isYou && (
-              <text x={s.x} y={s.y + 30} textAnchor="middle" fontSize={12} fontWeight={600} fill={C.dInk}>
-                You
-              </text>
-            )}
-          </g>
-        )
-      })}
-
-      {/* This month, on the table */}
-      <text x={cx} y={cy - 54} textAnchor="middle" fontSize={8.5} letterSpacing="0.14em" fill={C.goldInk}>
-        THIS MONTH’S LIVE HOUR
-      </text>
-      <text x={cx} y={cy - 24} textAnchor="middle" fontSize={23} fill={C.dInk}>
-        {ex.name}
-      </text>
-      <text x={cx} y={cy + 2} textAnchor="middle" fontSize={12.5} fill={C.dInkOff}>
-        {ex.topic[0]}
-      </text>
-      <text x={cx} y={cy + 19} textAnchor="middle" fontSize={12.5} fill={C.dInkOff}>
-        {ex.topic[1]}
-      </text>
-
-      {/* Between sessions, as two quiet chips on the table */}
-      <g>
-        <rect x={cx - 86} y={cy + 36} width={78} height={24} rx={12} fill={C.warm} stroke={C.dStrokeOff} strokeWidth={1} />
-        <text x={cx - 47} y={cy + 52} textAnchor="middle" fontSize={11} fill={C.dInkOff}>▶ Replays</text>
-        <rect x={cx + 8} y={cy + 36} width={94} height={24} rx={12} fill={C.warm} stroke={C.dStrokeOff} strokeWidth={1} />
-        <text x={cx + 55} y={cy + 52} textAnchor="middle" fontSize={11} fill={C.dInkOff}>Coach nudge</text>
-      </g>
-    </svg>
-  )
-}
 
 /** One between-sessions row: an icon, a label and the example itself. */
-function BetweenRow({ icon, label, body }: { icon: string; label: string; body: string }) {
+function BetweenRow({ icon, label, body }: {
+  icon: React.ReactNode; label: string; body: string
+}) {
   return (
     <li className="flex items-start gap-3 py-3" style={{ borderTop: `1px solid ${C.border}` }}>
       <span
@@ -233,75 +169,6 @@ function BetweenRow({ icon, label, body }: { icon: string; label: string; body: 
 
 // ─── 1-to-1 care-team illustration ───────────────────────────────────────────
 
-function CareTeamDiagram({ ongoing }: { ongoing: boolean }) {
-  const lx = 280, ly = 252
-  const nodes = SPEC.map(([label, w, x, y], i) => {
-    const on = ongoing && SPEC_ON_ONGOING.includes(i)
-    return {
-      label, w, x, y, on,
-      fill: on ? C.paper : C.dNeutral,
-      stroke: on ? C.dStroke : C.dStrokeOff,
-      ink: on ? C.dInk : C.dInkOff,
-      line: on ? C.dStroke : '#E2DACB',
-      lineDash: on ? '6 4' : '2 5',
-    }
-  })
-
-  return (
-    <svg
-      viewBox="0 0 560 390" role="img" className="w-full h-auto"
-      aria-label={
-        ongoing
-          ? 'Illustration of ongoing support: your lead practitioner at the centre with one connected record, ' +
-            'bringing in specialists where needed. Your GP and NHS care sit outside NI care.'
-          : 'Illustration of the Initial NI Care Review: your lead practitioner at the centre with one connected ' +
-            'record. Specialists are not involved. Your GP and NHS care sit outside NI care.'
-      }
-    >
-      {nodes.map((n) => (
-        <line
-          key={`l-${n.label}`} x1={lx} y1={ly - 40} x2={n.x} y2={n.y + 17}
-          stroke={n.line} strokeWidth={1.4} strokeDasharray={n.lineDash}
-        />
-      ))}
-
-      {nodes.map((n) => (
-        <g key={`n-${n.label}`}>
-          <rect
-            x={n.x - n.w / 2} y={n.y - 17} width={n.w} height={34} rx={17}
-            fill={n.fill} stroke={n.stroke} strokeWidth={1.3}
-            strokeDasharray={n.on ? undefined : '4 3'}
-          />
-          <text x={n.x} y={n.y + 5} textAnchor="middle" fontSize={12.5} fill={n.ink}>
-            {n.label}
-          </text>
-        </g>
-      ))}
-
-      {/* The lead — named, responsible, signs the Protocol. */}
-      <circle cx={lx} cy={ly} r={66} fill={C.paper} stroke={C.dLeadRing} strokeWidth={2} />
-      <text x={lx} y={ly - 22} textAnchor="middle" fontSize={8.5} letterSpacing="0.1em" fill={C.goldInk}>
-        YOUR LEAD PRACTITIONER
-      </text>
-      <text x={lx} y={ly + 2} textAnchor="middle" fontSize={20} fontWeight={500} fill={C.dInk}>
-        You
-      </text>
-      <text x={lx} y={ly + 22} textAnchor="middle" fontSize={11} fill={C.dInkOff}>
-        one connected record
-      </text>
-
-      {/* Outside NI care — informed only with consent. */}
-      <rect
-        x={lx - 92} y={344} width={184} height={34} rx={17}
-        fill="transparent" stroke={C.dStrokeOff} strokeWidth={1.3} strokeDasharray="5 4"
-      />
-      <text x={lx} y={366} textAnchor="middle" fontSize={12.5} fill={C.dInkOff}>
-        Your GP &amp; NHS care
-      </text>
-      <line x1={lx} y1={ly + 66} x2={lx} y2={344} stroke={C.dStrokeOff} strokeWidth={1.3} strokeDasharray="2 5" />
-    </svg>
-  )
-}
 
 function RecordChips({ ongoing }: { ongoing: boolean }) {
   return (
@@ -345,7 +212,7 @@ function PriceBlock({
 }: { standard: string; member: string; children?: React.ReactNode }) {
   return (
     <div className="pt-5 mt-5" style={{ borderTop: `1px solid ${C.border}` }}>
-      <p className="text-[32px] leading-none font-light" style={{ color: C.text }}>{standard}</p>
+      <p className="text-[32px] leading-none" style={{ ...DISPLAY, color: C.text }}>{standard}</p>
       <p className="text-[14px] mt-2" style={{ color: C.text2 }}>{member}</p>
       {children}
     </div>
@@ -359,17 +226,24 @@ function CirclesPanel() {
   return (
     <Card>
       <Eyebrow>Together · included with Membership</Eyebrow>
-      <h3 className="text-[26px] font-light mb-2" style={{ color: C.text }}>NI Circles</h3>
-      <p className="text-[15px] mb-4" style={{ color: C.text }}>
+      <h3 className="text-[26px] mb-2" style={{ ...DISPLAY, color: C.text }}>NI Circles</h3>
+      <p className="text-[17px] mb-4" style={{ ...TAGLINE, color: C.text }}>
         One body system. One monthly hour. People on the same path.
       </p>
       <p className="text-[14px] leading-[1.7] mb-6" style={{ color: C.text2 }}>
+        {/* Punctuation aligned to v14 (colon, not an em dash). The closing
+            clause deliberately does NOT follow v14: see the copy-difference
+            list in the mission report. v14 reads "with a coach helping you
+            stay with your plan", which edges a non-clinical Coach towards
+            working to a clinical Protocol. The approved boundary wording is
+            retained, because approved content corrections outrank the
+            artboard on wording. */}
         Each member joins one Circle: the body system that needs them most right now. Each month an
-        NI practitioner hosts a live hour for each Circle — focused teaching on that body system and
+        NI practitioner hosts a live hour for each Circle: focused teaching on that body system and
         open Q&amp;A, with a coach encouraging healthy everyday habits.
       </p>
 
-      <p className="font-mono text-[11px] tracking-[0.12em] uppercase mb-3" style={{ color: C.goldInk }}>
+      <p className="text-[12px] tracking-[0.18em] uppercase mb-3" style={{ fontWeight: 600, color: C.eyebrowInk }}>
         Choose your Circle
       </p>
       <div role="group" aria-label="Choose your Circle" className="flex flex-wrap gap-2 mb-4">
@@ -383,7 +257,7 @@ function CirclesPanel() {
         ))}
       </div>
 
-      <CircleTableDiagram ex={ex} />
+      <CircleTable circle={toTbCircle(ex, i)} />
 
       <p className="text-[12.5px] mt-3" style={{ color: C.muted }}>
         Hosted by {ex.host} · A focused group · Live online, monthly
@@ -391,7 +265,9 @@ function CirclesPanel() {
 
       <ul className="mt-5">
         <BetweenRow icon="▶" label="Replays · for example, last month" body={ex.replay} />
-        <BetweenRow icon="◇" label="Coach nudge · between sessions" body={ex.nudge} />
+        {/* A speech bubble: the nudge is a message from a person, and the
+            superseded diamond read as a generic ornament. */}
+        <BetweenRow icon={<CoachNudgeIcon />} label="Coach nudge · between sessions" body={ex.nudge} />
         <BetweenRow icon="◎" label="Circle space · moderated" body={ex.space} />
       </ul>
 
@@ -401,7 +277,7 @@ function CirclesPanel() {
         students where appropriate. Illustrative.
       </p>
 
-      <p className="font-mono text-[11px] tracking-[0.12em] uppercase mb-3" style={{ color: C.goldInk }}>
+      <p className="text-[12px] tracking-[0.18em] uppercase mb-3" style={{ fontWeight: 600, color: C.eyebrowInk }}>
         Each Circle includes
       </p>
       <ul className="space-y-2">
@@ -420,7 +296,7 @@ function CirclesPanel() {
           purchase that does not exist. */}
       <div className="pt-5 mt-6" style={{ borderTop: `1px solid ${C.border}` }}>
         <p className="flex flex-wrap items-baseline gap-x-3">
-          <span className="text-[32px] leading-none font-light" style={{ color: C.text }}>Included</span>
+          <span className="text-[32px] leading-none" style={{ ...DISPLAY, color: C.text }}>Included</span>
           <span className="text-[14px]" style={{ color: C.text2 }}>{CIRCLES_INCLUDED_NOTE}</span>
         </p>
         <p className="text-[13px] leading-[1.65] mt-3" style={{ color: C.muted }}>
@@ -451,8 +327,8 @@ function OneToOnePanel() {
   return (
     <Card>
       <Eyebrow>Individually</Eyebrow>
-      <h3 className="text-[26px] font-light mb-2" style={{ color: C.text }}>NI Care 1-to-1</h3>
-      <p className="text-[15px] mb-4" style={{ color: C.text }}>
+      <h3 className="text-[26px] mb-2" style={{ ...DISPLAY, color: C.text }}>NI Care 1-to-1</h3>
+      <p className="text-[17px] mb-4" style={{ ...TAGLINE, color: C.text }}>
         One person. One connected record. The right professional input at the right time.
       </p>
       <p className="text-[14px] leading-[1.7] mb-6" style={{ color: C.text2 }}>
@@ -460,7 +336,7 @@ function OneToOnePanel() {
         your personal Protocol.
       </p>
 
-      <p className="font-mono text-[11px] tracking-[0.12em] uppercase mb-3" style={{ color: C.goldInk }}>
+      <p className="text-[12px] tracking-[0.18em] uppercase mb-3" style={{ fontWeight: 600, color: C.eyebrowInk }}>
         Your care
       </p>
       <div role="group" aria-label="Your care" className="flex flex-wrap gap-2 mb-4">
@@ -472,9 +348,9 @@ function OneToOnePanel() {
         </button>
       </div>
 
-      <CareTeamDiagram ongoing={ongoing} />
+      <CareGalaxy ongoing={ongoing} />
 
-      <p className="font-mono text-[11px] tracking-[0.12em] uppercase mt-6 mb-3 text-center" style={{ color: C.goldInk }}>
+      <p className="text-[12px] tracking-[0.18em] uppercase mt-6 mb-3 text-center" style={{ fontWeight: 600, color: C.eyebrowInk }}>
         Your connected record
       </p>
       <RecordChips ongoing={ongoing} />
@@ -495,10 +371,10 @@ function OneToOnePanel() {
 
       {/* Start with — the entry point. */}
       <div className="mt-8 pt-6" style={{ borderTop: `1px solid ${C.border}` }}>
-        <p className="font-mono text-[11px] tracking-[0.12em] uppercase mb-2" style={{ color: C.goldInk }}>
+        <p className="text-[12px] tracking-[0.18em] uppercase mb-2" style={{ fontWeight: 600, color: C.eyebrowInk }}>
           Start with
         </p>
-        <h4 className="text-[20px] font-light mb-1" style={{ color: C.text }}>Initial NI Care Review</h4>
+        <h4 className="text-[20px] mb-1" style={{ ...DISPLAY, color: C.text }}>Initial NI Care Review</h4>
         <p className="text-[13.5px] mb-4" style={{ color: C.text2 }}>
           A standalone episode of care, complete in itself.
         </p>
@@ -516,10 +392,10 @@ function OneToOnePanel() {
 
       {/* Optional ongoing support — one tag covers all three services. */}
       <div className="mt-8 pt-6" style={{ borderTop: `1px solid ${C.border}` }}>
-        <p className="font-mono text-[11px] tracking-[0.12em] uppercase mb-2" style={{ color: C.goldInk }}>
+        <p className="text-[12px] tracking-[0.18em] uppercase mb-2" style={{ fontWeight: 600, color: C.eyebrowInk }}>
           then, only if useful
         </p>
-        <h4 className="text-[20px] font-light" style={{ color: C.text }}>
+        <h4 className="text-[20px]" style={{ ...DISPLAY, color: C.text }}>
           <span className="text-[13px] font-mono tracking-[0.1em] uppercase mr-2" style={{ color: C.muted }}>
             Optional
           </span>
@@ -558,10 +434,10 @@ function OneToOnePanel() {
       </div>
 
       <div className="mt-8 pt-6" style={{ borderTop: `1px solid ${C.border}` }}>
-        <p className="font-mono text-[11px] tracking-[0.12em] uppercase mb-2" style={{ color: C.goldInk }}>
+        <p className="text-[12px] tracking-[0.18em] uppercase mb-2" style={{ fontWeight: 600, color: C.eyebrowInk }}>
           Within NI Care
         </p>
-        <h4 className="text-[18px] font-light mb-2" style={{ color: C.text }}>
+        <h4 className="text-[18px] mb-2" style={{ ...DISPLAY, color: C.text }}>
           Additional specialist support
         </h4>
         <p className="text-[13.5px] leading-[1.7] mb-2" style={{ color: C.text2 }}>
@@ -594,7 +470,7 @@ export function CareSection() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <Eyebrow>Professional care · opening soon</Eyebrow>
-          <h2 className="text-[30px] font-light mb-3" style={{ color: C.text }}>
+          <h2 className="text-[30px] mb-3" style={{ ...DISPLAY, color: C.text }}>
             Two ways to learn from and work with NI practitioners
           </h2>
           <p className="text-[14.5px] leading-[1.7] max-w-2xl mx-auto" style={{ color: C.text2 }}>

@@ -54,6 +54,11 @@ const cormorant = Cormorant_Garamond({
   weight: ['300', '400', '500', '600'],
   style: ['normal', 'italic'],
   display: 'swap',
+  // Exposed as a CSS variable as well as a class, so the client panels and
+  // the SVG visuals reach the SAME loaded face. Without it the diagrams fell
+  // back to Georgia while the page headings used Cormorant, and the two
+  // drifted apart at exactly the sizes where the difference shows.
+  variable: '--ni-display',
 })
 
 const display = cormorant.className
@@ -80,7 +85,7 @@ function Hero() {
     <section className="px-4 pt-14 pb-10" style={{ background: C.cream }}>
       <div className="max-w-3xl mx-auto text-center">
         <Eyebrow>Pricing</Eyebrow>
-        <h1 className={`${display} text-[40px] sm:text-[52px] font-light leading-[1.1] mb-5`} style={{ color: C.text }}>
+        <h1 className={`${display} text-[40px] sm:text-[52px] leading-[1.1] mb-5`} style={{ color: C.text }}>
           Free to begin. Membership for continuity.
           <span className="block italic" style={{ color: C.pine }}>
             Professional care when you need it.
@@ -115,7 +120,7 @@ function AudiencePaths() {
   return (
     <section className="px-4 pb-14" style={{ background: C.cream }}>
       <div className="max-w-5xl mx-auto">
-        <h2 className={`${display} text-[28px] font-light text-center mb-6`} style={{ color: C.text }}>
+        <h2 className={`${display} text-[28px] text-center mb-6`} style={{ fontWeight: 500, color: C.text }}>
           What would you like from NI?
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -153,7 +158,7 @@ function RecordCards() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <Eyebrow>Start with NI</Eyebrow>
-          <h2 className={`${display} text-[30px] font-light mb-3`} style={{ color: C.text }}>
+          <h2 className={`${display} text-[30px] mb-3`} style={{ fontWeight: 500, color: C.text }}>
             Your health record and continuity
           </h2>
           <p className="text-[14.5px] leading-[1.7] max-w-2xl mx-auto" style={{ color: C.text2 }}>
@@ -166,12 +171,12 @@ function RecordCards() {
           {/* NI Free */}
           <div id="free" className="rounded-2xl p-6 sm:p-7 h-full" style={{ ...card, background: '#FFFDF9' }}>
             <div className="flex items-center justify-between mb-4">
-              <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: C.goldInk }}>
+              <span className="text-[12px] tracking-[0.18em] uppercase" style={{ fontWeight: 600, color: C.eyebrowInk }}>
                 To begin
               </span>
               <StatusPill>Open now</StatusPill>
             </div>
-            <h3 className={`${display} text-[24px] font-light mb-1`} style={{ color: C.text }}>NI Free</h3>
+            <h3 className={`${display} text-[24px] mb-1`} style={{ color: C.text }}>NI Free</h3>
             <p className="text-[32px] leading-none font-light mb-1" style={{ color: C.text }}>Free</p>
             <p className="text-[13px] mb-4" style={{ color: C.muted }}>No card needed</p>
             <p className="text-[14px] leading-[1.7] mb-5" style={{ color: C.text2 }}>
@@ -194,12 +199,12 @@ function RecordCards() {
             style={{ background: '#FFFDF9', border: `1.5px solid ${C.goldLine}` }}
           >
             <div className="flex items-center justify-between mb-4">
-              <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: C.goldInk }}>
+              <span className="text-[12px] tracking-[0.18em] uppercase" style={{ fontWeight: 600, color: C.eyebrowInk }}>
                 For continuity
               </span>
               <StatusPill>Opening soon</StatusPill>
             </div>
-            <h3 className={`${display} text-[24px] font-light mb-1`} style={{ color: C.text }}>NI Membership</h3>
+            <h3 className={`${display} text-[24px] mb-1`} style={{ color: C.text }}>NI Membership</h3>
             <p className="text-[32px] leading-none font-light mb-1" style={{ color: C.text }}>
               {MEMBERSHIP_HEADLINE}
               <span className="text-[15px] font-normal ml-1" style={{ color: C.muted }}>/ month</span>
@@ -227,12 +232,12 @@ function RecordCards() {
           {/* NI Family Membership */}
           <div id="family" className="rounded-2xl p-6 sm:p-7 h-full" style={{ ...card, background: '#FFFDF9' }}>
             <div className="flex items-center justify-between mb-4">
-              <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: C.goldInk }}>
+              <span className="text-[12px] tracking-[0.18em] uppercase" style={{ fontWeight: 600, color: C.eyebrowInk }}>
                 For your household
               </span>
               <StatusPill>Opening later</StatusPill>
             </div>
-            <h3 className={`${display} text-[24px] font-light mb-1`} style={{ color: C.text }}>
+            <h3 className={`${display} text-[24px] mb-1`} style={{ color: C.text }}>
               NI Family Membership
             </h3>
             <p className="text-[20px] leading-tight font-light mb-1" style={{ color: C.text }}>
@@ -244,7 +249,7 @@ function RecordCards() {
             <p className="text-[14px] leading-[1.7] mb-4" style={{ color: C.text2 }}>
               One connected household. Private records for each adult.
             </p>
-            <p className="font-mono text-[10.5px] tracking-[0.12em] uppercase mb-3" style={{ color: C.goldInk }}>
+            <p className="text-[12px] tracking-[0.18em] uppercase mb-3" style={{ fontWeight: 600, color: C.eyebrowInk }}>
               Shared household context
             </p>
             <ul className="space-y-2 mb-6">
@@ -265,7 +270,7 @@ function RecordCards() {
           className="mt-8 rounded-xl px-6 py-5 text-center"
           style={{ background: C.sand, border: `1px solid ${C.border}` }}
         >
-          <p className={`${display} text-[20px] font-light leading-snug mb-2`} style={{ color: C.text }}>
+          <p className={`${display} text-[20px] leading-snug mb-2`} style={{ color: C.text }}>
             Membership pays for continuity. Professional care pays for defined human input.
           </p>
           <p className="text-[13.5px]" style={{ color: C.text2 }}>
@@ -314,7 +319,7 @@ function AtAGlance() {
   return (
     <section className="px-4 py-14" style={{ background: C.warm }}>
       <div className="max-w-6xl mx-auto">
-        <h2 className={`${display} text-[30px] font-light text-center mb-7`} style={{ color: C.text }}>
+        <h2 className={`${display} text-[30px] text-center mb-7`} style={{ fontWeight: 500, color: C.text }}>
           At a glance
         </h2>
         <div className="overflow-x-auto">
@@ -374,12 +379,12 @@ function OrganisationsAndAccess() {
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-5">
         <div id="organisations" className="rounded-2xl p-7" style={{ background: C.warm, border: `1px solid ${C.border}` }}>
           <div className="flex items-center justify-between mb-4">
-            <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: C.goldInk }}>
+            <span className="text-[12px] tracking-[0.18em] uppercase" style={{ fontWeight: 600, color: C.eyebrowInk }}>
               For organisations
             </span>
             <StatusPill>Bespoke</StatusPill>
           </div>
-          <h3 className={`${display} text-[24px] font-light mb-3`} style={{ color: C.text }}>
+          <h3 className={`${display} text-[24px] mb-3`} style={{ color: C.text }}>
             NI for Organisations
           </h3>
           <p className="text-[14px] leading-[1.7] mb-5" style={{ color: C.text2 }}>
@@ -402,12 +407,12 @@ function OrganisationsAndAccess() {
 
         <div className="rounded-2xl p-7" style={{ background: C.warm, border: `1px solid ${C.border}` }}>
           <div className="flex items-center justify-between mb-4">
-            <span className="font-mono text-[11px] tracking-[0.12em] uppercase" style={{ color: C.goldInk }}>
+            <span className="text-[12px] tracking-[0.18em] uppercase" style={{ fontWeight: 600, color: C.eyebrowInk }}>
               Subsidised access
             </span>
             <StatusPill>Based on eligibility</StatusPill>
           </div>
-          <h3 className={`${display} text-[24px] font-light mb-3`} style={{ color: C.text }}>
+          <h3 className={`${display} text-[24px] mb-3`} style={{ color: C.text }}>
             Cost should not be the reason you go without care.
           </h3>
           <p className="text-[14px] leading-[1.7] mb-6" style={{ color: C.text2 }}>
@@ -442,7 +447,7 @@ function OtherWaysToJoin() {
   return (
     <section className="px-4 py-12" style={{ background: C.botanical }}>
       <div className="max-w-5xl mx-auto">
-        <h2 className={`${display} text-[26px] font-light text-center mb-7`} style={{ color: C.cream }}>
+        <h2 className={`${display} text-[26px] text-center mb-7`} style={{ fontWeight: 500, color: C.cream }}>
           Other ways to join NI
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -463,7 +468,7 @@ function OtherWaysToJoin() {
                   Free
                 </span>
               </div>
-              <h3 className={`${display} text-[21px] font-light mb-3`} style={{ color: C.cream }}>
+              <h3 className={`${display} text-[21px] mb-3`} style={{ color: C.cream }}>
                 {w.name}
               </h3>
               <p className="text-[13.5px] leading-[1.7] mb-5" style={{ color: 'rgba(244,236,221,0.78)' }}>
@@ -484,7 +489,7 @@ function Closing() {
   return (
     <section className="px-4 py-14" style={{ background: C.cream }}>
       <div className="max-w-2xl mx-auto text-center">
-        <h2 className={`${display} text-[34px] font-light leading-tight mb-3`} style={{ color: C.text }}>
+        <h2 className={`${display} text-[34px] leading-tight mb-3`} style={{ fontWeight: 500, color: C.text }}>
           Begin free.
           <span className="block italic" style={{ color: C.pine }}>
             Add continuity or care when it helps.
@@ -503,7 +508,7 @@ function Footer() {
   return (
     <footer className="px-4 py-10" style={{ background: C.botanical }}>
       <div className="max-w-3xl mx-auto text-center">
-        <p className={`${display} text-[19px] font-light`} style={{ color: C.cream }}>
+        <p className={`${display} text-[19px]`} style={{ color: C.cream }}>
           Natural Intelligence
         </p>
         <p className={`${display} text-[14px] italic mb-5`} style={{ color: C.goldPale }}>
@@ -553,7 +558,7 @@ function FounderDecisionNotes() {
 
   return (
     <div className="rounded-xl p-6" style={{ background: C.warm, border: `1px dashed ${C.goldLine}` }}>
-      <p className="font-mono text-[11px] tracking-[0.12em] uppercase mb-1" style={{ color: C.goldInk }}>
+      <p className="text-[12px] tracking-[0.18em] uppercase mb-1" style={{ fontWeight: 600, color: C.eyebrowInk }}>
         Founder decision notes
       </p>
       <p className="text-[12.5px] mb-5" style={{ color: C.muted }}>
@@ -589,7 +594,22 @@ function FounderDecisionNotes() {
 
 function PricingPreviewBody() {
   return (
-    <div className="min-h-screen" style={{ background: C.cream, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div
+      className={`min-h-screen ${cormorant.variable}`}
+      style={{ background: C.cream, fontFamily: "'DM Sans', system-ui, sans-serif" }}
+    >
+      {/* Responsive swap for the two v14 visual geometries. The artboards ship
+          a labelled desktop drawing and a smaller unlabelled mobile one; this
+          picks between them in CSS so there is no hydration flash and no
+          viewport measurement. 768px is the artboards' own breakpoint. */}
+      <style>{`
+        .v14-mob-only { display: block; }
+        .v14-desk-only { display: none; }
+        @media (min-width: 768px) {
+          .v14-mob-only { display: none; }
+          .v14-desk-only { display: block; }
+        }
+      `}</style>
       <PreviewBanner />
       <Hero />
       <AudiencePaths />
